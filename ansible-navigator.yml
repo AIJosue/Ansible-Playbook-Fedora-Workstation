@@ -1,0 +1,18 @@
+---
+ansible-navigator:
+  ansible:
+    config:
+      path: ./ansible.cfg
+    inventory:
+      entries:
+        - ./inventory
+  execution-environment:
+    enabled: false
+  logging:
+    level: warning
+    append: true
+    file: .ansible-navigator.log
+  mode: stdout
+  playbook-artifact:
+    enable: false
+  time-zone: local

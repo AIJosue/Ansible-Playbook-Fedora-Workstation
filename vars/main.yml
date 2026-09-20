@@ -1,0 +1,265 @@
+---
+# System Identity
+workstation_hostname: "Desktop"
+
+# DNF Package Management
+workstation_package_groups:
+  - "@virtualization"
+
+workstation_removed_packages:
+  - 'akregator*'
+  - 'firefox*'
+  - 'kdepim*'
+  - 'libreoffice*'
+  - dragon
+  - kcalc
+  - kwrite
+  - neochat
+  - okular
+  - toolbox
+
+workstation_core_packages:
+  # Utilities and tools
+  - 7zip
+  - android-tools
+  - bleachbit
+  - calibre
+  - conda
+  - corectrl
+  - DisplayCAL
+  - distrobox
+  - fastfetch
+  - fish
+  - gtk3-devel
+  - libva-utils
+  - pidgin
+  - pidgin-otr
+  - snapd
+  - strace
+  - tldr
+  - tmux
+  - uv
+  - zsh
+  # Web Browsers
+  - google-chrome-stable
+  - microsoft-edge-stable
+  # Media & Audio
+  - clementine
+  - ffmpegthumbnailer
+  # Development & AI
+  - gh
+  - git-lfs
+  - godot
+  - nix
+  - nix-daemon
+  - ollama
+  - prusa-slicer
+  # KDE Utilities and Desktop Components
+  - kate
+  - kdegraphics-thumbnailers
+  - 'kio*'
+  - kmousetool
+  - krename
+  - krdc
+  - krusader
+  - ktimer
+  - kcron
+  - kclock
+  - dolphin-plugins
+  - ksystemlog
+  - kompare
+  - nextcloud-client-dolphin
+  # Container and Packaging Tools
+  - buildah
+  - flatpak-builder
+  - skopeo
+  # Virtualization and Container Infrastructure
+  - ansible
+  - ansible-collection-community-general
+  - gnome-boxes
+  - nbdkit
+  - 'incus-*'
+  - 'libguestfs*'
+  - 'podman*'
+  - podman-compose
+  - podman-docker
+  - podman-machine
+  - podman-remote
+  - podman-tui
+  - swtpm
+  - qemu-img
+  # Web Admin Console
+  - 'cockpit-*'
+  # VPN and Security
+  - protonvpn-stable-release
+  - proton-vpn-gnome-desktop
+  - proton-vpn-cli
+  - fail2ban
+  - fail2ban-firewalld
+  - fail2ban-systemd
+  - wireguard-tools
+  - nmap-ncat
+  # Typography and Fonts
+  - google-noto-fonts-all
+  - google-noto-color-emoji-fonts
+  - rsms-inter-fonts
+  # HashiCorp & Infrastructure as Code Tools
+  - boundary
+  - packer
+  - terraform
+  - terraform-ls
+  - terraform-stacks-cli
+  - vagrant
+  - vagrant-libvirt
+  - vagrant-cachier
+  - vagrant-sshfs
+  - vagrant-hostmanager
+  - vagrant-registration
+  - waypoint
+
+# Snap Packages
+workstation_snaps_standard:
+  - anbox-cloud-appliance
+  - audacity
+  - bitwarden
+  - chromium
+  - digikam
+  - firefox
+  - freecad
+  - gimp
+  - gnome-characters
+  - inkscape
+  - k3b
+  - kget
+  - lxd
+  - microcloud
+  - multipass
+  - node-red
+  - nordvpn
+  - obs-studio
+  - openvino-ai-plugins-gimp
+  - postman
+  - proton-mail
+  - snap-store
+  - steam
+  - tailscale
+  - telegram-desktop
+  - termius-app
+
+workstation_snaps_classic:
+  - blender
+  - code
+  - flutter
+  - powershell
+
+# System Services and Sockets
+workstation_system_services:
+  - libvirtd
+  - fail2ban
+  - nix-daemon
+  - sshd
+
+workstation_system_sockets:
+  - podman.socket
+  - cockpit.socket
+  - snapd.socket
+  - incus.socket
+
+# Flatpak Packages
+workstation_flatpaks_flathub:
+  - app.zen_browser.zen
+  - com.bambulab.BambuStudio
+  - com.brave.Browser
+  - com.collaboraoffice.Office
+  - com.github.polymeilex.neothesia
+  - com.github.wwmm.easyeffects
+  - com.moonlight_stream.Moonlight
+  - com.ranfdev.DistroShelf
+  - com.usebottles.bottles
+  - dev.lizardbyte.app.Sunshine
+  - fr.handbrake.ghb
+  - fr.romainvigier.MetadataCleaner
+  - io.anytype.anytype
+  - io.ente.auth
+  - io.github.CyberTimon.RapidRAW
+  - io.github.flattool.Warehouse
+  - io.github.peazip.PeaZip
+  - io.podman_desktop.PodmanDesktop
+  - it.mijorus.gearlever
+  - me.timschneeberger.jdsp4linux
+  - net.ankiweb.Anki
+  - net.lutris.Lutris
+  - net.xmind.XMind
+  - org.fcast.Receiver
+  - org.gnome.Evince
+  - org.gnome.Firmware
+  - org.gnome.Maps
+  - org.gnome.Snapshot
+  - org.gnome.Weather
+  - org.gnome.World.PikaBackup
+  - org.gnome.design.IconLibrary
+  - org.kde.CrowTranslate
+  - org.kde.cantor
+  - org.kde.drawy
+  - org.kde.francis
+  - org.kde.glaxnimate
+  - org.kde.haruna
+  - org.kde.itinerary
+  - org.kde.kalk
+  - org.kde.kalm
+  - org.kde.kdenlive
+  - org.kde.kid3
+  - org.kde.kodaskanna
+  - org.kde.krita
+  - org.kde.kst
+  - org.kde.labplot
+  - org.kde.merkuro
+  - org.kde.tellico
+  - org.keepassxc.KeePassXC
+  - org.localsend.localsend_app
+  - org.nicotine_plus.Nicotine
+  - org.qbittorrent.qBittorrent
+  - org.vanillaos.ApxGUI
+  - org.vinegarhq.Sober
+  - tv.kodi.Kodi
+
+workstation_flatpaks_fedora:
+  - org.clementine_player.Clementine
+  - org.gnome.Evolution
+  - org.gnome.Meld
+  - org.kde.rocs
+
+# AppImages
+workstation_appimages_direct:
+  - url: 'https://downloader.cursor.sh/linux/appImage/x64'
+    dest: 'cursor.appimage'
+  - url: 'https://releases.lmstudio.ai/linux/x86/latest/LM_Studio-linux-x86.AppImage'
+    dest: 'lmstudio.appimage'
+
+workstation_appimages_github:
+  - repo: 'darktable-org/darktable'
+    pattern: 'x86_64.*\\.AppImage'
+    dest: 'darktable.appimage'
+  - repo: 'janhq/jan'
+    pattern: 'amd64\\.AppImage'
+    dest: 'jan.appimage'
+  - repo: 'LostRuins/koboldcpp'
+    pattern: 'linux-x64'
+    dest: 'koboldcpp-linux-x64'
+  - repo: 'LMMS/lmms'
+    pattern: 'linux-x86_64\\.AppImage'
+    dest: 'lmms.appimage'
+  - repo: 'musescore/MuseScore'
+    pattern: 'x86_64\\.AppImage'
+    dest: 'musescore.appimage'
+  - repo: 'barry-ran/QtScrcpy'
+    pattern: 'x64.*\\.AppImage'
+    dest: 'qtscrcpy.appimage'
+  - repo: 'loft-sh/devpod'
+    pattern: 'amd64\\.AppImage'
+    dest: 'devpod.appimage'
+
+# Firewall Configuration
+workstation_firewall_services:
+  - ssh
+  - cockpit

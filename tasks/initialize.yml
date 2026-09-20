@@ -1,8 +1,13 @@
-- name: Set system hostname
+---
+- name: Configure system hostname
   ansible.builtin.hostname:
-    name: "{{ hostname }}"
-    
-- name: Define VMs via virsh
-  command: "virsh define {{ item }}"
-  with_fileglob:
-    - "../VMs/*.xml"
+    name: "{{ workstation_hostname }}"
+  become: true
+
+- name: Define virtual machines from XML definitions
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('ansible.builtin.file', item) }}"
+  become: true
+  loop: "{{ query('ansible.builtin.fileglob', playbook_dir ~ '/VMs/*.xml') }}"
+  when: query('ansible.builtin.fileglob', playbook_dir ~ '/VMs/*.xml') | length > 0

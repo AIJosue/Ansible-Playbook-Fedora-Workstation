@@ -11,6 +11,9 @@ install:
   # Check ansible version
   - ansible --version
 
+  # Install collection dependencies
+  - ansible-galaxy collection install -r requirements.yml
+
 script:
-  # Basic role syntax check
+  # Basic playbook syntax check
   - ansible-playbook local.yml --syntax-check

@@ -1,0 +1,34 @@
+---
+- name: Ensure SELinux is configured to targeted enforcing mode
+  ansible.posix.selinux:
+    policy: targeted
+    state: enforcing
+  become: true
+
+- name: Ensure firewalld service is enabled and started
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+  become: true
+
+- name: Configure firewalld rules for core workstation services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  become: true
+  loop: "{{ workstation_firewall_services }}"
+  notify: "reload firewalld"
+
+- name: Harden SSH daemon configuration (limit authentication retries)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?MaxAuthTries\s+'
+    line: 'MaxAuthTries 3'
+    state: present
+    backup: true
+    validate: 'sshd -t -f %s'
+  become: true
+  notify: "restart sshd"
