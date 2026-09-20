@@ -1,12 +1,5 @@
 ---
-- name: Perform system package upgrade
-  become: true
-  block:
-    - name: Upgrade all system packages to latest
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
-  rescue:
-    - name: Report package upgrade failure
-      ansible.builtin.debug:
-        msg: "System package update failed. Verify DNF database integrity and active repository metadata."
+- name: Update system
+  dnf: 
+    name: "*"
+    state: latest

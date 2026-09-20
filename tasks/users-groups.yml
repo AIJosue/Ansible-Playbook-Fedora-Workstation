@@ -1,47 +1,17 @@
----
-- name: Ensure required administrative groups exist
-  ansible.builtin.group:
-    name: "{{ item }}"
+- name: Create users and assign to necessary system groups
+  ansible.builtin.user:
+    name: "{{ item.name }}"
     state: present
-  become: true
+    groups: "{{ item.groups }}"
+    append: yes # Ensures they are added to these groups without removing them from others
+    create_home: yes
+    shell: /bin/bash # /bin/bash (default), /bin/zsh, /usr/bin/fish
   loop:
-    - wheel
-    - libvirt
-    - video
-    - render
-
-- name: Provision workstation administrator user
-  ansible.builtin.user:
-    name: "{{ workstation_admin_user }}"
-    state: present
-    groups: 'wheel,libvirt,incus-admin,lxd,video,render'
-    append: true
-    create_home: true
-    shell: /bin/bash
-    password: "{{ workstation_admin_password | sha512_hash if (workstation_admin_password | length > 0) else omit }}"
-  become: true
-  no_log: true
-  when: workstation_admin_user | length > 0
-
-- name: Provision standard workstation user
-  ansible.builtin.user:
-    name: "{{ workstation_standard_user }}"
-    state: present
-    groups: 'libvirt,incus,video,render'
-    append: true
-    create_home: true
-    shell: /bin/bash
-    password: "{{ workstation_standard_password | sha512_hash if (workstation_standard_password | length > 0) else omit }}"
-  become: true
-  no_log: true
-  when: workstation_standard_user | length > 0
-
-- name: Ensure guest user exists with restricted access
-  ansible.builtin.user:
-    name: guest
-    state: present
-    groups: ''
-    append: false
-    create_home: true
-    shell: /bin/bash
-  become: true
+    # Current user running the playbook (captures the real user even if running via sudo)
+    - { name: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}", groups: 'wheel,libvirt,incus-admin,lxd' }
+    # Admins get root access (wheel) plus full control over hypervisors (libvirt, incus-admin, lxd)
+    - { name: 'admin', groups: 'wheel,libvirt,incus-admin,lxd' }
+    # Standard users get standard virtualization access (libvirt, incus), but no wheel
+    - { name: 'user', groups: 'libvirt,incus' }
+    # Guests get no special access
+    - { name: 'guest', groups: '' }

@@ -1,20 +1,44 @@
----
 - name: Create a symlink for snapd
-  ansible.builtin.file:
+  file:
     src: "/var/lib/snapd/snap"
     dest: "/snap"
     state: link
-  become: true
-
+  
 - name: Install Snap packages (Standard)
-  community.general.snap:
-    name: "{{ workstation_snaps_standard }}"
-    state: present
-  become: true
+  snap:
+    name:
+      - anbox-cloud-appliance
+      - audacity
+      - bitwarden
+      - chromium
+      - digikam
+      - firefox
+      - freecad
+      - gimp
+      - gnome-characters
+      - inkscape
+      - k3b
+      - kget
+      - lxd
+      - microcloud
+      - multipass
+      - node-red
+      - nordvpn
+      - obs-studio
+      - openvino-ai-plugins-gimp
+      - postman
+      - proton-mail
+      - snap-store
+      - steam
+      - tailscale
+      - telegram-desktop
+      - termius-app
 
 - name: Install Snap packages with --classic flag
-  community.general.snap:
-    classic: true
-    name: "{{ workstation_snaps_classic }}"
-    state: present
-  become: true
+  snap:
+    classic: yes
+    name:
+      - blender
+      - code
+      - flutter
+      - powershell

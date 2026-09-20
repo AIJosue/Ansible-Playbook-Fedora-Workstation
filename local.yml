@@ -1,92 +1,39 @@
 ---
-- name: Provision and configure Fedora Workstation
-  hosts: localhost
+- hosts: localhost
   connection: local
-  become: false
-
-  vars_prompt:
-    - name: workstation_admin_user
-      prompt: "Enter primary administrator username"
-      private: false
-      default: "{{ lookup('ansible.builtin.env', 'SUDO_USER') | default(lookup('ansible.builtin.env', 'USER'), true) }}"
-
-    - name: workstation_admin_password
-      prompt: "Enter password for administrator user (leave blank to leave unchanged)"
-      private: true
-      default: ""
-
-    - name: workstation_standard_user
-      prompt: "Enter standard non-root username (or leave blank to skip)"
-      private: false
-      default: "user"
-
-    - name: workstation_standard_password
-      prompt: "Enter password for standard user (leave blank to leave unchanged)"
-      private: true
-      default: ""
-
-  vars_files:
-    - vars/main.yml
-
+  become: true
   vars:
-    target_user: "{{ workstation_admin_user }}"
-    xml_dir: "/home/{{ workstation_admin_user }}/XMLs"
-
-  handlers:
-    - name: Include handlers
-      ansible.builtin.import_tasks: handlers/main.yml
-
-  pre_tasks:
-    - name: Pre-flight OS distribution and architecture validation
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['distribution'] == 'Fedora'
-          - ansible_facts['os_family'] == 'RedHat'
-        fail_msg: "This automation suite is engineered specifically for Fedora Workstation. Detected: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}."
-        success_msg: "Target OS verified: Fedora Workstation (Release: {{ ansible_facts['distribution_version'] }})."
-      tags: [always]
+    hostname: "fedora" # CHANGE THIS: Desired system hostname
+    xml_dir: "$HOME/XMLs" # CHANGE THIS: Path to XML files
 
   tasks:
-    - name: Configure system repositories
-      ansible.builtin.include_tasks: tasks/repositories.yml
-      tags: [repositories]
+    - name: Configure repositories
+      include_tasks: tasks/repositories.yml
 
-    - name: Enforce security posture and firewall
-      ansible.builtin.include_tasks: tasks/security.yml
-      tags: [security, firewall, selinux]
+    - name: Update system
+      include_tasks: tasks/update.yml
 
-    - name: Update system packages
-      ansible.builtin.include_tasks: tasks/update.yml
-      tags: [update]
+    - name: Install packages
+      include_tasks: tasks/packages.yml
 
-    - name: Manage packages via DNF
-      ansible.builtin.include_tasks: tasks/packages.yml
-      tags: [packages]
+    - name: Install snaps
+      include_tasks: tasks/snaps.yml
 
-    - name: Install Snap packages
-      ansible.builtin.include_tasks: tasks/snaps.yml
-      tags: [snaps]
+    - name: Enable system services
+      include_tasks: tasks/services.yml
 
-    - name: Enable system services and sockets
-      ansible.builtin.include_tasks: tasks/services.yml
-      tags: [services]
-
-    - name: Install Flatpak applications
-      ansible.builtin.include_tasks: tasks/flatpaks.yml
-      tags: [flatpaks]
+    - name: Install flatpaks
+      include_tasks: tasks/flatpaks.yml
 
     - name: Configure users and groups
-      ansible.builtin.include_tasks: tasks/users-groups.yml
-      tags: [users]
+      include_tasks: tasks/users-groups.yml
+      
+    - name: Initialize system
+      include_tasks: tasks/initialize.yml #in-progress
 
-    - name: Initialize system and virtualization
-      ansible.builtin.include_tasks: tasks/initialize.yml
-      tags: [initialize]
-
-    - name: Install standalone AppImages
-      ansible.builtin.include_tasks: tasks/appimages.yml
-      tags: [appimages]
-
-    - name: Install CLI utilities and configure shell
-      ansible.builtin.include_tasks: tasks/utilities.yml
-      tags: [utilities]
+    - name: Install and configure Homebrew #in-progress
+      include_tasks: tasks/homebrew.yml
+      args:
+        apply:
+          become: yes
+          become_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
