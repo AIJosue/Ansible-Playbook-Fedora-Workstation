@@ -1,0 +1,27 @@
+---
+- name: Ensure AppImages directory exists
+  ansible.builtin.file:
+    path: "/home/{{ target_user }}/AppImages"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+
+- name: Download direct AppImages via HTTP(S)
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/home/{{ target_user }}/AppImages/{{ item.dest }}"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  loop: "{{ workstation_appimages_direct }}"
+
+- name: Download AppImages from GitHub latest releases
+  github_release_asset:
+    repo: "{{ item.repo }}"
+    pattern: "{{ item.pattern }}"
+    dest: "/home/{{ target_user }}/AppImages/{{ item.dest }}"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  loop: "{{ workstation_appimages_github }}"

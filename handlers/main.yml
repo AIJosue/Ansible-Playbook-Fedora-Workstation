@@ -1,0 +1,26 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: "reload systemd"
+  become: true
+
+- name: Refresh DNF cache
+  ansible.builtin.dnf:
+    update_cache: true
+  listen: "refresh dnf cache"
+  become: true
+
+- name: Restart SSH service
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: restarted
+  listen: "restart sshd"
+  become: true
+
+- name: Reload firewalld service
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: reloaded
+  listen: "reload firewalld"
+  become: true

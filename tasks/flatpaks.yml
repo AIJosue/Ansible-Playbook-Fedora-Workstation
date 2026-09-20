@@ -1,7 +1,9 @@
+---
 - name: Ensure flatpak is installed
-  ansible.builtin.package:
+  ansible.builtin.dnf:
     name: flatpak
     state: present
+  become: true
 
 # --- REPOSITORY SETUP ---
 
@@ -11,6 +13,7 @@
     state: present
     method: system
     flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+  become: true
 
 - name: Add the Fedora Flatpak repository
   community.general.flatpak_remote:
@@ -18,78 +21,22 @@
     state: present
     method: system
     flatpakrepo_url: oci+https://registry.fedoraproject.org
+  become: true
 
 # --- INSTALLATION SECTIONS ---
 
 - name: Install packages from Flathub
   community.general.flatpak:
-    name:
-      - app.zen_browser.zen
-      - com.bambulab.BambuStudio
-      - com.brave.Browser
-      - com.collaboraoffice.Office
-      - com.github.polymeilex.neothesia
-      - com.github.wwmm.easyeffects
-      - com.moonlight_stream.Moonlight
-      - com.ranfdev.DistroShelf
-      - com.usebottles.bottles
-      - dev.lizardbyte.app.Sunshine
-      - fr.handbrake.ghb
-      - fr.romainvigier.MetadataCleaner
-      - io.anytype.anytype
-      - io.ente.auth
-      - io.github.CyberTimon.RapidRAW
-      - io.github.flattool.Warehouse
-      - io.github.peazip.PeaZip
-      - io.podman_desktop.PodmanDesktop
-      - it.mijorus.gearlever
-      - me.timschneeberger.jdsp4linux
-      - net.ankiweb.Anki
-      - net.lutris.Lutris
-      - net.xmind.XMind
-      - org.fcast.Receiver
-      - org.gnome.Evince
-      - org.gnome.Firmware
-      - org.gnome.Maps
-      - org.gnome.Snapshot
-      - org.gnome.Weather
-      - org.gnome.World.PikaBackup
-      - org.gnome.design.IconLibrary
-      - org.kde.CrowTranslate
-      - org.kde.cantor
-      - org.kde.drawy
-      - org.kde.francis
-      - org.kde.glaxnimate
-      - org.kde.haruna
-      - org.kde.itinerary
-      - org.kde.kalk
-      - org.kde.kalm
-      - org.kde.kdenlive
-      - org.kde.kid3
-      - org.kde.kodaskanna
-      - org.kde.krita
-      - org.kde.kst
-      - org.kde.labplot
-      - org.kde.merkuro
-      - org.kde.tellico
-      - org.keepassxc.KeePassXC
-      - org.localsend.localsend_app
-      - org.nicotine_plus.Nicotine
-      - org.qbittorrent.qBittorrent
-      - org.vanillaos.ApxGUI
-      - org.vinegarhq.Sober
-      - tv.kodi.Kodi
+    name: "{{ workstation_flatpaks_flathub }}"
     state: present
     method: system
     remote: flathub
+  become: true
 
 - name: Install packages from Fedora Repo
   community.general.flatpak:
-    name:
-      - org.clementine_player.Clementine
-      - org.gnome.Evolution
-      - org.gnome.Meld
-      - org.kde.rocs
+    name: "{{ workstation_flatpaks_fedora }}"
     state: present
     method: system
     remote: fedora
+  become: true

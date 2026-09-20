@@ -1,21 +1,16 @@
+---
 - name: Enable and start system services
-  become: true
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: "{{ item }}"
     enabled: true
     state: started
-  loop:
-    - libvirtd
-    - fail2ban
-    - nix-daemon
+  become: true
+  loop: "{{ workstation_system_services }}"
 
 - name: Enable and start system sockets
-  become: true
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: "{{ item }}"
     enabled: true
     state: started
-  loop:
-    - podman.socket
-    - cockpit.socket
-    - snapd.socket
+  become: true
+  loop: "{{ workstation_system_sockets }}"
