@@ -1,3 +1,0 @@
-use this guide to improve the playbook
-
-[Context: Red Hat Certified Engineer (RHCE) Ansible Automation Study Guide by Alex Soto Bueno and Andrew Block (O'Reilly 2025)]
