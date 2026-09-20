@@ -8,7 +8,7 @@ exec > >(tee -a "${LOG_FILE}") 2>&1
 
 echo "Starting package installation. Logging to ${LOG_FILE}..."
 
-dnf install -y --skip-unavailable \
+dnf install -y \
     @virtualization \
     7zip android-tools bleachbit calibre conda corectrl DisplayCAL distrobox fastfetch fish gtk3-devel libva-utils pidgin pidgin-otr snapd strace tldr tmux uv zsh \
     google-chrome-stable microsoft-edge-stable \
@@ -22,6 +22,7 @@ dnf install -y --skip-unavailable \
     protonvpn-stable-release proton-vpn-gnome-desktop proton-vpn-cli \
     fail2ban fail2ban-firewalld fail2ban-systemd \
     wireguard-tools nmap-ncat \
+    zoom \
     google-noto-fonts-all google-noto-color-emoji-fonts rsms-inter-fonts \
     boundary packer terraform terraform-ls terraform-stacks-cli vagrant vagrant-libvirt vagrant-cachier vagrant-sshfs vagrant-hostmanager vagrant-registration waypoint \
     ffmpegthumbnailer

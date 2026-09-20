@@ -1,19 +1,17 @@
 ---
-- name: Manage workstation packages via DNF
+- name: Force remove packages via DNF shell command
+  ansible.builtin.shell: "dnf remove -y 'akregator*' 'firefox*' 'kdepim*' 'libreoffice*' dragon kcalc kwrite neochat okular toolbox && dnf autoremove -y"
   become: true
-  block:
-    - name: Remove unwanted default desktop packages
-      ansible.builtin.dnf:
-        name: "{{ workstation_removed_packages }}"
-        state: absent
-        autoremove: true
+  register: dnf_shell_output
+  changed_when: "'Nothing to do' not in dnf_shell_output.stdout"
 
-    - name: Install workstation package groups and core software
-      ansible.builtin.dnf:
-        name: "{{ workstation_package_groups + workstation_core_packages }}"
-        state: present
-        skip_broken: true
-  rescue:
-    - name: Handle DNF transaction failure
-      ansible.builtin.debug:
-        msg: "A DNF package operation encountered an error. Verify repository availability, network connectivity, and transaction locks."
+- name: Print the DNF removal output
+  ansible.builtin.debug:
+    msg: "{{ dnf_shell_output.stdout_lines }}"
+
+- name: Install packages script
+  ansible.builtin.script: ../Scripts/packages.sh
+  become: true
+  args:
+    # This prevents the script from running again if this file exists
+    creates: /var/log/packages.log

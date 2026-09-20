@@ -101,7 +101,7 @@
     </controller>
     <filesystem type='mount' accessmode='passthrough'>
       <driver type='virtiofs'/>
-      <source dir='/home/{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}/Public'/>
+      <source dir='/home/username/Public'/>
       <target dir='mount_tag_public'/>
       <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
     </filesystem>
