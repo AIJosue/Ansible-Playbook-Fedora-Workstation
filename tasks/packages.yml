@@ -1,6 +1,6 @@
 ---
 - name: Force remove packages via DNF shell command
-  ansible.builtin.shell: "dnf remove -y 'akregator*' 'firefox*' 'kdepim*' 'libreoffice*' dragon kcalc kwrite neochat okular toolbox && dnf autoremove -y"
+  ansible.builtin.shell: "dnf remove -y 'akregator*' 'firefox*' 'kdepim*' 'libreoffice*' dragon kcalc kwrite neochat okular toolbox blender && dnf autoremove -y"
   become: true
   register: dnf_shell_output
   changed_when: "'Nothing to do' not in dnf_shell_output.stdout"

@@ -19,7 +19,7 @@ dnf install -y \
     buildah flatpak-builder skopeo \
     ansible ansible-collection-community-general gnome-boxes nbdkit 'incus-*' 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
     'cockpit-*' \
-    protonvpn-stable-release proton-vpn-gnome-desktop proton-vpn-cli \
+    #protonvpn-stable-release proton-vpn-gnome-desktop proton-vpn-cli \
     fail2ban fail2ban-firewalld fail2ban-systemd \
     wireguard-tools nmap-ncat \
     zoom \

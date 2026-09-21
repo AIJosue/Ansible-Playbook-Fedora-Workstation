@@ -1,3 +1,11 @@
+TODO
+dnf install @virtualization fail2ban gnome-disk-utility *-sound-theme plasma-mobile-sounds *-kde-kvantum *-gtk-theme *-kde-theme arc-kde qtcurve materia-kde *-icon-theme plasma-browser-integration *-plasma-applet aurorae  clang cmake ansible-collection* --skip-unavailable && systemctl enable --now incus && incus admin init --minimal && sudo snap install flutter --classic
+
+Changes:
+Added auto removal of blender
+Removed ProtonVPN
+Added auto enable incus and sshd services 
+
 # Ansible Post-Install Playbook for Fedora
 
 An **Ansible playbook** that automates the post-installation setup of a Fedora workstation.  
