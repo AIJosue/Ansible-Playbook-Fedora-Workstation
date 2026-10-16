@@ -26,14 +26,6 @@
     gpgkey: https://packages.microsoft.com/keys/microsoft.asc
     enabled: yes
 
-- name: Add Microsoft Production repository
-  yum_repository:
-    name: packages-microsoft-com-prod
-    description: Microsoft Production
-    baseurl: https://packages.microsoft.com/fedora/41/prod/
-    gpgcheck: yes
-    gpgkey: https://packages.microsoft.com/keys/microsoft.asc
-    enabled: yes
 
 - name: Add Microsoft Teams repository
   yum_repository:

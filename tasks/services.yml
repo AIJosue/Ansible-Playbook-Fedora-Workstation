@@ -8,6 +8,10 @@
     - libvirtd
     - fail2ban
     - nix-daemon
+    - sshd
+    - incus
+    - tailscaled
+    - ollama
 
 - name: Enable and start system sockets
   become: true
@@ -20,4 +24,30 @@
     - cockpit.socket
     - snapd.socket
     - incus.socket
-    - sshd.service
+
+- name: Create Docker compatibility symlink for Podman socket
+  become: true
+  ansible.builtin.file:
+    src: /run/podman/podman.sock
+    dest: /var/run/docker.sock
+    state: link
+    force: yes
+
+- name: Ensure firewalld service is enabled and started
+  become: true
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: Configure core workstation services in firewall
+  become: true
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - ssh
+    - cockpit
+    - kdeconnect

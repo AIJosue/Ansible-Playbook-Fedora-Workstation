@@ -1,3 +1,18 @@
+- name: Ensure required system groups exist
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop:
+    - wheel
+    - libvirt
+    - incus-admin
+    - incus
+    - lxd
+    - nordvpn
+    - render
+    - video
+
 - name: Create users and assign to necessary system groups
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -8,10 +23,59 @@
     shell: /bin/bash # /bin/bash (default), /bin/zsh, /usr/bin/fish
   loop:
     # Current user running the playbook (captures the real user even if running via sudo)
-    - { name: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}", groups: 'wheel,libvirt,incus-admin,lxd' }
-    # Admins get root access (wheel) plus full control over hypervisors (libvirt, incus-admin, lxd)
-    - { name: 'admin', groups: 'wheel,libvirt,incus-admin,lxd' }
-    # Standard users get standard virtualization access (libvirt, incus), but no wheel
-    - { name: 'user', groups: 'libvirt,incus' }
+    - { name: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}", groups: 'wheel,libvirt,incus-admin,lxd,nordvpn,render,video' }
+    # Admins get root access (wheel) plus full control over hypervisors, VPN, and GPU compute (render, video)
+    - { name: 'admin', groups: 'wheel,libvirt,incus-admin,lxd,nordvpn,render,video' }
+    # Standard users get standard virtualization and GPU access (libvirt, incus, render, video), but no wheel
+    - { name: 'user', groups: 'libvirt,incus,render,video' }
     # Guests get no special access
     - { name: 'guest', groups: '' }
+
+- name: Ensure Desktop directory exists for user accounts
+  ansible.builtin.file:
+    path: "/home/{{ item }}/Desktop"
+    state: directory
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0755'
+  become: true
+  loop:
+    - user
+    - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+  when: item != 'root'
+
+- name: Deploy interactive setup script to user Desktop
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/Scripts/setup-user-environment.sh"
+    dest: "/home/{{ item }}/Desktop/setup-user-environment.sh"
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0755'
+  become: true
+  loop:
+    - user
+    - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+  when: item != 'root'
+
+- name: Deploy desktop launcher for user environment setup
+  ansible.builtin.copy:
+    dest: "/home/{{ item }}/Desktop/Setup-User-Environment.desktop"
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Setup User Environment
+      Comment=Interactive setup for Homebrew, Pixi, and Terminal utilities
+      Exec=/home/{{ item }}/Desktop/setup-user-environment.sh
+      Icon=utilities-terminal
+      Terminal=true
+      Categories=System;Utility;
+      StartupNotify=true
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0755'
+  become: true
+  loop:
+    - user
+    - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+  when: item != 'root'
+

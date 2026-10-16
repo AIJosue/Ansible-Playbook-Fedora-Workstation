@@ -7,10 +7,10 @@
 - name: Install Snap packages (Standard)
   snap:
     name:
-      - anbox-cloud-appliance
       - audacity
       - bitwarden
       - chromium
+      - cups
       - digikam
       - firefox
       - freecad
@@ -19,15 +19,14 @@
       - inkscape
       - k3b
       - kget
-      - lxd
       - microcloud
-      - multipass
       - node-red
       - nordvpn
       - obs-studio
       - openvino-ai-plugins-gimp
       - postman
-      - proton-mail
+      - proton-vpn
+      - remmina
       - snap-store
       - steam
       - tailscale
@@ -38,6 +37,8 @@
   snap:
     classic: yes
     name:
+      - antigravity
+      - antigravity-ide-snap
       - blender
       - code
       - flutter

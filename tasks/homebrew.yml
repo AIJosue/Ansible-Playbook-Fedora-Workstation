@@ -17,3 +17,25 @@
   when: not brew_check.stat.exists
   become: false # Critical: Homebrew must be installed as a regular user
 
+- name: Configure system-wide Homebrew shell environment in profile.d
+  ansible.builtin.copy:
+    dest: /etc/profile.d/homebrew.sh
+    content: |
+      # Set up Homebrew shell environment
+      if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      fi
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  become_user: root
+
+- name: Ensure Homebrew shellenv is loaded in user bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+    state: present
+    create: yes
+  become: false
+

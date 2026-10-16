@@ -3,7 +3,7 @@
   connection: local
   become: true
   vars:
-    hostname: "fedora" # CHANGE THIS: Desired system hostname
+    hostname: "Desktop" # CHANGE THIS: Desired system hostname
     xml_dir: "$HOME/XMLs" # CHANGE THIS: Path to XML files
 
   tasks:

@@ -1,10 +1,18 @@
-TODO
-dnf install @virtualization fail2ban gnome-disk-utility *-sound-theme plasma-mobile-sounds *-kde-kvantum *-gtk-theme *-kde-theme arc-kde qtcurve materia-kde *-icon-theme plasma-browser-integration *-plasma-applet aurorae  clang cmake ansible-collection* --skip-unavailable && systemctl enable --now incus && incus admin init --minimal && sudo snap install flutter --classic
-
 Changes:
-Added auto removal of blender
-Removed ProtonVPN
-Added auto enable incus and sshd services 
+- Added auto removal of blender
+- Removed ProtonVPN
+- Added auto enable incus and sshd services
+- Added KDE customization packages (themes, sounds, applets, kvantum, aurorae, SDDM themes, Plasma addons), clang, cmake, nodejs, btrfs-assistant, gnome-disk-utility, and ansible collections to DNF package installation
+- Added Incus container runtime initialization (`incus admin init --minimal`)
+- Added automated download and installation of the latest Pinokio RPM from GitHub releases
+- Updated Snap packages to match active workstation configuration (removed unused lxd, multipass, anbox; added remmina, cups, proton-vpn, antigravity)
+- Added `nordvpn` group to user provisioning, `tailscaled.service` to system services, and automated Homebrew shellenv/PATH configuration
+- Added Local AI & LLM acceleration (ROCm RX 6000 GPU override, ollama.service, AppImages directory, render/video user groups)
+- Added Container & Virtualization enhancements (Docker socket compatibility symlink, Incus subordinate UID/GID mapping, virt-manager, libvirt default network autostart)
+- Added Firewalld service rules for ssh, cockpit (port 9090), and kdeconnect
+- Removed `packages-microsoft-com-prod` repository
+- Added interactive user post-install setup script (`Scripts/setup-user-environment.sh`) and desktop launcher for on-demand configuration of Homebrew, Pixi, and TLDR/terminal utilities
+
 
 # Ansible Post-Install Playbook for Fedora
 
@@ -59,7 +67,7 @@ cd Ansible-Playbook-Fedora-Workstation
 
 ```yaml
 vars:
-  hostname: "fedora"       # Change to your desired hostname
+  hostname: "Desktop"      # Change to your desired hostname
   xml_dir: "$HOME/XMLs"   # Path to VM XML definitions
 ```
 
@@ -87,7 +95,6 @@ Adds third-party YUM/DNF repositories for:
 
 - **Google Chrome**
 - **Microsoft Edge**
-- **Microsoft Production**
 - **Microsoft Teams**
 - **ProtonVPN**
 - **Visual Studio Code**
@@ -100,34 +107,39 @@ Upgrades all installed packages to their **latest versions** using `dnf`.
 
 ### 3. Install DNF Packages
 
-Removes unwanted default packages (Firefox, LibreOffice, KDE bloat) and installs a curated set including:
+Removes unwanted default packages (Firefox, LibreOffice, KDE bloat, Blender) and installs a curated set including:
 
-- **Browsers** — Google Chrome, Microsoft Edge
-- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix
-- **Virtualization** — Vagrant, libguestfs, Incus, Cockpit, QEMU, Podman
-- **Utilities** — 7zip, BleachBit, fastfetch, fish shell, zsh
+- **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio, Ollama
+- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, Ansible collections
+- **Virtualization** — Vagrant, libguestfs, Incus, Cockpit, QEMU, Podman, Virt-Manager
+- **Utilities** — 7zip, BleachBit, Btrfs Assistant, fastfetch, fish shell, zsh, GNOME Disk Utility
 - **Security** — Fail2Ban
-- **Networking** — ProtonVPN
+- **Networking** — WireGuard, Ncat
 - **Communication** — Zoom
-- **KDE Apps** — Kate, Krusader, Dolphin plugins, and more
+- **KDE Apps & Themes** — Kate, Krusader, Dolphin plugins, sound themes, icon themes, Kvantum, GTK/KDE themes, SDDM themes, Plasma addons & applets, Aurorae, and more
 
 ### 4. Install Snap Packages
 
 Sets up `snapd` and installs applications via Snap:
 
-- **Standard** — Bitwarden, Chromium, GIMP, Inkscape, OBS Studio, Postman, Steam, Telegram, Thunderbird, and others
-- **Classic** — Blender, VS Code, Flutter, PowerShell
+- **Standard** — Bitwarden, Chromium, CUPS, GIMP, Inkscape, OBS Studio, Postman, Proton VPN, Remmina, Steam, Tailscale, Telegram, and others
+- **Classic** — Antigravity, Blender, VS Code, Flutter, PowerShell
 
-### 5. Enable System Services
+### 5. Enable System Services & Firewall
 
-Starts and enables key services:
+Starts, enables, and secures key services and sockets:
 
-- `podman.socket`
+- `podman.socket` and `/var/run/docker.sock` compatibility symlink
 - `libvirtd.service`
 - `fail2ban.service`
 - `cockpit.socket`
 - `snapd.socket`
 - `nix-daemon.socket`
+- `sshd.service`
+- `incus.service` / `incus.socket`
+- `tailscaled.service`
+- `ollama.service` (Local LLM daemon)
+- `firewalld.service` with rules for `ssh`, `cockpit`, and `kdeconnect`
 
 ### 6. Install Flatpaks
 
@@ -141,17 +153,30 @@ Adds the **Flathub** and **Fedora** Flatpak repositories, then installs a wide s
 ### 7. Initialize System
 
 - Sets the system **hostname**
-- Initializes **Incus** and **LXD** container runtimes
+- Configures ROCm AMD GPU compute override (`HSA_OVERRIDE_GFX_VERSION=10.3.0`)
+- Ensures `~/AppImages` directory exists for portable AI and media tools
+- Configures subordinate UID/GID mappings in `/etc/subuid` and `/etc/subgid` for unprivileged containers
+- Initializes **Incus** container runtime (`incus admin init --minimal`)
+- Activates and autostarts the **libvirt** default virtual network
+- Defines virtual machine configurations via `virsh`
 
 ### 8. Configure Users and Groups
 
-Creates three user profiles with appropriate group memberships:
+Creates user profiles with appropriate group memberships:
 
 | User    | Access Level |
 |---------|-------------|
-| `admin` | Full sudo/wheel, libvirt, incus-admin, lxd, nordvpn, corectrl |
-| `user`  | Standard virtualization and VPN access, no sudo |
+| `admin` | Full sudo/wheel, libvirt, incus-admin, lxd, nordvpn, render, video, corectrl |
+| `user`  | Standard virtualization, GPU compute, and VPN access, no sudo |
 | `guest` | No special group access |
+
+#### Interactive User Environment Setup Script
+
+To preserve clean separation and allow users or administrators to decide what gets installed on an account, an interactive utility (`setup-user-environment.sh`) and a desktop launcher (`Setup-User-Environment.desktop`) are deployed directly to the user's `~/Desktop`:
+- **Homebrew Shell Environment** — Sources and configures `/home/linuxbrew/.linuxbrew/bin/brew` in `~/.bashrc` / `~/.zshrc`.
+- **Pixi Package Manager** — Installs Pixi via `curl -fsSL https://pixi.sh/install.sh | sh` and exports `~/.pixi/bin` to `$PATH`.
+- **TLDR & Terminal Utilities** — Updates `tldr` cheatsheet cache (`tldr --update`), builds Bat syntax caches, configures Git LFS user hooks, and refreshes font and man caches.
+- **All-in-One Option** — Runs the entire post-install setup in a single step.
 
 ### 9. Configure Virtualization
 
@@ -159,7 +184,7 @@ Imports virtual machine definitions from **XML files**, sanitizing UUIDs and MAC
 
 ### 10. Install Homebrew
 
-Installs [Homebrew](https://brew.sh/) (Linuxbrew) for access to additional packages not available through DNF, Snap, or Flatpak.
+Installs [Homebrew](https://brew.sh/) (Linuxbrew) and configures the system-wide shell environment via `/etc/profile.d/homebrew.sh` and user `.bashrc` so `brew` is automatically in `$PATH`.
 
 ---
 
@@ -167,28 +192,29 @@ Installs [Homebrew](https://brew.sh/) (Linuxbrew) for access to additional packa
 
 ```
 Ansible-Playbook-Fedora-Workstation/
-├── local.yml                  # Main playbook entry point
+├── local.yml                      # Main playbook entry point
 ├── tasks/
-│   ├── repositories.yml       # Third-party repo configuration
-│   ├── update.yml             # System update
-│   ├── packages.yml           # DNF package management
-│   ├── snaps.yml              # Snap package installation
-│   ├── services.yml           # Systemd service enablement
-│   ├── flatpaks.yml           # Flatpak setup and installation
-│   ├── initialize.yml         # Hostname and container init
-│   ├── users-groups.yml       # User creation and group assignment
-│   └── homebrew.yml           # Homebrew installation
+│   ├── repositories.yml           # Third-party repo configuration
+│   ├── update.yml                 # System update
+│   ├── packages.yml               # DNF package management
+│   ├── snaps.yml                  # Snap package installation
+│   ├── services.yml               # Systemd service enablement
+│   ├── flatpaks.yml               # Flatpak setup and installation
+│   ├── initialize.yml             # Hostname and container init
+│   ├── users-groups.yml           # User creation, groups, and desktop setup
+│   └── homebrew.yml               # Homebrew installation
 ├── Scripts/
-│   ├── packages.sh            # Script for package setup
-│   ├── postinstall.sh         # Script to trigger postinstall directly
-│   └── sandbox.sh             # Script for local sandboxing
+│   ├── packages.sh                # Script for package setup
+│   ├── postinstall.sh             # Script to trigger postinstall directly
+│   ├── sandbox.sh                 # Script for local sandboxing
+│   └── setup-user-environment.sh  # Interactive user post-install setup utility
 ├── Vagrant/
-│   └── Vagrantfile            # Vagrant environment definition
-├── VMs/                       # Virtual Machine definitions
+│   └── Vagrantfile                # Vagrant environment definition
+├── VMs/                           # Virtual Machine definitions
 │   ├── Android.xml
 │   ├── Linux.xml
 │   └── Windows.xml
-├── logs/                      # Log generation directory
+├── logs/                          # Log generation directory
 ├── README.md
 ├── LICENSE
 └── travis.yml

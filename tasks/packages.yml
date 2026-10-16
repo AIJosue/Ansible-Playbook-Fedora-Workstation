@@ -15,3 +15,35 @@
   args:
     # This prevents the script from running again if this file exists
     creates: /var/log/packages.log
+
+- name: Get latest Pinokio download URL
+  ansible.builtin.shell: |
+    API_URL=$(curl -sL https://api.github.com/repos/pinokiocomputer/pinokio/releases/latest | grep -o 'https://github.com/pinokiocomputer/pinokio/releases/download/[^"]*/Pinokio-[^"]*\.x86_64\.rpm' | head -n 1)
+    if [ -n "$API_URL" ]; then
+      echo "$API_URL"
+    else
+      TAG=$(curl -sIL https://github.com/pinokiocomputer/pinokio/releases/latest | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
+      VERSION="${TAG#v}"
+      echo "https://github.com/pinokiocomputer/pinokio/releases/download/${TAG}/Pinokio-${VERSION}.x86_64.rpm"
+    fi
+  register: pinokio_url_result
+  changed_when: false
+  check_mode: false
+
+- name: Check currently installed Pinokio version
+  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' Pinokio
+  register: pinokio_installed_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Set latest Pinokio facts
+  ansible.builtin.set_fact:
+    pinokio_latest_url: "{{ pinokio_url_result.stdout | trim }}"
+    pinokio_latest_version: "{{ (pinokio_url_result.stdout | regex_search('Pinokio-([0-9A-Za-z.-]+)\\.x86_64\\.rpm', '\\1'))[0] | default('') }}"
+    pinokio_installed_version: "{{ pinokio_installed_check.stdout | default('') }}"
+
+- name: Install or update latest Pinokio RPM
+  ansible.builtin.command: "dnf install -y --nogpgcheck {{ pinokio_latest_url }}"
+  become: true
+  when: pinokio_installed_check.rc != 0 or pinokio_installed_version != pinokio_latest_version
