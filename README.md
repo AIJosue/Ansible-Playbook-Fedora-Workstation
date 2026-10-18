@@ -1,17 +1,18 @@
 Changes:
 - Added auto removal of blender
 - Removed ProtonVPN
-- Added auto enable incus and sshd services
+- Added auto enable sshd and tailscale services
 - Added KDE customization packages (themes, sounds, applets, kvantum, aurorae, SDDM themes, Plasma addons), clang, cmake, nodejs, btrfs-assistant, gnome-disk-utility, and ansible collections to DNF package installation
-- Added Incus container runtime initialization (`incus admin init --minimal`)
 - Added automated download and installation of the latest Pinokio RPM from GitHub releases
 - Updated Snap packages to match active workstation configuration (removed unused lxd, multipass, anbox; added remmina, cups, proton-vpn, antigravity)
 - Added `nordvpn` group to user provisioning, `tailscaled.service` to system services, and automated Homebrew shellenv/PATH configuration
-- Added Local AI & LLM acceleration (ROCm RX 6000 GPU override, ollama.service, AppImages directory, render/video user groups)
-- Added Container & Virtualization enhancements (Docker socket compatibility symlink, Incus subordinate UID/GID mapping, virt-manager, libvirt default network autostart)
+- Added Local AI preparation (AppImages directory, render/video user groups)
+- Added Container & Virtualization enhancements (Docker socket compatibility symlink, rootless subordinate UID/GID mapping, virt-manager, libvirt default network autostart)
 - Added Firewalld service rules for ssh, cockpit (port 9090), and kdeconnect
 - Removed `packages-microsoft-com-prod` repository
 - Added interactive user post-install setup script (`Scripts/setup-user-environment.sh`) and desktop launcher for on-demand configuration of Homebrew, Pixi, and TLDR/terminal utilities
+- Purged Incus, Ollama, and ROCm GPU override configurations
+
 
 
 # Ansible Post-Install Playbook for Fedora
@@ -109,9 +110,9 @@ Upgrades all installed packages to their **latest versions** using `dnf`.
 
 Removes unwanted default packages (Firefox, LibreOffice, KDE bloat, Blender) and installs a curated set including:
 
-- **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio, Ollama
+- **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio
 - **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, Ansible collections
-- **Virtualization** — Vagrant, libguestfs, Incus, Cockpit, QEMU, Podman, Virt-Manager
+- **Virtualization** — Vagrant, libguestfs, Cockpit, QEMU, Podman, Virt-Manager
 - **Utilities** — 7zip, BleachBit, Btrfs Assistant, fastfetch, fish shell, zsh, GNOME Disk Utility
 - **Security** — Fail2Ban
 - **Networking** — WireGuard, Ncat
@@ -136,9 +137,7 @@ Starts, enables, and secures key services and sockets:
 - `snapd.socket`
 - `nix-daemon.socket`
 - `sshd.service`
-- `incus.service` / `incus.socket`
 - `tailscaled.service`
-- `ollama.service` (Local LLM daemon)
 - `firewalld.service` with rules for `ssh`, `cockpit`, and `kdeconnect`
 
 ### 6. Install Flatpaks
@@ -153,10 +152,8 @@ Adds the **Flathub** and **Fedora** Flatpak repositories, then installs a wide s
 ### 7. Initialize System
 
 - Sets the system **hostname**
-- Configures ROCm AMD GPU compute override (`HSA_OVERRIDE_GFX_VERSION=10.3.0`)
 - Ensures `~/AppImages` directory exists for portable AI and media tools
-- Configures subordinate UID/GID mappings in `/etc/subuid` and `/etc/subgid` for unprivileged containers
-- Initializes **Incus** container runtime (`incus admin init --minimal`)
+- Configures subordinate UID/GID mappings in `/etc/subuid` and `/etc/subgid` for rootless containers
 - Activates and autostarts the **libvirt** default virtual network
 - Defines virtual machine configurations via `virsh`
 
@@ -166,7 +163,7 @@ Creates user profiles with appropriate group memberships:
 
 | User    | Access Level |
 |---------|-------------|
-| `admin` | Full sudo/wheel, libvirt, incus-admin, lxd, nordvpn, render, video, corectrl |
+| `admin` | Full sudo/wheel, libvirt, lxd, nordvpn, render, video, corectrl |
 | `user`  | Standard virtualization, GPU compute, and VPN access, no sudo |
 | `guest` | No special group access |
 

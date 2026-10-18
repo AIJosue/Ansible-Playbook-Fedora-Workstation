@@ -6,8 +6,6 @@
   loop:
     - wheel
     - libvirt
-    - incus-admin
-    - incus
     - lxd
     - nordvpn
     - render
@@ -23,11 +21,11 @@
     shell: /bin/bash # /bin/bash (default), /bin/zsh, /usr/bin/fish
   loop:
     # Current user running the playbook (captures the real user even if running via sudo)
-    - { name: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}", groups: 'wheel,libvirt,incus-admin,lxd,nordvpn,render,video' }
+    - { name: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}", groups: 'wheel,libvirt,lxd,nordvpn,render,video' }
     # Admins get root access (wheel) plus full control over hypervisors, VPN, and GPU compute (render, video)
-    - { name: 'admin', groups: 'wheel,libvirt,incus-admin,lxd,nordvpn,render,video' }
-    # Standard users get standard virtualization and GPU access (libvirt, incus, render, video), but no wheel
-    - { name: 'user', groups: 'libvirt,incus,render,video' }
+    - { name: 'admin', groups: 'wheel,libvirt,lxd,nordvpn,render,video' }
+    # Standard users get standard virtualization and GPU access (libvirt, render, video), but no wheel
+    - { name: 'user', groups: 'libvirt,render,video' }
     # Guests get no special access
     - { name: 'guest', groups: '' }
 

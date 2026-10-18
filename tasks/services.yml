@@ -9,9 +9,7 @@
     - fail2ban
     - nix-daemon
     - sshd
-    - incus
     - tailscaled
-    - ollama
 
 - name: Enable and start system sockets
   become: true
@@ -23,7 +21,6 @@
     - podman.socket
     - cockpit.socket
     - snapd.socket
-    - incus.socket
 
 - name: Create Docker compatibility symlink for Podman socket
   become: true

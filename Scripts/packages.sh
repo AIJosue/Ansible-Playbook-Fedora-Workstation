@@ -13,12 +13,12 @@ dnf install -y --skip-unavailable \
     7zip android-tools bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox fastfetch fish gnome-disk-utility gtk3-devel libva-utils pidgin pidgin-otr snapd strace tldr tmux uv zsh \
     google-chrome-stable microsoft-edge-stable \
     clementine \
-    clang cmake gh git-lfs godot nix nix-daemon nodejs ollama \
+    clang cmake gh git-lfs godot nix nix-daemon nodejs \
     prusa-slicer \
     kate kdegraphics-thumbnailers kdeplasma-addons 'kio*' kmousetool krename krdc krusader ktimer kcron kclock dolphin-plugins ksystemlog kompare \
     '*-sound-theme' plasma-mobile-sounds '*-kde-kvantum' '*-gtk-theme' '*-kde-theme' arc-kde qtcurve materia-kde '*-icon-theme' plasma-browser-integration '*-plasma-applet' aurorae 'sddm-*' \
     buildah flatpak-builder skopeo \
-    ansible 'ansible-collection*' gnome-boxes virt-manager nbdkit 'incus-*' 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
+    ansible 'ansible-collection*' gnome-boxes virt-manager nbdkit 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
     'cockpit-*' \
     fail2ban fail2ban-firewalld fail2ban-systemd \
     wireguard-tools nmap-ncat \

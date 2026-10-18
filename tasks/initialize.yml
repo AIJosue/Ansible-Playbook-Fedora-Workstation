@@ -2,14 +2,6 @@
   ansible.builtin.hostname:
     name: "{{ hostname }}"
 
-- name: Configure ROCm GPU compute override for AMD Radeon RX 6000 series
-  ansible.builtin.lineinfile:
-    path: /etc/environment
-    line: "HSA_OVERRIDE_GFX_VERSION=10.3.0"
-    state: present
-    create: yes
-  become: true
-
 - name: Ensure AppImages directory exists for local user
   ansible.builtin.file:
     path: "{{ ansible_env.HOME | default('/home/' + (ansible_env.SUDO_USER | default('admin'))) }}/AppImages"
@@ -19,7 +11,7 @@
     mode: '0755'
   become: true
 
-- name: Ensure subordinate UID/GID allocations exist for unprivileged Incus containers
+- name: Ensure subordinate UID/GID allocations exist for rootless containers
   ansible.builtin.lineinfile:
     path: "{{ item.path }}"
     line: "{{ item.line }}"
@@ -29,21 +21,7 @@
   loop:
     - { path: '/etc/subuid', line: 'admin:100000:65536' }
     - { path: '/etc/subgid', line: 'admin:100000:65536' }
-    - { path: '/etc/subuid', line: 'root:1000000:1000000000' }
-    - { path: '/etc/subgid', line: 'root:1000000:1000000000' }
 
-- name: Check Incus configuration
-  ansible.builtin.command: incus admin init --dump
-  register: incus_dump
-  failed_when: false
-  changed_when: false
-
-- name: Initialize Incus container runtime
-  ansible.builtin.command: incus admin init --minimal
-  when: incus_dump.rc != 0 or 'storage_pools: []' in incus_dump.stdout or 'storage_pools:' not in incus_dump.stdout
-  register: incus_init
-  changed_when: incus_init.rc == 0
-  failed_when: incus_init.rc != 0 and 'already' not in incus_init.stderr | lower
 
 - name: Ensure libvirt default network is active and set to autostart
   ansible.builtin.shell: |
