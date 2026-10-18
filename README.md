@@ -2,9 +2,9 @@ Changes:
 - Added auto removal of blender
 - Removed ProtonVPN
 - Added auto enable sshd and tailscale services
-- Added KDE customization packages (themes, sounds, applets, kvantum, aurorae, SDDM themes, Plasma addons), clang, cmake, nodejs, btrfs-assistant, gnome-disk-utility, and ansible collections to DNF package installation
+- Added KDE customization packages (themes, sounds, applets, kvantum, aurorae, SDDM themes, Plasma addons), clang, cmake, nodejs, btrfs-assistant, gnome-disk-utility, Development Tools group, and ansible collections to DNF package installation
 - Added automated download and installation of the latest Pinokio RPM from GitHub releases
-- Updated Snap packages to match active workstation configuration (removed unused lxd, multipass, anbox; added remmina, cups, proton-vpn, antigravity)
+- Updated Snap packages to match active workstation configuration (removed unused lxd, multipass, anbox; added remmina, cups, proton-vpn, antigravity, tailscale)
 - Added `nordvpn` group to user provisioning, `tailscaled.service` to system services, and automated Homebrew shellenv/PATH configuration
 - Added Local AI preparation (AppImages directory, render/video user groups)
 - Added Container & Virtualization enhancements (Docker socket compatibility symlink, rootless subordinate UID/GID mapping, virt-manager, libvirt default network autostart)
@@ -111,7 +111,7 @@ Upgrades all installed packages to their **latest versions** using `dnf`.
 Removes unwanted default packages (Firefox, LibreOffice, KDE bloat, Blender) and installs a curated set including:
 
 - **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio
-- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, Ansible collections
+- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, Development Tools group (`@development-tools`), Ansible collections
 - **Virtualization** — Vagrant, libguestfs, Cockpit, QEMU, Podman, Virt-Manager
 - **Utilities** — 7zip, BleachBit, Btrfs Assistant, fastfetch, fish shell, zsh, GNOME Disk Utility
 - **Security** — Fail2Ban
