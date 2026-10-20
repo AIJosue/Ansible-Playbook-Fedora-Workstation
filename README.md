@@ -1,20 +1,3 @@
-Changes:
-- Added auto removal of blender
-- Removed ProtonVPN
-- Added auto enable sshd and tailscale services
-- Added KDE customization packages (themes, sounds, applets, kvantum, aurorae, SDDM themes, Plasma addons), clang, cmake, nodejs, btrfs-assistant, gnome-disk-utility, Development Tools group, and ansible collections to DNF package installation
-- Added automated download and installation of the latest Pinokio RPM from GitHub releases
-- Updated Snap packages to match active workstation configuration (removed unused lxd, multipass, anbox; added remmina, cups, proton-vpn, antigravity, tailscale)
-- Added `nordvpn` group to user provisioning, `tailscaled.service` to system services, and automated Homebrew shellenv/PATH configuration
-- Added Local AI preparation (AppImages directory, render/video user groups)
-- Added Container & Virtualization enhancements (Docker socket compatibility symlink, rootless subordinate UID/GID mapping, virt-manager, libvirt default network autostart)
-- Added Firewalld service rules for ssh, cockpit (port 9090), and kdeconnect
-- Removed `packages-microsoft-com-prod` repository
-- Added interactive user post-install setup script (`Scripts/setup-user-environment.sh`) and desktop launcher for on-demand configuration of Homebrew, Pixi, and TLDR/terminal utilities
-- Purged Incus, Ollama, and ROCm GPU override configurations
-
-
-
 # Ansible Post-Install Playbook for Fedora
 
 An **Ansible playbook** that automates the post-installation setup of a Fedora workstation.  
@@ -78,12 +61,6 @@ vars:
 sudo ansible-playbook local.yml
 ```
 
-Or run directly from GitHub:
-
-```bash
-curl -sSL https://github.com/ITJosue/Ansible-Playbook-Fedora-Workstation/raw/refs/heads/main/postinstall.sh | bash
-```
-
 ---
 
 ## What the Playbook Does
@@ -100,7 +77,6 @@ Adds third-party YUM/DNF repositories for:
 - **ProtonVPN**
 - **Visual Studio Code**
 - **Zoom**
-- **Hashicorp**
 
 ### 2. Update System
 
@@ -108,10 +84,10 @@ Upgrades all installed packages to their **latest versions** using `dnf`.
 
 ### 3. Install DNF Packages
 
-Removes unwanted default packages (Firefox, LibreOffice, KDE bloat, Blender) and installs a curated set including:
+Removes unwanted default packages (KDE PIM suite, LibreOffice, Dragon, KCalc, KWrite, NeoChat, Okular, Toolbox, Blender) and installs a curated set via `Scripts/packages.sh`, including:
 
-- **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio
-- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, Development Tools group (`@development-tools`), Ansible collections
+- **Browsers & AI** — Google Chrome, Microsoft Edge, Pinokio (latest RPM, auto-fetched from GitHub releases)
+- **Development Tools** — Git LFS, GitHub CLI (`gh`), Godot, Nix, Clang, CMake, Node.js, `@development-tools` group, Ansible collections
 - **Virtualization** — Vagrant, libguestfs, Cockpit, QEMU, Podman, Virt-Manager
 - **Utilities** — 7zip, BleachBit, Btrfs Assistant, fastfetch, fish shell, zsh, GNOME Disk Utility
 - **Security** — Fail2Ban
@@ -121,67 +97,63 @@ Removes unwanted default packages (Firefox, LibreOffice, KDE bloat, Blender) and
 
 ### 4. Install Snap Packages
 
-Sets up `snapd` and installs applications via Snap:
+Creates the `/snap` symlink and installs applications via Snap:
 
-- **Standard** — Bitwarden, Chromium, CUPS, GIMP, Inkscape, OBS Studio, Postman, Proton VPN, Remmina, Steam, Tailscale, Telegram, and others
+- **Standard** — Audacity, Bitwarden, Chromium, CUPS, DigiKam, Firefox, FreeCAD, GIMP, GNOME Characters, Inkscape, K3B, KGet, Node-RED, NordVPN, OBS Studio, OpenVINO AI Plugins for GIMP, Postman, Proton VPN, Snap Store, Steam, Tailscale, Telegram, Termius
 - **Classic** — Antigravity, Blender, VS Code, Flutter, PowerShell
 
 ### 5. Enable System Services & Firewall
 
-Starts, enables, and secures key services and sockets:
+Starts and enables key services and sockets:
 
-- `podman.socket` and `/var/run/docker.sock` compatibility symlink
-- `libvirtd.service`
-- `fail2ban.service`
-- `cockpit.socket`
-- `snapd.socket`
-- `nix-daemon.socket`
-- `sshd.service`
-- `tailscaled.service`
-- `firewalld.service` with rules for `ssh`, `cockpit`, and `kdeconnect`
+- **Services** — `libvirtd`, `fail2ban`, `nix-daemon`, `sshd`, `tailscaled`
+- **Sockets** — `podman.socket`, `cockpit.socket`, `snapd.socket`
+- **Docker compatibility** — `/var/run/docker.sock` symlink pointing to the Podman socket
+- **Firewalld** — enabled with permanent rules for `ssh`, `cockpit`, and `kdeconnect`
 
 ### 6. Install Flatpaks
 
 Adds the **Flathub** and **Fedora** Flatpak repositories, then installs a wide selection of applications including:
 
-- **Productivity** — Collabora Office, GnuCash, XMind, Anki
-- **Media** — Kdenlive, HandBrake, Kodi, FreeTube
-- **Gaming** — Heroic Games Launcher, Lutris, Steam (Sober)
-- **Utilities** — LocalSend, PeaZip, Cryptomator, KeePassXC, PikaBackup
+- **Browsers** — Brave Browser
+- **Productivity** — Collabora Office, XMind, Anki, Anytype, Ente Auth, Merkuro Calendar, KDE Itinerary, Tellico, Francis
+- **Media** — Kdenlive, HandBrake, Kodi, Haruna, Glaxnimate, Kid3, KST, LabPlot, Clementine (Fedora repo)
+- **Photo & Creative** — Krita, RapidRAW, DigiKam (Digikam), Snapshot, Neothesia
+- **Gaming** — Heroic Games Launcher (via Bottles), Lutris, Sober (Roblox), Steam (Sober)
+- **Utilities** — LocalSend, PeaZip, Cryptomator (via Bottles), KeePassXC, PikaBackup, Warehouse, GearLever, Podman Desktop, Evince, Firmware Updater, GNOME Maps, GNOME Weather, Icon Library, MetadataCleaner, EasyEffects, JDSP4Linux, Crow Translate, DistroShelf, Moonlight, fcast Receiver, Nicotine+, qBittorrent, Cantor, Drawy, Kodaskanna, Kalk, Kalm
+- **Fedora repo** — Evolution, Meld, ROcs
 
-### 7. Initialize System
-
-- Sets the system **hostname**
-- Ensures `~/AppImages` directory exists for portable AI and media tools
-- Configures subordinate UID/GID mappings in `/etc/subuid` and `/etc/subgid` for rootless containers
-- Activates and autostarts the **libvirt** default virtual network
-- Defines virtual machine configurations via `virsh`
-
-### 8. Configure Users and Groups
+### 7. Configure Users and Groups
 
 Creates user profiles with appropriate group memberships:
 
-| User    | Access Level |
-|---------|-------------|
-| `admin` | Full sudo/wheel, libvirt, lxd, nordvpn, render, video, corectrl |
-| `user`  | Standard virtualization, GPU compute, and VPN access, no sudo |
-| `guest` | No special group access |
+| User    | Groups |
+|---------|--------|
+| `<sudo user>` | `wheel`, `libvirt`, `lxd`, `nordvpn`, `render`, `video` |
+| `admin` | `wheel`, `libvirt`, `nordvpn`, `render`, `video` |
+| `user`  | `libvirt`, `render`, `video` |
+
+Also ensures `~/Desktop` exists for each user account.
 
 #### Interactive User Environment Setup Script
 
-To preserve clean separation and allow users or administrators to decide what gets installed on an account, an interactive utility (`setup-user-environment.sh`) and a desktop launcher (`Setup-User-Environment.desktop`) are deployed directly to the user's `~/Desktop`:
-- **Homebrew Shell Environment** — Sources and configures `/home/linuxbrew/.linuxbrew/bin/brew` in `~/.bashrc` / `~/.zshrc`.
-- **Pixi Package Manager** — Installs Pixi via `curl -fsSL https://pixi.sh/install.sh | sh` and exports `~/.pixi/bin` to `$PATH`.
-- **TLDR & Terminal Utilities** — Updates `tldr` cheatsheet cache (`tldr --update`), builds Bat syntax caches, configures Git LFS user hooks, and refreshes font and man caches.
-- **All-in-One Option** — Runs the entire post-install setup in a single step.
+To preserve clean separation between system and user configuration, an interactive utility (`setup-user-environment.sh`) and a `.desktop` launcher are deployed directly to each user's `~/Desktop`. The script supports both interactive menu and CLI flags (`--brew`, `--pixi`, `--terminal`, `--all`):
 
-### 9. Configure Virtualization
+- **Homebrew Shell Environment** — Detects or installs Homebrew and sources `/home/linuxbrew/.linuxbrew/bin/brew` in `~/.bashrc` / `~/.zshrc`.
+- **Pixi Package Manager** — Installs Pixi via the official installer and exports `~/.pixi/bin` to `$PATH` in both shell configs.
+- **TLDR & Terminal Utilities** — Updates `tldr` cheatsheet cache, builds Bat syntax caches, configures Git LFS user hooks, and refreshes font and man-page caches.
+- **All-in-One Option** — Runs all three steps in sequence.
 
-Imports virtual machine definitions from **XML files**, sanitizing UUIDs and MAC addresses before defining them with `virsh`.
+### 8. Initialize System
 
-### 10. Install Homebrew
+- Sets the system **hostname**
+- Ensures `~/AppImages` directory exists for the invoking user
+- Activates and autostarts the **libvirt** default virtual network
+- Defines virtual machine configurations from `VMs/*.xml` via `virsh`
 
-Installs [Homebrew](https://brew.sh/) (Linuxbrew) and configures the system-wide shell environment via `/etc/profile.d/homebrew.sh` and user `.bashrc` so `brew` is automatically in `$PATH`.
+### 9. Install Homebrew
+
+Installs [Homebrew](https://brew.sh/) (Linuxbrew) and configures the system-wide shell environment via `/etc/profile.d/homebrew.sh` and the user's `.bashrc` so `brew` is automatically in `$PATH`.
 
 ---
 
@@ -193,25 +165,23 @@ Ansible-Playbook-Fedora-Workstation/
 ├── tasks/
 │   ├── repositories.yml           # Third-party repo configuration
 │   ├── update.yml                 # System update
-│   ├── packages.yml               # DNF package management
+│   ├── packages.yml               # DNF package management + Pinokio RPM
 │   ├── snaps.yml                  # Snap package installation
-│   ├── services.yml               # Systemd service enablement
+│   ├── services.yml               # Systemd service/socket enablement + firewall
 │   ├── flatpaks.yml               # Flatpak setup and installation
-│   ├── initialize.yml             # Hostname and container init
 │   ├── users-groups.yml           # User creation, groups, and desktop setup
-│   └── homebrew.yml               # Homebrew installation
+│   ├── initialize.yml             # Hostname, AppImages dir, libvirt network, VMs
+│   └── homebrew.yml               # Homebrew installation and PATH configuration
 ├── Scripts/
-│   ├── packages.sh                # Script for package setup
-│   ├── postinstall.sh             # Script to trigger postinstall directly
-│   ├── sandbox.sh                 # Script for local sandboxing
+│   ├── packages.sh                # DNF package installation script
 │   └── setup-user-environment.sh  # Interactive user post-install setup utility
 ├── Vagrant/
 │   └── Vagrantfile                # Vagrant environment definition
-├── VMs/                           # Virtual Machine definitions
+├── VMs/                           # Virtual machine XML definitions
 │   ├── Android.xml
 │   ├── Linux.xml
 │   └── Windows.xml
-├── logs/                          # Log generation directory
+├── logs/                          # Log output directory
 ├── README.md
 ├── LICENSE
 └── travis.yml
@@ -227,6 +197,7 @@ This playbook is meant to be **forked and adapted**. Common modifications includ
 - **Changing the hostname** in `local.yml`
 - **Adjusting user accounts** in `tasks/users-groups.yml`
 - **Disabling tasks** you don't need by commenting out `include_tasks` lines in `local.yml`
+- **Adding repositories** in `tasks/repositories.yml` (Hashicorp entries are included but commented out)
 
 ---
 
@@ -235,4 +206,3 @@ This playbook is meant to be **forked and adapted**. Common modifications includ
 Automation isn't just about saving time — it's about **building reliable, documented processes**.  
 If someone else can clone this repo and get a fully working workstation with a single command,  
 then this playbook is doing its job.
-

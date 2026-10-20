@@ -11,16 +11,16 @@
     mode: '0755'
   become: true
 
-- name: Ensure subordinate UID/GID allocations exist for rootless containers
-  ansible.builtin.lineinfile:
-    path: "{{ item.path }}"
-    line: "{{ item.line }}"
-    create: yes
-    mode: '0644'
-  become: true
-  loop:
-    - { path: '/etc/subuid', line: 'admin:100000:65536' }
-    - { path: '/etc/subgid', line: 'admin:100000:65536' }
+#- name: Ensure subordinate UID/GID allocations exist for rootless containers
+#  ansible.builtin.lineinfile:
+#    path: "{{ item.path }}"
+#    line: "{{ item.line }}"
+#    create: yes
+#    mode: '0644'
+#  become: true
+#  loop:
+#    - { path: '/etc/subuid', line: 'admin:100000:65536' }
+#    - { path: '/etc/subgid', line: 'admin:100000:65536' }
 
 
 - name: Ensure libvirt default network is active and set to autostart

@@ -64,21 +64,20 @@
     repo_gpgcheck: yes
     gpgkey: https://zoom.us/linux/download/pubkey
     skip_if_unavailable: yes
+#- name: Add Hashicorp Stable repository
+#  yum_repository:
+#    name: hashicorp
+#    description: Hashicorp Stable - $basearch
+#    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
+#    gpgcheck: yes
+#    gpgkey: https://rpm.releases.hashicorp.com/gpg
+#    enabled: yes
 
-- name: Add Hashicorp Stable repository
-  yum_repository:
-    name: hashicorp
-    description: Hashicorp Stable - $basearch
-    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
-    gpgcheck: yes
-    gpgkey: https://rpm.releases.hashicorp.com/gpg
-    enabled: yes
-
-- name: Add Hashicorp Test repository
-  yum_repository:
-    name: hashicorp-test
-    description: Hashicorp Test - $basearch
-    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/test
-    gpgcheck: yes
-    gpgkey: https://rpm.releases.hashicorp.com/gpg
-    enabled: no
+#- name: Add Hashicorp Test repository
+#  yum_repository:
+#    name: hashicorp-test
+#    description: Hashicorp Test - $basearch
+#    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/test
+#    gpgcheck: yes
+#    gpgkey: https://rpm.releases.hashicorp.com/gpg
+#    enabled: no

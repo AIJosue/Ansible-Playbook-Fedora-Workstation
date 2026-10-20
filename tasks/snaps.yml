@@ -19,26 +19,31 @@
       - inkscape
       - k3b
       - kget
-      - microcloud
       - node-red
       - nordvpn
       - obs-studio
       - openvino-ai-plugins-gimp
       - postman
       - proton-vpn
-      - remmina
       - snap-store
       - steam
       - tailscale
       - telegram-desktop
       - termius-app
 
+#- name: Install Snap packages (Ubuntu)
+#  snap:
+#    name:
+#     - microcloud
+#      - multipass
+#      - lxd
+#      - anbox-cloud-appliance
+
 - name: Install Snap packages with --classic flag
   snap:
     classic: yes
     name:
       - antigravity
-      - antigravity-ide-snap
       - blender
       - code
       - flutter
