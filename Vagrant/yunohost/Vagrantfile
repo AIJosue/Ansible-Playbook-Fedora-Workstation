@@ -1,0 +1,94 @@
+Vagrant.configure("2") do |config|
+  # Generate a 4-digit random ID for each spin-up
+  rand_id = rand(1000..9999)
+
+  # Ubuntu 24.04 LTS (Noble Numbat)
+  config.vm.box = "cloud-image/debian-12"
+  config.vm.hostname = "linux-#{rand_id}"
+
+  # Disable default /vagrant synced folder (avoids host NFS/sudo prompts)
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.provider :libvirt do |lv|
+    lv.title = "Linux-#{rand_id}"
+    lv.random_hostname = true
+    lv.driver = "kvm"
+
+    # Connect management network to libvirt's 'default' network (virbr0)
+    lv.management_network_name = "default"
+    lv.qemu_use_session = false
+
+    # CPU, Memory, and Architecture
+    lv.memory = 8192
+    lv.cpus = 12
+    lv.cpu_mode = "host-passthrough"
+    lv.machine_type = "pc-q35-8.2"
+
+    # Primary virtual disk size in GB
+    lv.machine_virtual_size = 32
+
+    # Features and Clock configuration
+    lv.features = ["acpi", "apic"]
+    lv.clock_offset = "utc"
+    lv.clock_timer :name => "rtc", :tickpolicy => "catchup"
+    lv.clock_timer :name => "pit", :tickpolicy => "delay"
+    lv.clock_timer :name => "hpet", :present => "no"
+
+    # VirtIO Graphics & SPICE
+    lv.video_type = "virtio"
+    lv.video_accel3d = false
+    lv.graphics_type = "spice"
+    lv.graphics_gl = false
+
+    # Audio & Sound
+    lv.sound_type = "ich9"
+
+    # SPICE Communication Channels
+    lv.channel :type => "spicevmc", :target_name => "com.redhat.spice.0", :target_type => "virtio"
+
+    # USB Controller, Tablet Input, & SPICE USB Redirection
+    lv.usb_controller :model => "qemu-xhci", :ports => 15
+    lv.input :type => "tablet", :bus => "usb"
+    4.times { lv.redirdev :type => "spicevmc" }
+
+    # Smartcard Device
+    lv.smartcard :mode => "passthrough", :type => "spicevmc"
+
+    # Emulated TPM 2.0 (requires swtpm on host)
+    lv.tpm_model = "tpm-tis"
+    lv.tpm_type = "emulator"
+    lv.tpm_version = "2.0"
+  end
+
+  # Auto upgrade and minimal desktop installation
+  config.vm.provision "shell", inline: <<-SHELL
+  set -euo pipefail
+  export DEBIAN_FRONTEND=noninteractive
+
+  apt-get update -y && apt-get upgrade -y && apt install curl ca-certificates
+
+  # Configuration
+  YUNO_DOMAIN="yunohost.local"
+  YUNO_ADMIN_USER="sysadmin"
+  YUNO_ADMIN_NAME="System Admin"
+  YUNO_ADMIN_PASSWORD="ReplaceWithAStrongPassword!"
+
+  echo ">>> [1/3] Updating system and installing base dependencies..."
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -y
+  apt-get install -y curl ca-certificates sudo
+
+  echo ">>> [2/3] Installing YunoHost non-interactively..."
+  curl -fsSL https://install.yunohost.org | bash -s -- -a
+
+  echo ">>> [3/3] Running automated post-installation..."
+  yunohost tools postinstall \
+      --domain "${YUNO_DOMAIN}" \
+      --username "${YUNO_ADMIN_USER}" \
+      --fullname "${YUNO_ADMIN_NAME}" \
+      --password "${YUNO_ADMIN_PASSWORD}" \
+      --i-have-read-terms-of-services
+
+      echo ">>> YunoHost automated installation completed successfully!"
+  SHELL
+end

@@ -1,27 +1,70 @@
+---
+- name: Set virtualization facts
+  ansible.builtin.set_fact:
+    target_user: "{{ target_user | default(ansible_env.SUDO_USER | default(ansible_env.USER)) }}"
+    target_user_home: "{{ target_user_home | default('/home/' + (ansible_env.SUDO_USER | default(ansible_env.USER)) if (ansible_env.SUDO_USER | default(ansible_env.USER)) != 'root' else ansible_env.HOME) }}"
+    xml_dir: "{{ xml_dir | default(target_user_home + '/virtualization/kvm-qemu') }}"
+    vagrant_dir: "{{ vagrant_dir | default(target_user_home + '/virtualization/vagrant') }}"
+
 - name: Set system hostname
   ansible.builtin.hostname:
     name: "{{ hostname }}"
 
 - name: Ensure AppImages directory exists for local user
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME | default('/home/' + (ansible_env.SUDO_USER | default('admin'))) }}/AppImages"
+    path: "{{ target_user_home }}/AppImages"
     state: directory
-    owner: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
-    group: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
     mode: '0755'
   become: true
 
-#- name: Ensure subordinate UID/GID allocations exist for rootless containers
-#  ansible.builtin.lineinfile:
-#    path: "{{ item.path }}"
-#    line: "{{ item.line }}"
-#    create: yes
-#    mode: '0644'
-#  become: true
-#  loop:
-#    - { path: '/etc/subuid', line: 'admin:100000:65536' }
-#    - { path: '/etc/subgid', line: 'admin:100000:65536' }
+- name: Ensure user virtualization directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  loop:
+    - "{{ target_user_home }}/virtualization"
+    - "{{ xml_dir }}"
+    - "{{ vagrant_dir }}"
+  become: true
 
+- name: Push VM XML definitions to KVM/QEMU directory
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ xml_dir }}/{{ item | basename }}"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0644'
+  with_fileglob:
+    - "{{ playbook_dir }}/VMs/*.xml"
+  become: true
+
+- name: Ensure Vagrant environment directories exist
+  ansible.builtin.file:
+    path: "{{ vagrant_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  loop:
+    - ubuntu
+    - yunohost
+  become: true
+
+- name: Push Vagrant environment folders to Vagrant directory
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ vagrant_dir }}/{{ item | dirname | basename }}/{{ item | basename }}"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0644'
+  with_fileglob:
+    - "{{ playbook_dir }}/Vagrant/*/*"
+  become: true
 
 - name: Ensure libvirt default network is active and set to autostart
   ansible.builtin.shell: |
@@ -31,7 +74,12 @@
   changed_when: "'started' in libvirt_net_result.stdout or 'autostarted' in libvirt_net_result.stdout"
   become: true
 
+- name: Find VM XML definitions in KVM/QEMU directory
+  ansible.builtin.find:
+    paths: "{{ xml_dir }}"
+    patterns: "*.xml"
+  register: kvm_xml_files
+
 - name: Define VMs via virsh
-  command: "virsh define {{ item }}"
-  with_fileglob:
-    - "../VMs/*.xml"
+  ansible.builtin.command: "virsh define {{ item.path }}"
+  loop: "{{ kvm_xml_files.files }}"

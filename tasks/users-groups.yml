@@ -41,8 +41,8 @@
 
 - name: Deploy interactive setup script to user Desktop
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/Scripts/setup-user-environment.sh"
-    dest: "/home/{{ item }}/Desktop/setup-user-environment.sh"
+    src: "{{ playbook_dir }}/Scripts/launcher.sh"
+    dest: "/home/{{ item }}/Desktop/launcher.sh"
     owner: "{{ item }}"
     group: "{{ item }}"
     mode: '0755'
@@ -51,4 +51,5 @@
     - user
     - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
   when: item != 'root'
+
 

@@ -4,7 +4,10 @@
   become: true
   vars:
     hostname: "Desktop" # CHANGE THIS: Desired system hostname
-    xml_dir: "$HOME/XMLs" # CHANGE THIS: Path to XML files
+    target_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    target_user_home: "{{ '/home/' + (ansible_env.SUDO_USER | default(ansible_env.USER)) if (ansible_env.SUDO_USER | default(ansible_env.USER)) != 'root' else ansible_env.HOME }}"
+    xml_dir: "{{ target_user_home }}/virtualization/kvm-qemu"
+    vagrant_dir: "{{ target_user_home }}/virtualization/vagrant"
 
   tasks:
     - name: Configure repositories
@@ -25,15 +28,15 @@
     - name: Install flatpaks
       include_tasks: tasks/flatpaks.yml
 
-    - name: Configure users and groups
-      include_tasks: tasks/users-groups.yml
-      
-    - name: Initialize system
-      include_tasks: tasks/initialize.yml #in-progress
-
     - name: Install and configure Homebrew #in-progress
       include_tasks: tasks/homebrew.yml
       args:
         apply:
           become: yes
           become_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+
+    - name: Configure users and groups
+      include_tasks: tasks/users-groups.yml
+      
+    - name: Initialize system
+      include_tasks: tasks/initialize.yml #in-progress

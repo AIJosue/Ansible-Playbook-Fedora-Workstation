@@ -1,0 +1,20 @@
+# Vagrant
+.vagrant/
+
+# Ansible
+*.retry
+
+# Logs and caches
+logs/*
+!logs/.gitkeep
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
