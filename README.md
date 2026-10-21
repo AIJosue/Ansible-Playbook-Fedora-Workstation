@@ -137,12 +137,13 @@ Also ensures `~/Desktop` exists for each user account.
 
 #### Interactive User Environment Setup Script
 
-To preserve clean separation between system and user configuration, an interactive utility (`setup-user-environment.sh`) and a `.desktop` launcher are deployed directly to each user's `~/Desktop`. The script supports both interactive menu and CLI flags (`--brew`, `--pixi`, `--terminal`, `--all`):
+To preserve clean separation between system and user configuration, an interactive utility (`setup-user-environment.sh`) and a `.desktop` launcher are deployed directly to each user's `~/Desktop`. The script supports both interactive menu and CLI flags (`--brew`, `--pixi`, `--terminal`, `--distrobox`, `--all`):
 
 - **Homebrew Shell Environment** — Detects or installs Homebrew and sources `/home/linuxbrew/.linuxbrew/bin/brew` in `~/.bashrc` / `~/.zshrc`.
 - **Pixi Package Manager** — Installs Pixi via the official installer and exports `~/.pixi/bin` to `$PATH` in both shell configs.
 - **TLDR & Terminal Utilities** — Updates `tldr` cheatsheet cache, builds Bat syntax caches, configures Git LFS user hooks, and refreshes font and man-page caches.
-- **All-in-One Option** — Runs all three steps in sequence.
+- **Ubuntu Distrobox Container** — Creates a `distrobox` container named `ubuntu` from `quay.io/toolbx/ubuntu-toolbox:latest`. Skips creation if the container already exists (with an option to replace it) and runs a first-boot initialization pass automatically.
+- **All-in-One Option** — Runs all four steps in sequence.
 
 ### 8. Initialize System
 

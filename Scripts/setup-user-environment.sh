@@ -10,6 +10,7 @@
 # 1. Homebrew Environment & PATH Configuration
 # 2. Pixi Package Manager (https://pixi.sh)
 # 3. TLDR Cache & Terminal Utilities Refresh (tldr, bat, fonts, man-db, git-lfs)
+# 4. Distrobox — Ubuntu toolbox container (quay.io/toolbx/ubuntu-toolbox:latest)
 # ==============================================================================
 
 # Formatting Colors
@@ -173,10 +174,59 @@ update_terminal_utilities() {
     echo -e "${GREEN}✓ All terminal utilities updated successfully!${NC}"
 }
 
+
+setup_distrobox() {
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}[4/4] Setting Up Ubuntu Distrobox Container${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    local CONTAINER_NAME="ubuntu"
+    local CONTAINER_IMAGE="quay.io/toolbx/ubuntu-toolbox:latest"
+
+    # Verify distrobox is available
+    if ! command -v distrobox >/dev/null 2>&1; then
+        echo -e "${RED}Error: 'distrobox' is not installed or not in PATH.${NC}"
+        echo -e "${YELLOW}Install it with: sudo dnf install distrobox${NC}"
+        return 1
+    fi
+
+    # Check if a container with this name already exists
+    if distrobox list 2>/dev/null | grep -q "^${CONTAINER_NAME}\b\|[[:space:]]${CONTAINER_NAME}[[:space:]]"; then
+        echo -e "${YELLOW}• Distrobox container '${CONTAINER_NAME}' already exists.${NC}"
+        read -rp "Do you want to replace it? This will stop and remove the existing container. [y/N]: " replace_choice
+        if [[ "$replace_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${BLUE}Stopping and removing existing container '${CONTAINER_NAME}'...${NC}"
+            distrobox stop --yes "${CONTAINER_NAME}" 2>/dev/null || true
+            distrobox rm --yes "${CONTAINER_NAME}" 2>/dev/null || true
+        else
+            echo -e "${YELLOW}Skipping distrobox setup.${NC}"
+            return 0
+        fi
+    fi
+
+    echo -e "${BLUE}Creating distrobox container '${CONTAINER_NAME}' from ${CONTAINER_IMAGE}...${NC}"
+    echo -e "${YELLOW}Note: The image will be pulled on first run — this may take a moment.${NC}"
+
+    if distrobox create \
+        --name "${CONTAINER_NAME}" \
+        --image "${CONTAINER_IMAGE}" \
+        --yes; then
+        echo -e "${GREEN}✓ Distrobox container '${CONTAINER_NAME}' created successfully.${NC}"
+        echo -e "${BLUE}Initializing container (first-run setup)...${NC}"
+        distrobox enter "${CONTAINER_NAME}" -- true 2>/dev/null \
+            && echo -e "${GREEN}✓ Container initialized and ready.${NC}" \
+            || echo -e "${YELLOW}• Container created — it will finish initializing on first 'distrobox enter ${CONTAINER_NAME}'.${NC}"
+    else
+        echo -e "${RED}Error: Failed to create distrobox container '${CONTAINER_NAME}'.${NC}"
+        return 1
+    fi
+}
+
 run_all() {
     configure_homebrew
     install_pixi
     update_terminal_utilities
+    setup_distrobox
     echo -e "\n${GREEN}${BOLD}All setup steps have been completed!${NC}\n"
 }
 
@@ -193,6 +243,9 @@ elif [ "$1" == "--pixi" ]; then
 elif [ "$1" == "--terminal" ]; then
     update_terminal_utilities
     exit 0
+elif [ "$1" == "--distrobox" ]; then
+    setup_distrobox
+    exit 0
 fi
 
 # Interactive Menu Loop
@@ -206,21 +259,23 @@ while true; do
     echo -e "  ${BOLD}1)${NC} Configure Homebrew Environment & PATH"
     echo -e "  ${BOLD}2)${NC} Install Pixi Package Manager (pixi.sh)"
     echo -e "  ${BOLD}3)${NC} Update TLDR Cache & Terminal Utilities"
-    echo -e "  ${BOLD}4)${NC} ${BOLD}Install / Configure All of the Above${NC}"
+    echo -e "  ${BOLD}4)${NC} Create Ubuntu Distrobox Container"
+    echo -e "  ${BOLD}5)${NC} ${BOLD}Install / Configure All of the Above${NC}"
     echo -e "  ${BOLD}0)${NC} Exit"
     echo -e "${CYAN}=====================================================${NC}"
-    read -rp "Select an option [0-4]: " choice
+    read -rp "Select an option [0-5]: " choice
     case "$choice" in
         1) configure_homebrew ;;
         2) install_pixi ;;
         3) update_terminal_utilities ;;
-        4) run_all ;;
+        4) setup_distrobox ;;
+        5) run_all ;;
         0|[Qq]|exit)
             echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-4.${NC}"
+            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-5.${NC}"
             ;;
     esac
     echo ""
