@@ -52,25 +52,3 @@
     - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
   when: item != 'root'
 
-- name: Deploy desktop launcher for user environment setup
-  ansible.builtin.copy:
-    dest: "/home/{{ item }}/Desktop/Setup-User-Environment.desktop"
-    content: |
-      [Desktop Entry]
-      Type=Application
-      Name=Setup User Environment
-      Comment=Interactive setup for Homebrew, Pixi, and Terminal utilities
-      Exec=/home/{{ item }}/Desktop/setup-user-environment.sh
-      Icon=utilities-terminal
-      Terminal=true
-      Categories=System;Utility;
-      StartupNotify=true
-    owner: "{{ item }}"
-    group: "{{ item }}"
-    mode: '0755'
-  become: true
-  loop:
-    - user
-    - "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
-  when: item != 'root'
-
