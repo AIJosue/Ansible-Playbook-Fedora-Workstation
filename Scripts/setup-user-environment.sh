@@ -180,7 +180,7 @@ setup_distrobox() {
     echo -e "${BOLD}[4/4] Setting Up Ubuntu Distrobox Container${NC}"
     echo -e "${BLUE}=====================================================${NC}"
 
-    local CONTAINER_NAME="ubuntu"
+    local CONTAINER_NAME="ubuntu-toolbox"
     local CONTAINER_IMAGE="quay.io/toolbx/ubuntu-toolbox:latest"
 
     # Verify distrobox is available
