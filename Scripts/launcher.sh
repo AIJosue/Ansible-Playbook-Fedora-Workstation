@@ -1999,13 +1999,36 @@ install_localai() {
     done
 }
 
-download_openclaw_appimage() {
-    local dest_dir="$HOME/AppImages"
-    mkdir -p "$dest_dir"
+install_openclaw_deb_distrobox() {
+    local container_name="ubuntu-toolbox"
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/openclaw_downloads"
+    mkdir -p "$cache_dir"
 
-    echo -e "\n${BLUE}[*] Fetching latest OpenClaw AppImage release...${NC}"
-    local appimage_info
-    appimage_info=$(python3 -c "
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}       Install OpenClaw (.deb) into Distrobox         ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    if ! command -v distrobox >/dev/null 2>&1; then
+        echo -e "${RED}Error: 'distrobox' is not installed.${NC}"
+        return 1
+    fi
+
+    # Ensure container exists or prompt to create
+    if ! distrobox list 2>/dev/null | grep -q "^${container_name}\b\|[[:space:]]${container_name}[[:space:]]"; then
+        echo -e "${YELLOW}• Distrobox container '${container_name}' does not exist.${NC}"
+        read -rp "Create '${container_name}' container now? [Y/n]: " cr_choice
+        cr_choice="${cr_choice:-Y}"
+        if [[ "$cr_choice" =~ ^[Yy]$ ]]; then
+            setup_distrobox || return 1
+        else
+            echo -e "${RED}[-] Cannot install .deb without target distrobox container.${NC}"
+            return 1
+        fi
+    fi
+
+    echo -e "${BLUE}[*] Fetching latest OpenClaw .deb release from GitHub...${NC}"
+    local deb_info
+    deb_info=$(python3 -c "
 import urllib.request, json, sys
 repo = 'openclaw/openclaw'
 try:
@@ -2016,7 +2039,7 @@ try:
     for a in d.get('assets', []):
         name = a.get('name', '')
         url = a.get('browser_download_url', '')
-        if name.lower().endswith('.appimage'):
+        if name.lower().endswith('.deb') and 'amd64' in name.lower():
             print(f'{name}\t{url}')
             sys.exit(0)
     sys.exit(1)
@@ -2024,24 +2047,33 @@ except Exception:
     sys.exit(1)
 ")
 
-    if [ -z "$appimage_info" ]; then
-        echo -e "${YELLOW}Could not resolve latest AppImage from GitHub API. Falling back to default URL...${NC}"
-        local fallback_url="https://github.com/openclaw/openclaw/releases/download/v2026.10.8/OpenClaw-2026.10.8-amd64.AppImage"
-        local fallback_name="OpenClaw-2026.10.8-amd64.AppImage"
-        local target_file="$dest_dir/$fallback_name"
-        curl -fL --progress-bar -o "$target_file" "$fallback_url"
-        chmod +x "$target_file"
-        echo -e "${GREEN}✓ Downloaded OpenClaw AppImage: $target_file${NC}"
-        return 0
+    local deb_name deb_url
+    if [ -n "$deb_info" ]; then
+        IFS=$'\t' read -r deb_name deb_url <<< "$deb_info"
+    else
+        echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+        deb_url="https://github.com/openclaw/openclaw/releases/download/v2026.10.9/OpenClaw-2026.10.9-amd64.deb"
+        deb_name="OpenClaw-2026.10.9-amd64.deb"
     fi
 
-    local ai_name ai_url
-    IFS=$'\t' read -r ai_name ai_url <<< "$appimage_info"
-    local target_file="$dest_dir/$ai_name"
-    echo -e "${BLUE}[*] Downloading $ai_name directly to $dest_dir...${NC}"
-    curl -fL --progress-bar -o "$target_file" "$ai_url"
-    chmod +x "$target_file"
-    echo -e "${GREEN}✓ Downloaded OpenClaw AppImage: $target_file${NC}"
+    local target_file="$cache_dir/$deb_name"
+    echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+    if ! curl -fLC - --progress-bar -o "$target_file" "$deb_url"; then
+        echo -e "${RED}[ERROR] Failed to download OpenClaw .deb from $deb_url${NC}"
+        return 1
+    fi
+
+    echo -e "\n${BLUE}[*] Installing ${deb_name} into '${container_name}' container via apt...${NC}"
+    if distrobox enter "${container_name}" -- sudo apt-get update && \
+       distrobox enter "${container_name}" -- sudo apt-get install -y "$target_file"; then
+        echo -e "\n${BLUE}[*] Exporting OpenClaw desktop app and binary to host...${NC}"
+        distrobox enter "${container_name}" -- distrobox-export --app openclaw 2>/dev/null || true
+        distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/openclaw --export-path "$HOME/.local/bin" 2>/dev/null || true
+        echo -e "${GREEN}✓ OpenClaw (.deb) installed and exported successfully from Distrobox!${NC}"
+    else
+        echo -e "${RED}[ERROR] Failed to install OpenClaw .deb inside distrobox container.${NC}"
+        return 1
+    fi
 }
 
 install_openclaw_cli_gateway() {
@@ -2071,17 +2103,17 @@ install_openclaw_cli_gateway() {
 
 install_openclaw() {
     local options=(
-        "Install OpenClaw CLI & Gateway Service (https://openclaw.ai/install-cli.sh)"
-        "Download Latest OpenClaw AppImage into ~/AppImages"
+        "Install OpenClaw CLI & Gateway Service on Host (https://openclaw.ai/install-cli.sh)"
+        "Install Latest OpenClaw (.deb) into Ubuntu Distrobox & Export to Host"
     )
     local selected=(1 1)
 
     while true; do
         clear
         echo -e "${BLUE}=====================================================${NC}"
-        echo -e "${BOLD}       Install OpenClaw (CLI, Service & AppImage)    ${NC}"
+        echo -e "${BOLD}       Install OpenClaw (CLI, Service & Distrobox Deb) ${NC}"
         echo -e "${BLUE}=====================================================${NC}"
-        echo " Source: https://openclaw.ai/install"
+        echo " Source: https://github.com/openclaw/openclaw/releases"
         echo " Toggle options with numbers [1-${#options[@]}]."
         echo -e "${BLUE}-----------------------------------------------------${NC}"
 
@@ -2132,7 +2164,7 @@ install_openclaw() {
 
                 echo -e "\n${BOLD}${BLUE}=== Executing OpenClaw Installation ===${NC}"
                 [ "${selected[0]}" -eq 1 ] && install_openclaw_cli_gateway
-                [ "${selected[1]}" -eq 1 ] && download_openclaw_appimage
+                [ "${selected[1]}" -eq 1 ] && install_openclaw_deb_distrobox
 
                 echo -e "\n${GREEN}✓ OpenClaw tasks finished.${NC}"
                 read -rp "Press Enter to continue..." _
@@ -2516,13 +2548,12 @@ appimage_hub_menu() {
         "LMMS (Music Production Suite)"
         "LocalAI (Multi-model local AI runtime)"
         "MuseScore Studio (Music Notation & Scoring)"
-        "OpenClaw (AI Agent Gateway & Desktop App)"
         "Prism llama.cpp (Pre-compiled LLM inference binaries)"
         "QtScrcpy (Android Screen Mirror & Control)"
         "Unsloth (Fast LLM Finetuning & Studio)"
     )
 
-    local selected=(0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+    local selected=(0 0 0 0 0 0 0 0 0 0 0 0 0)
     local i
 
     while true; do
@@ -2594,10 +2625,9 @@ appimage_hub_menu() {
                 [ "${selected[7]}" -eq 1 ] && install_lmms_appimage
                 [ "${selected[8]}" -eq 1 ] && install_localai
                 [ "${selected[9]}" -eq 1 ] && install_musescore_appimage
-                [ "${selected[10]}" -eq 1 ] && install_openclaw
-                [ "${selected[11]}" -eq 1 ] && install_prism_llamacpp
-                [ "${selected[12]}" -eq 1 ] && install_qtscrcpy_appimage
-                [ "${selected[13]}" -eq 1 ] && install_unsloth_appimage
+                [ "${selected[10]}" -eq 1 ] && install_prism_llamacpp
+                [ "${selected[11]}" -eq 1 ] && install_qtscrcpy_appimage
+                [ "${selected[12]}" -eq 1 ] && install_unsloth_appimage
 
                 echo -e "\n${GREEN}${BOLD}[+] Selected AppImage installations complete!${NC}"
                 read -rp "Press Enter to continue..." _
@@ -2866,7 +2896,7 @@ while true; do
     echo -e "  ${BOLD}14)${NC} Install Prism llama.cpp Binaries (AppImages)"
     echo -e "  ${BOLD}15)${NC} Install KoboldCpp Standalone Binary (AppImages)"
     echo -e "  ${BOLD}16)${NC} Install LocalAI Binary / AppImage (AppImages)"
-    echo -e "  ${BOLD}17)${NC} Install OpenClaw (CLI, Gateway & AppImage)"
+    echo -e "  ${BOLD}17)${NC} Install OpenClaw (CLI, Gateway & Distrobox .deb)"
     echo -e "  ${BOLD}18)${NC} Install DevPod (CLI & Desktop AppImage)"
     echo -e "  ${BOLD}19)${NC} Compact & Configure Portable AppImages (--appimage-portable-*)"
     echo -e "  ${BOLD}20)${NC} ${BOLD}Install / Configure Items 1-8${NC}"
