@@ -11,7 +11,7 @@ An automated **Ansible playbook** designed for rapid, reproducible post-installa
 - **Multi-Format Software Distribution**: Integrates native **DNF** packages, **Snap** applications (classic and standard confinement), and **Flatpak** applications (from both Flathub and Fedora OCI remotes).
 - **Automated Pinokio RPM Management**: Auto-fetches, installs, and updates the latest release of [Pinokio](https://pinokio.computer/) directly from GitHub releases.
 - **Enterprise-Ready Virtualization & Containers**: Pre-configures KVM/QEMU, Libvirt (with default bridge network & VM templates), Podman (with Docker socket compatibility), Cockpit web console, and Vagrant.
-- **Separation of System & User Concerns**: Deploys an interactive desktop setup utility (`launcher.sh`) allowing users to configure Homebrew, Pixi, Distrobox containers, and terminal caches on demand.
+- **Separation of System & User Concerns**: Deploys an interactive desktop setup utility (`launcher.sh`) allowing users to configure Homebrew, Pixi, Distrobox containers, terminal caches, user-level Flatpak remotes, PipeWire audio redirection, Waydroid, Podman/Snap maintenance, Libvirt VM helpers, and Vagrant testbeds on demand.
 - **Reproducible Testbeds**: Includes Vagrant definitions for an Ubuntu 24.04 LTS libvirt desktop VM and a self-contained Debian 12 YunoHost server.
 
 ---
@@ -58,7 +58,7 @@ An automated **Ansible playbook** designed for rapid, reproducible post-installa
 
 ## Playbook Execution Pipeline
 
-The playbook runs sequentially through 9 structured stages defined in `tasks/`:
+The playbook runs sequentially through 10 structured stages defined in `tasks/`:
 
 ```mermaid
 flowchart TD
@@ -69,7 +69,8 @@ flowchart TD
     E --> F["6. Install Flatpaks"]
     F --> G["7. Install & Configure Homebrew"]
     G --> H["8. Configure Users & Desktop Scripts"]
-    H --> I["9. Initialize System, Libvirt & VMs"]
+    H --> I["9. Configure ujust & Bluefin Components"]
+    I --> J["10. Initialize System, Libvirt & VMs"]
 ```
 
 ### 1. Repositories (`tasks/repositories.yml`)
@@ -105,7 +106,7 @@ Configures the `/snap` directory symlink and deploys applications across standar
 - **Classic (`--classic`)**: `antigravity`, `blender`, `code` (VS Code), `flutter`, `powershell`.
 
 ### 5. Services, Sockets & Firewall (`tasks/services.yml`)
-- **Systemd Services**: Enables and starts `libvirtd`, `fail2ban`, `nix-daemon`, `sshd`, and `tailscaled`.
+- **Systemd Services**: Enables and starts `libvirtd`, `fail2ban`, `nix-daemon`, `sshd`, `switcheroo-control`, and `tailscaled`.
 - **Systemd Sockets**: Enables and starts `podman.socket`, `cockpit.socket`, and `snapd.socket`.
 - **Docker Socket Bridge**: Creates a symlink from `/run/podman/podman.sock` to `/var/run/docker.sock` to ensure seamless compatibility with Docker-dependent CLI tools and workflows.
 - **Firewall (`firewalld`)**: Enables `firewalld` and opens permanent ports/services for `ssh`, `cockpit`, and `kdeconnect`.
@@ -148,9 +149,29 @@ Maintains clean isolation between root-level provisioning and user-level develop
 | `--pixi` | `2) Install Pixi Package Manager` | Installs [Pixi](https://pixi.sh) via official script and exports `~/.pixi/bin` to shell PATH. |
 | `--terminal` | `3) Update TLDR & Terminal Utilities` | Updates `tldr` cache, rebuilds `bat` syntax cache, initializes `git-lfs` user hooks, flushes font cache (`fc-cache`), and updates man database (`mandb`). |
 | `--distrobox` | `4) Create Ubuntu Distrobox Container` | Provisions an `ubuntu-toolbox` container using `quay.io/toolbx/ubuntu-toolbox:latest` with overwrite confirmation and runs an initial startup pass. |
-| `--all` | `5) Install / Configure All` | Runs all 4 onboarding stages sequentially. |
+| `--flathub` | `5) Add Flathub Remote (User)` | Adds the Flathub remote for the current user (`flatpak remote-add --user --if-not-exists`). |
+| `--fedora-flatpak` | `6) Add Fedora Flatpak Remote (User)` | Adds the Fedora Flatpak OCI remote for the current user (`flatpak remote-add --user --if-not-exists`). |
+| `--pipewire` | `7) Configure PipeWire Audio Redirection` | Configures multi-user TCP audio streaming/redirection between sender and receiver users. |
+| `--waydroid` | `8) Fedora Waydroid Setup Wizard` | Interactive Android container setup wizard (GAPPS/Vanilla image selection, libndk ARM translation, Widevine DRM, MobileRun via `uv` targeting connected ADB devices, and automated APK installer for F-Droid, Aurora Store, Neo Store, SmartDock, and XtMapper). |
+| `--cleanup` | `9) System Cleanup & Benchmark` | Submenu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, and direct I/O folder read/write storage benchmarking. |
+| `--libvirt` | `10) Libvirt VM Helpers` | Configure VM autostart on boot, forward dynamic (`49152-65535`) or custom ports in the firewalld `libvirt` zone, and define VMs from XML files. |
+| `--vagrant` | `11) Vagrant VMs` | Manage pre-configured Vagrant machines (Ubuntu, YunoHost): `up`, `halt`, `status`, `ssh`, and `destroy`. |
+| `--deepseek` | `12) Install DeepSeek Harness` | Initializes a Pixi environment in `$HOME/AppImages` and runs `npx @deepseek-ai/dsh web --no-open`. |
+| `--prism` | `13) Install Prism llama.cpp Binaries` | Interactive picker to download and install individual Linux (CUDA, Vulkan, ROCm, SYCL, CPU) or Android binaries (or all) from [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) into `$HOME/AppImages/prism-llama.cpp`. |
+| `--koboldcpp` | `14) Install KoboldCpp Standalone Binary` | Interactive picker to download and install official Linux binaries (`koboldcpp-linux-x64`, `nocuda`, `oldpc`, or all) from [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) directly into `$HOME/AppImages`. |
+| `--localai` | `15) Install LocalAI Binary / AppImage` | Interactive checkbox menu to download Linux binaries, AppImages, or launchers from [mudler/LocalAI](https://github.com/mudler/LocalAI) directly into `$HOME/AppImages`. |
+| `--openclaw` | `16) Install OpenClaw (CLI, Gateway & AppImage)` | Interactive checkbox menu to install OpenClaw CLI & Gateway service via `openclaw.ai/install-cli.sh` and download the latest AppImage from `openclaw.ai/install` into `$HOME/AppImages`. |
+| `--devpod` | `17) Install DevPod (CLI & Desktop AppImage)` | Interactive checkbox menu to install DevPod CLI into `~/.local/bin` and download DevPod desktop AppImage (dynamically discovers latest GitHub release) from [loft-sh/devpod](https://github.com/loft-sh/devpod) into `$HOME/AppImages`. |
+| `--compact` | `18) Compact & Configure Portable AppImages` | Interactive checkbox menu to selectively update and configure portable config/home directories for chosen AppImages in `$HOME/AppImages`. |
+| `--all` | `19) Install / Configure Items 1-8` | Runs stages 1 through 8 sequentially. |
 
-### 9. System Initialization & Virtualization (`tasks/initialize.yml`)
+### 9. ujust & Bluefin Components (`tasks/ujust.yml`)
+- Provisions Universal Blue `ujust` directories in `/usr/share/ublue-os` (`just`, `bling`, `homebrew`).
+- Deploys `ujust`, `luks-tpm2-autounlock`, and `ublue-bling` CLI commands.
+- Installs Bluefin recipes (`00-entry.just`, `apps.just`, `default.just`, `shared.just`, `system.just`), homebrew bundle definitions (`cli.Brewfile`), and terminal bling profile scripts.
+- Installs and configures the **Starship** cross-shell prompt binary (`starship.rs`) and system profile integration (`/etc/profile.d/90-bluefin-starship.sh`).
+
+### 10. System Initialization & Virtualization (`tasks/initialize.yml`)
 - Configures system hostname.
 - Creates `~/AppImages` directory for portable standalone applications.
 - Creates user virtualization directories:
@@ -210,11 +231,15 @@ Ansible-Playbook-Fedora-Workstation/
 │   ├── services.yml               # Systemd services, sockets, firewall rules
 │   ├── flatpaks.yml               # Flathub and Fedora Flatpak applications
 │   ├── users-groups.yml           # Users, groups, and desktop setup launchers
+│   ├── ujust.yml                  # ujust recipes, Starship prompt & Bluefin bling
 │   ├── initialize.yml             # Hostname, AppImages dir, libvirt network & VMs
 │   └── homebrew.yml               # Unprivileged Homebrew installation & PATH
 ├── Scripts/
 │   ├── packages.sh                # Core DNF package installation script
-│   └── launcher.sh                # Interactive user post-install onboarding script
+│   ├── launcher.sh                # Interactive user post-install onboarding script
+│   └── user.sh                    # Helper to launch terminal session as standard user
+├── files/
+│   └── ujust/                     # Bluefin ujust recipes, bling scripts & configs
 ├── VMs/                           # Libvirt KVM guest XML templates
 │   ├── Android.xml
 │   ├── Linux.xml

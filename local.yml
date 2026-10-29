@@ -37,6 +37,9 @@
 
     - name: Configure users and groups
       include_tasks: tasks/users-groups.yml
+
+    - name: Configure ujust and Bluefin components
+      include_tasks: tasks/ujust.yml
       
     - name: Initialize system
       include_tasks: tasks/initialize.yml #in-progress

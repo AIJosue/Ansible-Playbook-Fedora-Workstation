@@ -9,6 +9,7 @@
     - fail2ban
     - nix-daemon
     - sshd
+    - switcheroo-control
     - tailscaled
 
 - name: Enable and start system sockets

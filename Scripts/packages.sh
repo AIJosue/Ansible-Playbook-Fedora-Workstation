@@ -10,7 +10,8 @@ echo "Starting package installation. Logging to ${LOG_FILE}..."
 
 dnf install -y --skip-unavailable --skip-broken \
     @virtualization @development-tools\
-    7zip android-tools bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox fastfetch fish gnome-disk-utility gtk3-devel libva-utils pidgin pidgin-otr snapd strace tldr tmux uv zsh \
+    # Core tools, desktop utilities, shells, and containers
+    7zip android-tools bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox fastfetch fish gnome-disk-utility gtk3-devel gum just libva-utils pidgin pidgin-otr ptyxis rclone restic snapd strace switcheroo-control tldr tmux uv zsh \
     google-chrome-stable microsoft-edge-stable \
     clementine \
     clang cmake gh git-lfs godot nix nix-daemon nodejs \
