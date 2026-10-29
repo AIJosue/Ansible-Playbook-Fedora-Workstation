@@ -49,3 +49,12 @@
     - ssh
     - cockpit
     - kdeconnect
+
+- name: Add libvirt bridge virbr0 to trusted firewall zone
+  become: true
+  ansible.posix.firewalld:
+    zone: trusted
+    interface: virbr0
+    permanent: true
+    immediate: true
+    state: enabled

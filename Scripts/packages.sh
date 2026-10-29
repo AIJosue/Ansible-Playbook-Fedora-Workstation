@@ -11,7 +11,7 @@ echo "Starting package installation. Logging to ${LOG_FILE}..."
 dnf install -y --skip-unavailable --skip-broken \
     @virtualization @development-tools\
     # Core tools, desktop utilities, shells, and containers
-    7zip android-tools bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox fastfetch fish gnome-disk-utility gtk3-devel gum just libva-utils pidgin pidgin-otr ptyxis rclone restic snapd strace switcheroo-control tldr tmux uv zsh \
+    7zip android-tools binwalk bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox encapsule fastfetch fish gnome-disk-utility gtk3-devel gum just libva-utils pidgin pidgin-otr ptyxis rclone restic snapd sqlite strace switcheroo-control tldr tmux uv waydroid xterm zsh \
     google-chrome-stable microsoft-edge-stable \
     clementine \
     clang cmake gh git-lfs godot nix nix-daemon nodejs \
@@ -19,13 +19,13 @@ dnf install -y --skip-unavailable --skip-broken \
     kate kdegraphics-thumbnailers kdeplasma-addons 'kio*' kmousetool krename krdc krusader ktimer kcron kclock dolphin-plugins ksystemlog kompare \
     '*-sound-theme' plasma-mobile-sounds '*-kde-kvantum' '*-gtk-theme' '*-kde-theme' arc-kde qtcurve materia-kde '*-icon-theme' plasma-browser-integration '*-plasma-applet' aurorae 'sddm-*' \
     buildah flatpak-builder skopeo \
-    ansible 'ansible-collection*' gnome-boxes virt-manager nbdkit 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
+    ansible 'ansible-collection*' gnome-boxes virt-manager virt-bootstrap nbdkit 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
     'cockpit-*' \
     fail2ban fail2ban-firewalld fail2ban-systemd \
     wireguard-tools nmap-ncat \
     zoom \
     google-noto-fonts-all google-noto-color-emoji-fonts rsms-inter-fonts \
-    boundary packer terraform terraform-ls terraform-stacks-cli vagrant vagrant-libvirt vagrant-cachier vagrant-sshfs vagrant-hostmanager vagrant-registration waypoint \
+    boundary packer terraform terraform-ls terraform-stacks-cli 'vagrant*' waypoint \
     ffmpegthumbnailer
 
 # Install / update Pinokio to the latest release

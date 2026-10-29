@@ -28,10 +28,12 @@
       - com.bambulab.BambuStudio
       - com.brave.Browser
       - com.collaboraoffice.Office
+      - com.github.marhkb.Pods
       - com.github.polymeilex.neothesia
       - com.github.wwmm.easyeffects
       - com.moonlight_stream.Moonlight
       - com.ranfdev.DistroShelf
+      - com.rustdesk.RustDesk
       - com.usebottles.bottles
       - dev.lizardbyte.app.Sunshine
       - fr.handbrake.ghb
@@ -40,13 +42,16 @@
       - io.ente.auth
       - io.github.CyberTimon.RapidRAW
       - io.github.flattool.Warehouse
+      - io.github.ilya_zlobintsev.LACT
       - io.github.peazip.PeaZip
+      - io.github.ryubing.Ryujinx
       - io.podman_desktop.PodmanDesktop
       - it.mijorus.gearlever
       - me.timschneeberger.jdsp4linux
       - net.ankiweb.Anki
       - net.lutris.Lutris
       - net.xmind.XMind
+      - org.cockpit_project.CockpitClient
       - org.fcast.Receiver
       - org.gnome.Evince
       - org.gnome.Firmware

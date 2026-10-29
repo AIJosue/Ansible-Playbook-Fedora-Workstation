@@ -43,6 +43,7 @@
   snap:
     classic: yes
     name:
+      - android-studio
       - antigravity
       - blender
       - code

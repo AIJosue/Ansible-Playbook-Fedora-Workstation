@@ -89,12 +89,12 @@ Upgrades all installed packages across the system using `dnf` to guarantee a cle
 ### 3. DNF Packages & Removal (`tasks/packages.yml` & `Scripts/packages.sh`)
 - **Removes default bloat**: Akregator, KDE PIM suite, LibreOffice, Dragon Player, KCalc, KWrite, NeoChat, Okular, default Toolbox, and Blender.
 - **Installs curated toolchains and packages**:
-  - **Virtualization & Containers**: `@virtualization`, `virt-manager`, `gnome-boxes`, `qemu-img`, `swtpm`, `libguestfs`, `nbdkit`, `podman`, `podman-compose`, `podman-docker`, `podman-machine`, `podman-remote`, `podman-tui`, `buildah`, `skopeo`, `flatpak-builder`, `distrobox`.
-  - **IaC & HashiCorp**: `boundary`, `packer`, `terraform`, `terraform-ls`, `terraform-stacks-cli`, `vagrant`, `vagrant-libvirt`, `vagrant-cachier`, `vagrant-sshfs`, `vagrant-hostmanager`, `vagrant-registration`, `waypoint`.
+  - **Virtualization & Containers**: `@virtualization`, `virt-manager`, `virt-bootstrap`, `gnome-boxes`, `qemu-img`, `swtpm`, `libguestfs`, `nbdkit`, `podman`, `podman-compose`, `podman-docker`, `podman-machine`, `podman-remote`, `podman-tui`, `buildah`, `skopeo`, `flatpak-builder`, `distrobox`, `encapsule`, `waydroid`.
+  - **IaC & HashiCorp**: `boundary`, `packer`, `terraform`, `terraform-ls`, `terraform-stacks-cli`, `vagrant*`, `waypoint`.
   - **Development & Compilers**: `@development-tools`, `clang`, `cmake`, `gh` (GitHub CLI), `git-lfs`, `godot`, `nix`, `nix-daemon`, `nodejs`, `gtk3-devel`, `libva-utils`, `strace`, `tmux`, `uv`, `conda`, `DisplayCAL`, `corectrl`.
   - **Browsers & AI**: `google-chrome-stable`, `microsoft-edge-stable`, **Pinokio** (dynamically discovers the latest release RPM from GitHub releases and installs or updates it).
   - **Hardware & 3D Printing**: `prusa-slicer`.
-  - **System Utilities & Shells**: `7zip`, `android-tools`, `bleachbit`, `btrfs-assistant`, `gnome-disk-utility`, `snapd`, `fastfetch`, `tldr`, `fish`, `zsh`.
+  - **System Utilities & Shells**: `7zip`, `android-tools`, `binwalk`, `bleachbit`, `btrfs-assistant`, `gnome-disk-utility`, `gum`, `just`, `ptyxis`, `rclone`, `restic`, `snapd`, `sqlite`, `switcheroo-control`, `fastfetch`, `tldr`, `xterm`, `fish`, `zsh`.
   - **Networking & Security**: `fail2ban` (with firewalld and systemd integration), `wireguard-tools`, `nmap-ncat`.
   - **Media & Fonts**: `calibre`, `clementine`, `ffmpegthumbnailer`, Google Noto Fonts (`google-noto-fonts-all`, `google-noto-color-emoji-fonts`), Inter Fonts (`rsms-inter-fonts`).
   - **Communication**: `zoom`, `pidgin`, `pidgin-otr`.
@@ -103,13 +103,13 @@ Upgrades all installed packages across the system using `dnf` to guarantee a cle
 ### 4. Snap Packages (`tasks/snaps.yml`)
 Configures the `/snap` directory symlink and deploys applications across standard and classic confinement:
 - **Standard**: `audacity`, `bitwarden`, `chromium`, `cups`, `digikam`, `firefox`, `freecad`, `gimp`, `gnome-characters`, `inkscape`, `k3b`, `kget`, `node-red`, `nordvpn`, `obs-studio`, `openvino-ai-plugins-gimp`, `postman`, `proton-vpn`, `snap-store`, `steam`, `tailscale`, `telegram-desktop`, `termius-app`.
-- **Classic (`--classic`)**: `antigravity`, `blender`, `code` (VS Code), `flutter`, `powershell`.
+- **Classic (`--classic`)**: `android-studio`, `antigravity`, `blender`, `code` (VS Code), `flutter`, `powershell`.
 
 ### 5. Services, Sockets & Firewall (`tasks/services.yml`)
 - **Systemd Services**: Enables and starts `libvirtd`, `fail2ban`, `nix-daemon`, `sshd`, `switcheroo-control`, and `tailscaled`.
 - **Systemd Sockets**: Enables and starts `podman.socket`, `cockpit.socket`, and `snapd.socket`.
 - **Docker Socket Bridge**: Creates a symlink from `/run/podman/podman.sock` to `/var/run/docker.sock` to ensure seamless compatibility with Docker-dependent CLI tools and workflows.
-- **Firewall (`firewalld`)**: Enables `firewalld` and opens permanent ports/services for `ssh`, `cockpit`, and `kdeconnect`.
+- **Firewall (`firewalld`)**: Enables `firewalld`, opens permanent ports/services for `ssh`, `cockpit`, and `kdeconnect`, and assigns the `virbr0` libvirt bridge interface to the `trusted` zone.
 
 ### 6. Flatpaks (`tasks/flatpaks.yml`)
 Registers the Flathub and Fedora OCI remotes, then installs desktop applications:
@@ -117,8 +117,8 @@ Registers the Flathub and Fedora OCI remotes, then installs desktop applications
 - **Productivity & Notes**: Collabora Office, XMind, Anki, Anytype, Ente Auth, Merkuro Calendar, KDE Itinerary, Tellico, Francis Pomodoro.
 - **Media, Audio & Streaming**: Kdenlive, HandBrake, Kodi, Haruna, Glaxnimate, Kid3, KST, LabPlot, Sunshine (low-latency game streaming server), Moonlight (game streaming client), fcast Receiver.
 - **Creative & 3D**: Krita, RapidRAW, Bambu Studio (`com.bambulab.BambuStudio`), Neothesia, GNOME Snapshot.
-- **Gaming & Compatibility**: Bottles (`com.usebottles.bottles`), Lutris, Sober (Roblox runtime for Linux).
-- **Utilities & System Tools**: LocalSend, PeaZip, KeePassXC, PikaBackup, Warehouse (Flatpak manager), GearLever (AppImage manager), Podman Desktop, Apx GUI (Vanilla OS container manager), DistroShelf, Evince, GNOME Firmware, GNOME Maps, GNOME Weather, Icon Library, MetadataCleaner, EasyEffects, JamesDSP (`jdsp4linux`), Crow Translate, Nicotine+, qBittorrent, Cantor, Drawy, Kodaskanna, Kalk, Kalm.
+- **Gaming & Compatibility**: Bottles (`com.usebottles.bottles`), Lutris, Ryujinx (`io.github.ryubing.Ryujinx`), Sober (Roblox runtime for Linux).
+- **Utilities & System Tools**: LocalSend, PeaZip, KeePassXC, PikaBackup, Warehouse (Flatpak manager), GearLever (AppImage manager), Podman Desktop, Pods (`com.github.marhkb.Pods`), Cockpit Client (`org.cockpit_project.CockpitClient`), RustDesk (`com.rustdesk.RustDesk`), LACT (`io.github.ilya_zlobintsev.LACT`), Apx GUI (Vanilla OS container manager), DistroShelf, Evince, GNOME Firmware, GNOME Maps, GNOME Weather, Icon Library, MetadataCleaner, EasyEffects, JamesDSP (`jdsp4linux`), Crow Translate, Nicotine+, qBittorrent, Cantor, Drawy, Kodaskanna, Kalk, Kalm.
 - **Fedora Flatpak Remote**: Clementine, Evolution, Meld, ROCs.
 
 ### 7. Homebrew / Linuxbrew (`tasks/homebrew.yml`)
@@ -152,8 +152,8 @@ Maintains clean isolation between root-level provisioning and user-level develop
 | `--flathub` | `5) Add Flathub Remote (User)` | Adds the Flathub remote for the current user (`flatpak remote-add --user --if-not-exists`). |
 | `--fedora-flatpak` | `6) Add Fedora Flatpak Remote (User)` | Adds the Fedora Flatpak OCI remote for the current user (`flatpak remote-add --user --if-not-exists`). |
 | `--pipewire` | `7) Configure PipeWire Audio Redirection` | Configures multi-user TCP audio streaming/redirection between sender and receiver users. |
-| `--waydroid` | `8) Fedora Waydroid Setup Wizard` | Interactive Android container setup wizard (GAPPS/Vanilla image selection, libndk ARM translation, Widevine DRM, MobileRun via `uv` targeting connected ADB devices, and automated APK installer for F-Droid, Aurora Store, Neo Store, SmartDock, and XtMapper). |
-| `--cleanup` | `9) System Cleanup & Benchmark` | Submenu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, and direct I/O folder read/write storage benchmarking. |
+| `--waydroid` | `8) Fedora Waydroid Setup Wizard` | Interactive Android container setup wizard (GAPPS/Vanilla image selection, libndk ARM translation, Widevine DRM, MobileRun via `uv` targeting connected ADB devices, and automated APK installer for F-Droid, Aurora Store, Neo Store, SmartDock, XtMapper, and 3DMark Benchmark). |
+| `--cleanup` | `9) System Cleanup & Benchmark` | Submenu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, direct I/O folder read/write storage benchmarking, and dynamic Unigine Superposition Linux benchmark (`.run`) download/setup. |
 | `--libvirt` | `10) Libvirt VM Helpers` | Configure VM autostart on boot, forward dynamic (`49152-65535`) or custom ports in the firewalld `libvirt` zone, and define VMs from XML files. |
 | `--vagrant` | `11) Vagrant VMs` | Manage pre-configured Vagrant machines (Ubuntu, YunoHost): `up`, `halt`, `status`, `ssh`, and `destroy`. |
 | `--deepseek` | `12) Install DeepSeek Harness` | Initializes a Pixi environment in `$HOME/AppImages` and runs `npx @deepseek-ai/dsh web --no-open`. |

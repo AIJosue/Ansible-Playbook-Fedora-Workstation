@@ -918,6 +918,10 @@ install_xtmapper() {
     download_and_install_apk "XtMapper Keymapper" "$url" "XtMapper.apk"
 }
 
+install_3dmark() {
+    download_and_install_apk "3DMark Android Benchmark" "https://benchmarks.ul.com/downloads/3DMark.apk" "3DMark.apk"
+}
+
 install_all_waydroid_apps() {
     local apps=(
         "F-Droid Official Client"
@@ -925,10 +929,11 @@ install_all_waydroid_apps() {
         "Neo Store (Modern F-Droid Client)"
         "SmartDock Desktop Launcher"
         "XtMapper Keymapper"
+        "3DMark Android Benchmark (UL Solutions)"
         "MobileRun (via uv, installs to ADB device)"
     )
 
-    local selected=(1 1 1 1 1 0) # default first 5 checked
+    local selected=(1 1 1 1 1 1 0) # default first 6 checked
     local i
 
     while true; do
@@ -990,7 +995,8 @@ install_all_waydroid_apps() {
                 [ "${selected[2]}" -eq 1 ] && install_neostore_fdroid
                 [ "${selected[3]}" -eq 1 ] && install_smartdock
                 [ "${selected[4]}" -eq 1 ] && install_xtmapper
-                [ "${selected[5]}" -eq 1 ] && install_mobilerun
+                [ "${selected[5]}" -eq 1 ] && install_3dmark
+                [ "${selected[6]}" -eq 1 ] && install_mobilerun
                 echo -e "\n${GREEN}${BOLD}[+] Completed installation of selected apps!${NC}"
                 read -rp "Press Enter to continue..." _
                 return 0
@@ -1029,12 +1035,13 @@ fedora_waydroid_setup_wizard() {
         echo -e "  ${BOLD}7)${NC} Download & Install Neo Store (Modern F-Droid Client)"
         echo -e "  ${BOLD}8)${NC} Download & Install SmartDock (Desktop Desktop UI / Dock)"
         echo -e "  ${BOLD}9)${NC} Download & Install XtMapper (Keymapper / Controller)"
-        echo -e " ${BOLD}10)${NC} Setup MobileRun (via uv, installs to ADB device)"
-        echo -e " ${BOLD}11)${NC} ${BOLD}Select & Install APKs / Add-ons (Checkbox Menu)${NC}"
+        echo -e " ${BOLD}10)${NC} Download & Install 3DMark (Android Benchmark APK)"
+        echo -e " ${BOLD}11)${NC} Setup MobileRun (via uv, installs to ADB device)"
+        echo -e " ${BOLD}12)${NC} ${BOLD}Select & Install APKs / Add-ons (Checkbox Menu)${NC}"
         echo -e "${BLUE}-----------------------------------------------------${NC}"
         echo -e "  ${BOLD}0)${NC} Back to Main Menu"
         echo -e "${BLUE}=====================================================${NC}"
-        read -rp "Select an option [0-11]: " w_choice
+        read -rp "Select an option [0-12]: " w_choice
         case "$w_choice" in
             1)
                 run_waydroid_init_wizard
@@ -1072,16 +1079,19 @@ fedora_waydroid_setup_wizard() {
                 install_xtmapper
                 ;;
             10)
-                install_mobilerun
+                install_3dmark
                 ;;
             11)
+                install_mobilerun
+                ;;
+            12)
                 install_all_waydroid_apps
                 ;;
             0|[Qq]|back)
                 break
                 ;;
             *)
-                echo -e "\n${RED}Invalid option: '$w_choice'. Please enter 0-11.${NC}"
+                echo -e "\n${RED}Invalid option: '$w_choice'. Please enter 0-12.${NC}"
                 ;;
         esac
         echo ""
@@ -1137,6 +1147,64 @@ benchmark_folder() {
     rm -f "$testfile"
 }
 
+fetch_latest_unigine_superposition_url() {
+    python3 -c "
+import urllib.request, re, sys
+
+url = 'https://benchmark.unigine.com/superposition'
+req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+try:
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        html = resp.read().decode('utf-8', errors='ignore')
+        matches = re.findall(r'https?://[^\s\"\'<>]+Unigine_Superposition-[0-9.]+\.run', html)
+        if matches:
+            # Sort version descending if multiple found
+            print(sorted(set(matches), reverse=True)[0])
+            sys.exit(0)
+except Exception:
+    pass
+
+print('https://assets.unigine.com/d/Unigine_Superposition-1.1.run')
+"
+}
+
+install_unigine_superposition() {
+    local target_dir="$HOME/Benchmarks/Unigine"
+    mkdir -p "$target_dir"
+
+    echo -e "\n${BLUE}[*] Resolving latest Unigine Superposition Linux release...${NC}"
+    local download_url
+    download_url="$(fetch_latest_unigine_superposition_url)"
+    local filename
+    filename="$(basename "$download_url")"
+    local dest_file="$target_dir/$filename"
+
+    echo -e "    Found: ${GREEN}${filename}${NC}"
+    echo -e "    URL:   ${download_url}"
+    echo -e "    Dest:  ${dest_file}"
+
+    if [ -f "$dest_file" ]; then
+        read -rp "File $dest_file already exists. Re-download? [y/N]: " redownload
+        if [[ ! "$redownload" =~ ^[Yy]$ ]]; then
+            chmod +x "$dest_file"
+            echo -e "${GREEN}[+] Installer is executable at: ${dest_file}${NC}"
+            echo -e "    Run with: ${dest_file}"
+            return 0
+        fi
+    fi
+
+    echo -e "\n${BLUE}[*] Downloading ${filename} (~1.5GB)...${NC}"
+    if curl -fLC - --progress-bar -o "$dest_file" "$download_url"; then
+        chmod +x "$dest_file"
+        echo -e "${GREEN}[+] Successfully downloaded and set executable: ${dest_file}${NC}"
+        echo -e "    To install/run Superposition Benchmark:"
+        echo -e "    ${dest_file}"
+    else
+        echo -e "${RED}[ERROR] Failed to download Unigine Superposition from ${download_url}${NC}"
+        return 1
+    fi
+}
+
 cleanup_system() {
     while true; do
         echo -e "\n${BLUE}=====================================================${NC}"
@@ -1146,14 +1214,16 @@ cleanup_system() {
         echo "  2) Podman prune ALL (-a --volumes)"
         echo "  3) Remove saved snap snapshots"
         echo "  4) Folder read/write benchmark"
+        echo "  5) Download & Setup Unigine Superposition Benchmark (.run)"
         echo "  0) Back to Main Menu"
         echo -e "${BLUE}-----------------------------------------------------${NC}"
-        read -rp "Select an option [0-4]: " c_choice
+        read -rp "Select an option [0-5]: " c_choice
         case "$c_choice" in
             1) prune_podman ;;
             2) prune_podman_all ;;
             3) forget_snap_snapshots ;;
             4) benchmark_folder ;;
+            5) install_unigine_superposition ;;
             0|[Qq]|back) return 0 ;;
             *) echo -e "${RED}Invalid option: '$c_choice'.${NC}" ;;
         esac
@@ -2406,6 +2476,9 @@ elif [ "$1" == "--waydroid" ]; then
     exit 0
 elif [ "$1" == "--cleanup" ]; then
     cleanup_system
+    exit 0
+elif [ "$1" == "--superposition" ] || [ "$1" == "--unigine" ]; then
+    install_unigine_superposition
     exit 0
 elif [ "$1" == "--libvirt" ]; then
     configure_libvirt
