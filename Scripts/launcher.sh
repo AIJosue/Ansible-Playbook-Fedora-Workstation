@@ -18,7 +18,8 @@
 # 9. Virtualization & VM Management (Libvirt autostart/ports/XML and Vagrant Ubuntu/YunoHost)
 # 10. Unified AppImage Hub & Local AI Engines (15+ tools, models, launchers with batch checkbox selection)
 # 11. Compact & Configure Portable AppImages (--appimage-portable-config/home with checkbox selection)
-# 12. Core Onboarding Sequence (Stages 1-7 in sequence)
+# 12. ujust / Universal Blue Task Runner integration (interactive recipe runner)
+# 13. Core Onboarding Sequence (Stages 1-7 in sequence)
 # ==============================================================================
 
 # Formatting Colors
@@ -2830,6 +2831,71 @@ run_appimage_compact() {
     done
 }
 
+run_ujust() {
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}       ujust / Universal Blue Task Runner            ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    if ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; then
+        echo -e "${YELLOW}Notice: 'ujust' is not found at /usr/bin/ujust.${NC}"
+        echo -e "ujust is provisioned system-wide via Ansible (tasks/ujust.yml)."
+        echo -e "Run the playbook to install it: ${CYAN}sudo ansible-playbook local.yml${NC}"
+        return 1
+    fi
+
+    local ujust_bin
+    ujust_bin="$(command -v ujust 2>/dev/null || echo "/usr/bin/ujust")"
+
+    while true; do
+        clear
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e "${BOLD}       ujust / Universal Blue Task Runner            ${NC}"
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e " Binary: ${GREEN}$ujust_bin${NC}"
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+        echo -e "  ${BOLD}1)${NC} Interactive Recipe Selector (ujust --choose)"
+        echo -e "  ${BOLD}2)${NC} List All Available Recipes (ujust)"
+        echo -e "  ${BOLD}3)${NC} Configure Terminal Bling (ublue-bling)"
+        echo -e "  ${BOLD}4)${NC} Run Custom ujust Command"
+        echo -e "  ${BOLD}0)${NC} Back to Main Menu"
+        echo -e "${BLUE}=====================================================${NC}"
+
+        read -rp "Select an option [0-4]: " uj_choice
+        case "$uj_choice" in
+            1)
+                "$ujust_bin" --choose
+                ;;
+            2)
+                "$ujust_bin"
+                ;;
+            3)
+                if command -v ublue-bling >/dev/null 2>&1 || [ -x "/usr/bin/ublue-bling" ]; then
+                    local bling_bin
+                    bling_bin="$(command -v ublue-bling 2>/dev/null || echo "/usr/bin/ublue-bling")"
+                    "$bling_bin"
+                else
+                    echo -e "${YELLOW}ublue-bling script not found in /usr/bin.${NC}"
+                fi
+                ;;
+            4)
+                read -rp "Enter ujust recipe name and arguments (e.g. 'install-brew'): " recipe_args
+                if [ -n "$recipe_args" ]; then
+                    # shellcheck disable=SC2086
+                    "$ujust_bin" $recipe_args
+                fi
+                ;;
+            0|[Qq]|back)
+                return 0
+                ;;
+            *)
+                echo -e "${RED}Invalid option: '$uj_choice'.${NC}"
+                ;;
+        esac
+        echo ""
+        read -rp "Press Enter to continue..." _
+    done
+}
+
 run_all() {
     configure_homebrew
     install_pixi
@@ -2933,6 +2999,9 @@ elif [ "$1" == "--openclaw" ]; then
 elif [ "$1" == "--devpod" ]; then
     install_devpod
     exit 0
+elif [ "$1" == "--ujust" ]; then
+    run_ujust
+    exit 0
 elif [ "$1" == "--compact" ]; then
     run_appimage_compact
     exit 0
@@ -2957,10 +3026,11 @@ while true; do
     echo -e "  ${BOLD}9)${NC} Virtualization & VM Management (Libvirt & Vagrant)"
     echo -e "  ${BOLD}10)${NC} ${BOLD}AppImage Hub & Local AI Engines (15+ Tools & Models)${NC} [Checkbox]"
     echo -e "  ${BOLD}11)${NC} Compact & Configure Portable AppImages (--appimage-portable-*) [Checkbox]"
-    echo -e "  ${BOLD}12)${NC} ${BOLD}Run Core Onboarding Sequence (Stages 1-7)${NC}"
+    echo -e "  ${BOLD}12)${NC} Access ujust / Universal Blue Task Runner"
+    echo -e "  ${BOLD}13)${NC} ${BOLD}Run Core Onboarding Sequence (Stages 1-7)${NC}"
     echo -e "  ${BOLD}0)${NC} Exit"
     echo -e "${CYAN}=====================================================${NC}"
-    read -rp "Select an option [0-12]: " choice
+    read -rp "Select an option [0-13]: " choice
     case "$choice" in
         1) configure_homebrew ;;
         2) install_pixi ;;
@@ -2973,13 +3043,14 @@ while true; do
         9) manage_virtualization ;;
         10) appimage_hub_menu ;;
         11) run_appimage_compact ;;
-        12) run_all ;;
+        12) run_ujust ;;
+        13) run_all ;;
         0|[Qq]|exit)
             echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-12.${NC}"
+            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-13.${NC}"
             ;;
     esac
     echo ""

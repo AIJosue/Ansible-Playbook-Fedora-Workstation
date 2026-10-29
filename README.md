@@ -156,7 +156,8 @@ Maintains clean isolation between root-level provisioning and user-level develop
 | `--vm`, `--libvirt`, `--vagrant` | `9) Virtualization & VM Management` | Consolidated virtualization management: Libvirt autostart, firewall port forwarding, XML template definitions, and Vagrant VM lifecycle management (Ubuntu 24.04 and YunoHost). |
 | `--appimages`, `--appimage-hub` | `10) AppImage Hub & Local AI Engines [Checkbox]` | Unified interactive checkbox downloader for 15+ standalone applications, models, and tools into `~/AppImages` (Bionic, Darktable, DeepSeek Harness Desktop, DeepSeek Harness Web, DevPod CLI, Eden, Jan, KoboldCpp, LMMS, LocalAI, MuseScore Studio, OpenClaw, Prism llama.cpp, QtScrcpy, Unsloth). |
 | `--compact` | `11) Compact & Configure Portable AppImages [Checkbox]` | Interactive checkbox menu to selectively update and configure portable config/home directories (`--appimage-portable-*`) for AppImages in `$HOME/AppImages`. |
-| `--all` | `12) Run Core Onboarding Sequence` | Executes stages 1 through 7 sequentially. |
+| `--ujust` | `12) Access ujust / Universal Blue Task Runner` | Quick runner for `ujust --choose` recipe selector, recipe listing, and `ublue-bling` terminal customization. |
+| `--all` | `13) Run Core Onboarding Sequence` | Executes stages 1 through 7 sequentially. |
 
 ### 9. ujust & Bluefin Components (`tasks/ujust.yml`)
 - Provisions Universal Blue `ujust` directories in `/usr/share/ublue-os` (`just`, `bling`, `homebrew`).
