@@ -156,14 +156,15 @@ Maintains clean isolation between root-level provisioning and user-level develop
 | `--cleanup` | `9) System Cleanup & Benchmark` | Submenu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, direct I/O folder read/write storage benchmarking, and dynamic Unigine Superposition Linux benchmark (`.run`) download/setup. |
 | `--libvirt` | `10) Libvirt VM Helpers` | Configure VM autostart on boot, forward dynamic (`49152-65535`) or custom ports in the firewalld `libvirt` zone, and define VMs from XML files. |
 | `--vagrant` | `11) Vagrant VMs` | Manage pre-configured Vagrant machines (Ubuntu, YunoHost): `up`, `halt`, `status`, `ssh`, and `destroy`. |
-| `--deepseek` | `12) Install DeepSeek Harness` | Initializes a Pixi environment in `$HOME/AppImages` and runs `npx @deepseek-ai/dsh web --no-open`. |
-| `--prism` | `13) Install Prism llama.cpp Binaries` | Interactive picker to download and install individual Linux (CUDA, Vulkan, ROCm, SYCL, CPU) or Android binaries (or all) from [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) into `$HOME/AppImages/prism-llama.cpp`. |
-| `--koboldcpp` | `14) Install KoboldCpp Standalone Binary` | Interactive picker to download and install official Linux binaries (`koboldcpp-linux-x64`, `nocuda`, `oldpc`, or all) from [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) directly into `$HOME/AppImages`. |
-| `--localai` | `15) Install LocalAI Binary / AppImage` | Interactive checkbox menu to download Linux binaries, AppImages, or launchers from [mudler/LocalAI](https://github.com/mudler/LocalAI) directly into `$HOME/AppImages`. |
-| `--openclaw` | `16) Install OpenClaw (CLI, Gateway & AppImage)` | Interactive checkbox menu to install OpenClaw CLI & Gateway service via `openclaw.ai/install-cli.sh` and download the latest AppImage from `openclaw.ai/install` into `$HOME/AppImages`. |
-| `--devpod` | `17) Install DevPod (CLI & Desktop AppImage)` | Interactive checkbox menu to install DevPod CLI into `~/.local/bin` and download DevPod desktop AppImage (dynamically discovers latest GitHub release) from [loft-sh/devpod](https://github.com/loft-sh/devpod) into `$HOME/AppImages`. |
-| `--compact` | `18) Compact & Configure Portable AppImages` | Interactive checkbox menu to selectively update and configure portable config/home directories for chosen AppImages in `$HOME/AppImages`. |
-| `--all` | `19) Install / Configure Items 1-8` | Runs stages 1 through 8 sequentially. |
+| `--appimages` | `12) AppImage Hub & Local AI Engines` | Interactive checkbox menu to download the latest releases of all configured AppImages into `~/AppImages` (Bionic, Darktable, DeepSeek Harness, DevPod, Eden, Jan, KoboldCpp, LMMS, LocalAI, MuseScore Studio, OpenClaw, Prism llama.cpp, QtScrcpy, Unsloth). |
+| `--deepseek` | `13) Install DeepSeek Harness` | Initializes a Pixi environment in `$HOME/AppImages` and runs `npx @deepseek-ai/dsh web --no-open`. |
+| `--prism` | `14) Install Prism llama.cpp Binaries` | Interactive picker to download and install individual Linux (CUDA, Vulkan, ROCm, SYCL, CPU) or Android binaries (or all) from [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) into `$HOME/AppImages/prism-llama.cpp`. |
+| `--koboldcpp` | `15) Install KoboldCpp Standalone Binary` | Interactive picker to download and install official Linux binaries (`koboldcpp-linux-x64`, `nocuda`, `oldpc`, or all) from [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) directly into `$HOME/AppImages`. |
+| `--localai` | `16) Install LocalAI Binary / AppImage` | Interactive checkbox menu to download Linux binaries, AppImages, or launchers from [mudler/LocalAI](https://github.com/mudler/LocalAI) directly into `$HOME/AppImages`. |
+| `--openclaw` | `17) Install OpenClaw (CLI, Gateway & AppImage)` | Interactive checkbox menu to install OpenClaw CLI & Gateway service via `openclaw.ai/install-cli.sh` and download the latest AppImage from `openclaw.ai/install` into `$HOME/AppImages`. |
+| `--devpod` | `18) Install DevPod (CLI & Desktop AppImage)` | Interactive checkbox menu to install DevPod CLI into `~/.local/bin` and download DevPod desktop AppImage (dynamically discovers latest GitHub release) from [loft-sh/devpod](https://github.com/loft-sh/devpod) into `$HOME/AppImages`. |
+| `--compact` | `19) Compact & Configure Portable AppImages` | Interactive checkbox menu to selectively update and configure portable config/home directories for chosen AppImages in `$HOME/AppImages`. |
+| `--all` | `20) Install / Configure Items 1-8` | Runs stages 1 through 8 sequentially. |
 
 ### 9. ujust & Bluefin Components (`tasks/ujust.yml`)
 - Provisions Universal Blue `ujust` directories in `/usr/share/ublue-os` (`just`, `bling`, `homebrew`).

@@ -2314,6 +2314,312 @@ install_devpod() {
     done
 }
 
+download_and_install_single_appimage() {
+    local name="$1"
+    local download_url="$2"
+    local filename="$3"
+    local appimages_dir="$HOME/AppImages"
+    mkdir -p "$appimages_dir"
+
+    if [ -z "$download_url" ] || [ "$download_url" == "None" ]; then
+        echo -e "${RED}[!] Could not resolve latest download URL for $name.${NC}"
+        return 1
+    fi
+
+    local target_path="$appimages_dir/$filename"
+    echo -e "\n${BLUE}[*] Downloading latest ${name}...${NC}"
+    echo -e "    URL:  ${download_url}"
+    echo -e "    Dest: ${target_path}"
+
+    if curl -fLC - --progress-bar -o "$target_path" "$download_url"; then
+        chmod +x "$target_path"
+        echo -e "${GREEN}[+] Successfully downloaded and set executable: ${target_path}${NC}"
+        return 0
+    else
+        echo -e "${RED}[ERROR] Failed to download ${name} from ${download_url}${NC}"
+        return 1
+    fi
+}
+
+fetch_github_appimage_url() {
+    local repo="$1"
+    local regex="$2"
+    python3 -c "
+import urllib.request, json, re, sys
+
+headers = {'User-Agent': 'Mozilla/5.0'}
+repo = sys.argv[1]
+pattern = re.compile(sys.argv[2], re.IGNORECASE)
+url = f'https://api.github.com/repos/{repo}/releases/latest'
+
+try:
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=12) as r:
+        data = json.loads(r.read().decode())
+        for a in data.get('assets', []):
+            name = a.get('name', '')
+            if pattern.search(name):
+                print(a.get('browser_download_url'))
+                sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+" "$repo" "$regex"
+}
+
+# --- AppImage Fetchers ---
+
+fetch_latest_bionic_url() {
+    curl -sI "https://lmstudio.ai/download/bionic/latest/linux/x64" \
+        | awk 'tolower($1) == "location:" {print $2}' \
+        | tr -d '\r'
+}
+
+fetch_latest_darktable_appimage_url() {
+    fetch_github_appimage_url "darktable-org/darktable" 'Darktable-.*x86_64\.AppImage$'
+}
+
+fetch_latest_eden_appimage_url() {
+    python3 -c "
+import urllib.request, json, re, sys
+
+headers = {'User-Agent': 'Mozilla/5.0'}
+try:
+    req = urllib.request.Request('https://git.eden-emu.dev/api/v1/repos/eden-emu/eden/releases/latest', headers=headers)
+    with urllib.request.urlopen(req, timeout=12) as r:
+        data = json.loads(r.read().decode())
+        pattern = re.compile(r'Eden-Linux-.*amd64-clang-pgo\.AppImage$', re.IGNORECASE)
+        for a in data.get('assets', []):
+            if pattern.search(a.get('name', '')):
+                print(a.get('browser_download_url'))
+                sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+"
+}
+
+fetch_latest_jan_appimage_url() {
+    fetch_github_appimage_url "janhq/jan" 'Jan_.*amd64\.AppImage$'
+}
+
+fetch_latest_lmms_appimage_url() {
+    fetch_github_appimage_url "LMMS/lmms" 'lmms-.*linux-x86_64\.AppImage$'
+}
+
+fetch_latest_musescore_appimage_url() {
+    fetch_github_appimage_url "musescore/MuseScore" 'MuseScore-Studio-.*x86_64\.AppImage$'
+}
+
+fetch_latest_qtscrcpy_appimage_url() {
+    fetch_github_appimage_url "barry-ran/QtScrcpy" 'QtScrcpy-ubuntu-x64-.*\.AppImage$'
+}
+
+fetch_latest_unsloth_appimage_url() {
+    python3 -c "
+import urllib.request, json, sys
+
+headers = {'User-Agent': 'Mozilla/5.0'}
+try:
+    req = urllib.request.Request('https://github.com/unslothai/unsloth/releases/latest/download/latest.json', headers=headers)
+    with urllib.request.urlopen(req, timeout=12) as r:
+        d = json.loads(r.read().decode())
+        u = d.get('platforms', {}).get('linux-x86_64', {}).get('url')
+        if u:
+            print(u)
+            sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+" 2>/dev/null || echo "https://github.com/unslothai/unsloth/releases/latest/download/Unsloth-Desktop-Linux.AppImage"
+}
+
+fetch_latest_deepseek_harness_desktop_url() {
+    fetch_github_appimage_url "dsh-tauri/deepseek-harness-desktop" 'Deepseek\.Harness\.Desktop_.*amd64\.AppImage$'
+}
+
+# --- AppImage Installers ---
+
+install_bionic_appimage() {
+    local url
+    url="$(fetch_latest_bionic_url)"
+    local fn="bionic.appimage"
+    download_and_install_single_appimage "Bionic (LM Studio Agent)" "$url" "$fn"
+}
+
+install_darktable_appimage() {
+    local url
+    url="$(fetch_latest_darktable_appimage_url)"
+    local fn="darktable.appimage"
+    download_and_install_single_appimage "Darktable" "$url" "$fn"
+}
+
+install_eden_appimage() {
+    local url
+    url="$(fetch_latest_eden_appimage_url)"
+    local fn="eden.appimage"
+    download_and_install_single_appimage "Eden Nintendo Switch Emulator" "$url" "$fn"
+}
+
+install_jan_appimage() {
+    local url
+    url="$(fetch_latest_jan_appimage_url)"
+    local fn="jan.appimage"
+    download_and_install_single_appimage "Jan AI Desktop" "$url" "$fn"
+}
+
+install_lmms_appimage() {
+    local url
+    url="$(fetch_latest_lmms_appimage_url)"
+    local fn="lmms.appimage"
+    download_and_install_single_appimage "LMMS Digital Audio Workstation" "$url" "$fn"
+}
+
+install_musescore_appimage() {
+    local url
+    url="$(fetch_latest_musescore_appimage_url)"
+    local fn="musescore_studio.appimage"
+    download_and_install_single_appimage "MuseScore Studio" "$url" "$fn"
+}
+
+install_qtscrcpy_appimage() {
+    local url
+    url="$(fetch_latest_qtscrcpy_appimage_url)"
+    local fn="qtscrcpy.appimage"
+    download_and_install_single_appimage "QtScrcpy (Android Display & Control)" "$url" "$fn"
+}
+
+install_unsloth_appimage() {
+    local url
+    url="$(fetch_latest_unsloth_appimage_url)"
+    local fn="unsloth.appimage"
+    download_and_install_single_appimage "Unsloth AI Studio" "$url" "$fn"
+}
+
+install_deepseek_harness_appimage() {
+    local url
+    url="$(fetch_latest_deepseek_harness_desktop_url)"
+    local fn="deepseek-harness-desktop.appimage"
+    download_and_install_single_appimage "DeepSeek Harness Desktop" "$url" "$fn"
+}
+
+# Unified AppImage Hub
+appimage_hub_menu() {
+    local apps=(
+        "Bionic (LM Studio Agent)"
+        "Darktable (Photography & RAW Developer)"
+        "DeepSeek Harness Desktop (DSH GUI)"
+        "DevPod (Client-only developer environments)"
+        "Eden (Nintendo Switch Emulator)"
+        "Jan (Open-source ChatGPT Alternative)"
+        "KoboldCpp (Standalone llama.cpp & UI)"
+        "LMMS (Music Production Suite)"
+        "LocalAI (Multi-model local AI runtime)"
+        "MuseScore Studio (Music Notation & Scoring)"
+        "OpenClaw (AI Agent Gateway & Desktop App)"
+        "Prism llama.cpp (Pre-compiled LLM inference binaries)"
+        "QtScrcpy (Android Screen Mirror & Control)"
+        "Unsloth (Fast LLM Finetuning & Studio)"
+    )
+
+    local selected=(0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+    local i
+
+    while true; do
+        clear
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e "${BOLD}         AppImage Hub & Local AI Engines             ${NC}"
+        echo -e "${BLUE}=====================================================${NC}"
+        echo " Target Directory: $HOME/AppImages"
+        echo " Toggle items with their number (checkbox [X] / [ ])."
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+
+        for i in "${!apps[@]}"; do
+            local mark=" "
+            [ "${selected[i]}" -eq 1 ] && mark="X"
+            printf "  %2d) [${GREEN}%s${NC}] %s\n" "$((i + 1))" "$mark" "${apps[i]}"
+        done
+
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+        echo "   A) Toggle Select ALL / NONE"
+        echo "   R) RUN Download for Selected AppImages"
+        echo "   C) Compact & Configure Portable AppImages"
+        echo "   0) Back to Main Menu"
+        echo -e "${BLUE}=====================================================${NC}"
+
+        read -rp "Enter choice: " choice
+        case "$choice" in
+            0|[Qq]|back)
+                return 0
+                ;;
+            [Aa])
+                local all_set=1
+                for i in "${!apps[@]}"; do
+                    if [ "${selected[i]}" -eq 0 ]; then
+                        all_set=0
+                        break
+                    fi
+                done
+                local new_state=$((1 - all_set))
+                for i in "${!apps[@]}"; do
+                    selected[i]=$new_state
+                done
+                ;;
+            [Cc])
+                run_appimage_compact
+                ;;
+            [Rr])
+                local any_selected=0
+                for i in "${!apps[@]}"; do
+                    if [ "${selected[i]}" -eq 1 ]; then
+                        any_selected=1
+                        break
+                    fi
+                done
+
+                if [ "$any_selected" -eq 0 ]; then
+                    echo -e "\n${YELLOW}No AppImages selected. Mark at least one with its number.${NC}"
+                    sleep 1.5
+                    continue
+                fi
+
+                echo -e "\n${BOLD}${BLUE}=== Downloading Selected AppImages ===${NC}"
+                [ "${selected[0]}" -eq 1 ] && install_bionic_appimage
+                [ "${selected[1]}" -eq 1 ] && install_darktable_appimage
+                [ "${selected[2]}" -eq 1 ] && install_deepseek_harness_appimage
+                [ "${selected[3]}" -eq 1 ] && download_devpod_appimage
+                [ "${selected[4]}" -eq 1 ] && install_eden_appimage
+                [ "${selected[5]}" -eq 1 ] && install_jan_appimage
+                [ "${selected[6]}" -eq 1 ] && install_koboldcpp
+                [ "${selected[7]}" -eq 1 ] && install_lmms_appimage
+                [ "${selected[8]}" -eq 1 ] && install_localai
+                [ "${selected[9]}" -eq 1 ] && install_musescore_appimage
+                [ "${selected[10]}" -eq 1 ] && install_openclaw
+                [ "${selected[11]}" -eq 1 ] && install_prism_llamacpp
+                [ "${selected[12]}" -eq 1 ] && install_qtscrcpy_appimage
+                [ "${selected[13]}" -eq 1 ] && install_unsloth_appimage
+
+                echo -e "\n${GREEN}${BOLD}[+] Selected AppImage installations complete!${NC}"
+                read -rp "Press Enter to continue..." _
+                ;;
+            *)
+                local valid=0
+                for token in $(echo "$choice" | tr ',' ' '); do
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#apps[@]}" ]; then
+                        local idx=$((token - 1))
+                        selected[idx]=$((1 - selected[idx]))
+                        valid=1
+                    fi
+                done
+                if [ "$valid" -eq 0 ]; then
+                    echo -e "${RED}Invalid selection.${NC}"
+                    sleep 1
+                fi
+                ;;
+        esac
+    done
+}
+
 run_appimage_compact() {
     local appimages_dir="$HOME/AppImages"
     if [ ! -d "$appimages_dir" ]; then
@@ -2486,6 +2792,33 @@ elif [ "$1" == "--libvirt" ]; then
 elif [ "$1" == "--vagrant" ]; then
     configure_vagrant
     exit 0
+elif [ "$1" == "--appimages" ] || [ "$1" == "--appimage-hub" ]; then
+    appimage_hub_menu
+    exit 0
+elif [ "$1" == "--bionic" ]; then
+    install_bionic_appimage
+    exit 0
+elif [ "$1" == "--darktable" ]; then
+    install_darktable_appimage
+    exit 0
+elif [ "$1" == "--eden" ]; then
+    install_eden_appimage
+    exit 0
+elif [ "$1" == "--jan" ]; then
+    install_jan_appimage
+    exit 0
+elif [ "$1" == "--lmms" ]; then
+    install_lmms_appimage
+    exit 0
+elif [ "$1" == "--musescore" ]; then
+    install_musescore_appimage
+    exit 0
+elif [ "$1" == "--qtscrcpy" ]; then
+    install_qtscrcpy_appimage
+    exit 0
+elif [ "$1" == "--unsloth" ]; then
+    install_unsloth_appimage
+    exit 0
 elif [ "$1" == "--deepseek" ] || [ "$1" == "--dsh" ]; then
     setup_deepseek_harness
     exit 0
@@ -2528,17 +2861,18 @@ while true; do
     echo -e "  ${BOLD}9)${NC} System Cleanup & Benchmark"
     echo -e "  ${BOLD}10)${NC} Libvirt VM Helpers (autostart, port forwarding)"
     echo -e "  ${BOLD}11)${NC} Vagrant VMs (Ubuntu, YunoHost)"
-    echo -e "  ${BOLD}12)${NC} Install DeepSeek Harness (AppImages pixi env & dsh)"
-    echo -e "  ${BOLD}13)${NC} Install Prism llama.cpp Binaries (Linux & Android in AppImages)"
-    echo -e "  ${BOLD}14)${NC} Install KoboldCpp Standalone Binary (AppImages root)"
-    echo -e "  ${BOLD}15)${NC} Install LocalAI Binary / AppImage (AppImages root)"
-    echo -e "  ${BOLD}16)${NC} Install OpenClaw (CLI, Gateway & AppImage)"
-    echo -e "  ${BOLD}17)${NC} Install DevPod (CLI & Desktop AppImage - Latest Release)"
-    echo -e "  ${BOLD}18)${NC} Compact & Configure Portable AppImages (--appimage-portable-*)"
-    echo -e "  ${BOLD}19)${NC} ${BOLD}Install / Configure Items 1-8${NC}"
+    echo -e "  ${BOLD}12)${NC} ${BOLD}AppImage Hub & Local AI Engines (Bionic, Eden, Jan, etc.)${NC}"
+    echo -e "  ${BOLD}13)${NC} Install DeepSeek Harness (Pixi env & dsh web)"
+    echo -e "  ${BOLD}14)${NC} Install Prism llama.cpp Binaries (AppImages)"
+    echo -e "  ${BOLD}15)${NC} Install KoboldCpp Standalone Binary (AppImages)"
+    echo -e "  ${BOLD}16)${NC} Install LocalAI Binary / AppImage (AppImages)"
+    echo -e "  ${BOLD}17)${NC} Install OpenClaw (CLI, Gateway & AppImage)"
+    echo -e "  ${BOLD}18)${NC} Install DevPod (CLI & Desktop AppImage)"
+    echo -e "  ${BOLD}19)${NC} Compact & Configure Portable AppImages (--appimage-portable-*)"
+    echo -e "  ${BOLD}20)${NC} ${BOLD}Install / Configure Items 1-8${NC}"
     echo -e "  ${BOLD}0)${NC} Exit"
     echo -e "${CYAN}=====================================================${NC}"
-    read -rp "Select an option [0-19]: " choice
+    read -rp "Select an option [0-20]: " choice
     case "$choice" in
         1) configure_homebrew ;;
         2) install_pixi ;;
@@ -2551,20 +2885,21 @@ while true; do
         9) cleanup_system ;;
         10) configure_libvirt ;;
         11) configure_vagrant ;;
-        12) setup_deepseek_harness ;;
-        13) install_prism_llamacpp ;;
-        14) install_koboldcpp ;;
-        15) install_localai ;;
-        16) install_openclaw ;;
-        17) install_devpod ;;
-        18) run_appimage_compact ;;
-        19) run_all ;;
+        12) appimage_hub_menu ;;
+        13) setup_deepseek_harness ;;
+        14) install_prism_llamacpp ;;
+        15) install_koboldcpp ;;
+        16) install_localai ;;
+        17) install_openclaw ;;
+        18) install_devpod ;;
+        19) run_appimage_compact ;;
+        20) run_all ;;
         0|[Qq]|exit)
             echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-19.${NC}"
+            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-20.${NC}"
             ;;
     esac
     echo ""
