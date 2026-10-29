@@ -149,22 +149,14 @@ Maintains clean isolation between root-level provisioning and user-level develop
 | `--pixi` | `2) Install Pixi Package Manager` | Installs [Pixi](https://pixi.sh) via official script and exports `~/.pixi/bin` to shell PATH. |
 | `--terminal` | `3) Update TLDR & Terminal Utilities` | Updates `tldr` cache, rebuilds `bat` syntax cache, initializes `git-lfs` user hooks, flushes font cache (`fc-cache`), and updates man database (`mandb`). |
 | `--distrobox` | `4) Create Ubuntu Distrobox Container` | Provisions an `ubuntu-toolbox` container using `quay.io/toolbx/ubuntu-toolbox:latest` with overwrite confirmation and runs an initial startup pass. |
-| `--flathub` | `5) Add Flathub Remote (User)` | Adds the Flathub remote for the current user (`flatpak remote-add --user --if-not-exists`). |
-| `--fedora-flatpak` | `6) Add Fedora Flatpak Remote (User)` | Adds the Fedora Flatpak OCI remote for the current user (`flatpak remote-add --user --if-not-exists`). |
-| `--pipewire` | `7) Configure PipeWire Audio Redirection` | Configures multi-user TCP audio streaming/redirection between sender and receiver users. |
-| `--waydroid` | `8) Fedora Waydroid Setup Wizard` | Interactive Android container setup wizard (GAPPS/Vanilla image selection, libndk ARM translation, Widevine DRM, MobileRun via `uv` targeting connected ADB devices, and automated APK installer for F-Droid, Aurora Store, Neo Store, SmartDock, XtMapper, and 3DMark Benchmark). |
-| `--cleanup` | `9) System Cleanup & Benchmark` | Submenu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, direct I/O folder read/write storage benchmarking, and dynamic Unigine Superposition Linux benchmark (`.run`) download/setup. |
-| `--libvirt` | `10) Libvirt VM Helpers` | Configure VM autostart on boot, forward dynamic (`49152-65535`) or custom ports in the firewalld `libvirt` zone, and define VMs from XML files. |
-| `--vagrant` | `11) Vagrant VMs` | Manage pre-configured Vagrant machines (Ubuntu, YunoHost): `up`, `halt`, `status`, `ssh`, and `destroy`. |
-| `--appimages` | `12) AppImage Hub & Local AI Engines` | Interactive checkbox menu to download the latest releases of all configured AppImages into `~/AppImages` (Bionic, Darktable, DeepSeek Harness, Eden, Jan, KoboldCpp, LMMS, LocalAI, MuseScore Studio, Prism llama.cpp, QtScrcpy, Unsloth). |
-| `--deepseek` | `13) Install DeepSeek Harness` | Initializes a Pixi environment in `$HOME/AppImages` and runs `npx @deepseek-ai/dsh web --no-open`. |
-| `--prism` | `14) Install Prism llama.cpp Binaries` | Interactive picker to download and install individual Linux (CUDA, Vulkan, ROCm, SYCL, CPU) or Android binaries (or all) from [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) into `$HOME/AppImages/prism-llama.cpp`. |
-| `--koboldcpp` | `15) Install KoboldCpp Standalone Binary` | Interactive picker to download and install official Linux binaries (`koboldcpp-linux-x64`, `nocuda`, `oldpc`, or all) from [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) directly into `$HOME/AppImages`. |
-| `--localai` | `16) Install LocalAI Binary / AppImage` | Interactive checkbox menu to download Linux binaries, AppImages, or launchers from [mudler/LocalAI](https://github.com/mudler/LocalAI) directly into `$HOME/AppImages`. |
-| `--openclaw` | `17) Install OpenClaw (CLI, Gateway & Distrobox .deb)` | Interactive checkbox menu to install OpenClaw CLI & Gateway service via `openclaw.ai/install-cli.sh` and download/install the latest `.deb` package into the `ubuntu-toolbox` Distrobox container with desktop export to host. |
-| `--devpod` | `18) Install DevPod (CLI)` | Installs the latest DevPod CLI binary into `~/.local/bin` (auto-detects architecture) from [loft-sh/devpod](https://github.com/loft-sh/devpod). |
-| `--compact` | `19) Compact & Configure Portable AppImages` | Interactive checkbox menu to selectively update and configure portable config/home directories for chosen AppImages in `$HOME/AppImages`. |
-| `--all` | `20) Install / Configure Items 1-8` | Runs stages 1 through 8 sequentially. |
+| `--flatpaks`, `--flathub`, `--fedora-flatpak` | `5) Configure User Flatpak Remotes [Checkbox]` | Interactive checkbox menu to add Flathub and Fedora OCI remotes for current user (`flatpak remote-add --user`). |
+| `--pipewire` | `6) Configure PipeWire Audio Redirection` | Configures multi-user TCP audio streaming/redirection between sender and receiver users. |
+| `--waydroid` | `7) Fedora Waydroid Setup Wizard [Checkbox]` | Android container setup wizard: full/subsystem initialization (libndk ARM translation, Widevine DRM) and batch checkbox APK installer (F-Droid, Aurora Store, Neo Store, SmartDock, XtMapper, 3DMark Benchmark, MobileRun via `uv`). |
+| `--cleanup` | `8) System Cleanup & Benchmarks [Checkbox]` | Interactive checkbox menu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, direct I/O folder read/write storage benchmarking, and dynamic Unigine Superposition Linux benchmark (`.run`). |
+| `--vm`, `--libvirt`, `--vagrant` | `9) Virtualization & VM Management` | Consolidated virtualization management: Libvirt autostart, firewall port forwarding, XML template definitions, and Vagrant VM lifecycle management (Ubuntu 24.04 and YunoHost). |
+| `--appimages`, `--appimage-hub` | `10) AppImage Hub & Local AI Engines [Checkbox]` | Unified interactive checkbox downloader for 15+ standalone applications, models, and tools into `~/AppImages` (Bionic, Darktable, DeepSeek Harness Desktop, DeepSeek Harness Web, DevPod CLI, Eden, Jan, KoboldCpp, LMMS, LocalAI, MuseScore Studio, OpenClaw, Prism llama.cpp, QtScrcpy, Unsloth). |
+| `--compact` | `11) Compact & Configure Portable AppImages [Checkbox]` | Interactive checkbox menu to selectively update and configure portable config/home directories (`--appimage-portable-*`) for AppImages in `$HOME/AppImages`. |
+| `--all` | `12) Run Core Onboarding Sequence` | Executes stages 1 through 7 sequentially. |
 
 ### 9. ujust & Bluefin Components (`tasks/ujust.yml`)
 - Provisions Universal Blue `ujust` directories in `/usr/share/ublue-os` (`just`, `bling`, `homebrew`).

@@ -6,25 +6,19 @@
 # This interactive utility allows individual users to configure developer and
 # terminal tools on-demand without enforcing system-wide modifications.
 #
-# Supported Tools:
+# Supported Sections & Tools:
 # 1. Homebrew Environment & PATH Configuration
 # 2. Pixi Package Manager (https://pixi.sh)
 # 3. TLDR Cache & Terminal Utilities Refresh (tldr, bat, fonts, man-db, git-lfs)
 # 4. Distrobox — Ubuntu toolbox container (quay.io/toolbx/ubuntu-toolbox:latest)
-# 5. Flathub Remote for Current User (flatpak remote-add --user)
-# 6. Fedora Flatpak Remote for Current User (flatpak remote-add --user)
-# 7. PipeWire Audio Redirection (multi-user network/local streaming)
-# 8. Fedora Waydroid Setup Wizard (Android container initialization)
-# 9. System Cleanup & Benchmark (podman prune, snap snapshots, folder benchmark)
-# 10. Libvirt VM Helpers (VM autostart, libvirt zone port forwarding)
-# 11. Vagrant VMs (Ubuntu, YunoHost: start, stop, status, ssh, destroy)
-# 12. DeepSeek Harness (Pixi environment in ~/AppImages & @deepseek-ai/dsh)
-# 13. Prism llama.cpp Binaries (Linux & Android releases in ~/AppImages/prism-llama.cpp)
-# 14. KoboldCpp Standalone Binary (Linux releases directly in ~/AppImages)
-# 15. LocalAI Binary / AppImage (Linux releases directly in ~/AppImages)
-# 16. OpenClaw CLI, Gateway Service & AppImage (openclaw.ai)
-# 17. DevPod CLI (loft-sh/devpod)
-# 18. AppImages Compact & Portable Setup (--appimage-portable-config/home)
+# 5. User Flatpak Remotes (Flathub & Fedora OCI user remotes with checkbox selection)
+# 6. PipeWire Audio Redirection (multi-user network/local streaming)
+# 7. Fedora Waydroid Setup Wizard (Initialization, libndk, Widevine, and APKs with checkbox selection)
+# 8. System Cleanup & Benchmarks (Podman prune, Snap snapshots, disk I/O, Unigine Superposition)
+# 9. Virtualization & VM Management (Libvirt autostart/ports/XML and Vagrant Ubuntu/YunoHost)
+# 10. Unified AppImage Hub & Local AI Engines (15+ tools, models, launchers with batch checkbox selection)
+# 11. Compact & Configure Portable AppImages (--appimage-portable-config/home with checkbox selection)
+# 12. Core Onboarding Sequence (Stages 1-7 in sequence)
 # ==============================================================================
 
 # Formatting Colors
@@ -272,6 +266,88 @@ configure_fedora_flatpak_user() {
         echo -e "${RED}Error: Failed to add Fedora Flatpak user remote.${NC}"
         return 1
     fi
+}
+
+configure_flatpak_remotes_user() {
+    local remotes=(
+        "Flathub Remote (dl.flathub.org/repo/flathub.flatpakrepo)"
+        "Fedora Flatpak Remote (oci+https://registry.fedoraproject.org)"
+    )
+    local selected=(1 1)
+    local i
+
+    while true; do
+        clear
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e "${BOLD}       Configure User Flatpak Remotes                ${NC}"
+        echo -e "${BLUE}=====================================================${NC}"
+        echo " User: $(whoami)"
+        echo " Toggle remotes with numbers [1-${#remotes[@]}]."
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+
+        for i in "${!remotes[@]}"; do
+            local mark=" "
+            [ "${selected[i]}" -eq 1 ] && mark="X"
+            printf "  %2d) [${GREEN}%s${NC}] %s\n" "$((i + 1))" "$mark" "${remotes[i]}"
+        done
+
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+        echo "   A) Toggle Select ALL / NONE"
+        echo "   R) RUN remote configuration"
+        echo "   0) Back to Main Menu"
+        echo -e "${BLUE}=====================================================${NC}"
+
+        read -rp "Enter choice: " rem_choice
+        case "$rem_choice" in
+            0|[Qq]|back)
+                return 0
+                ;;
+            [Aa])
+                local all_set=1
+                for i in "${!remotes[@]}"; do
+                    if [ "${selected[i]}" -eq 0 ]; then
+                        all_set=0
+                        break
+                    fi
+                done
+                local new_state=$((1 - all_set))
+                for i in "${!remotes[@]}"; do
+                    selected[i]=$new_state
+                done
+                ;;
+            [Rr])
+                local any_selected=0
+                for i in "${!remotes[@]}"; do
+                    if [ "${selected[i]}" -eq 1 ]; then
+                        any_selected=1
+                        break
+                    fi
+                done
+
+                if [ "$any_selected" -eq 0 ]; then
+                    echo -e "\n${YELLOW}No remotes selected. Select at least one.${NC}"
+                    sleep 1.5
+                    continue
+                fi
+
+                echo -e "\n${BOLD}${BLUE}=== Configuring Selected User Flatpak Remotes ===${NC}"
+                [ "${selected[0]}" -eq 1 ] && configure_flathub_user
+                [ "${selected[1]}" -eq 1 ] && configure_fedora_flatpak_user
+
+                echo -e "\n${GREEN}✓ Flatpak remotes configuration complete!${NC}"
+                read -rp "Press Enter to continue..." _
+                return 0
+                ;;
+            *)
+                for token in $(echo "$rem_choice" | tr ',' ' '); do
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#remotes[@]}" ]; then
+                        local idx=$((token - 1))
+                        selected[idx]=$((1 - selected[idx]))
+                    fi
+                done
+                ;;
+        esac
+    done
 }
 
 disable_pipewire_streaming() {
@@ -1025,34 +1101,22 @@ fedora_waydroid_setup_wizard() {
         echo -e "${BLUE}=====================================================${NC}"
         echo -e "${BOLD}       Fedora Waydroid Setup Wizard                  ${NC}"
         echo -e "${BLUE}=====================================================${NC}"
-        echo -e "  ${BOLD}1)${NC} Initialize Waydroid (Images, Service, GAPPS/Vanilla)"
-        echo -e "  ${BOLD}2)${NC} Install / Manage libndk ARM Translation"
-        echo -e "  ${BOLD}3)${NC} Install / Manage Widevine DRM"
-        echo -e "  ${BOLD}4)${NC} Run Full Waydroid Setup (Init + libndk + Widevine)"
+        echo -e "  ${BOLD}1)${NC} ${BOLD}Select & Install APKs / Add-ons (Checkbox Menu)${NC}"
+        echo -e "  ${BOLD}2)${NC} Run Full Waydroid Setup (Init + libndk + Widevine)"
         echo -e "${BLUE}-----------------------------------------------------${NC}"
-        echo -e "  ${BOLD}5)${NC} Download & Install F-Droid (Official APK)"
-        echo -e "  ${BOLD}6)${NC} Download & Install Aurora Store (Google Play Client)"
-        echo -e "  ${BOLD}7)${NC} Download & Install Neo Store (Modern F-Droid Client)"
-        echo -e "  ${BOLD}8)${NC} Download & Install SmartDock (Desktop Desktop UI / Dock)"
-        echo -e "  ${BOLD}9)${NC} Download & Install XtMapper (Keymapper / Controller)"
-        echo -e " ${BOLD}10)${NC} Download & Install 3DMark (Android Benchmark APK)"
-        echo -e " ${BOLD}11)${NC} Setup MobileRun (via uv, installs to ADB device)"
-        echo -e " ${BOLD}12)${NC} ${BOLD}Select & Install APKs / Add-ons (Checkbox Menu)${NC}"
+        echo -e "  ${BOLD}3)${NC} Initialize Waydroid (Images, Service, GAPPS/Vanilla)"
+        echo -e "  ${BOLD}4)${NC} Install / Manage libndk ARM Translation"
+        echo -e "  ${BOLD}5)${NC} Install / Manage Widevine DRM"
         echo -e "${BLUE}-----------------------------------------------------${NC}"
+        echo -e "  ${BOLD}6)${NC} Install Single APK / Add-on (F-Droid, Aurora, 3DMark, etc.)"
         echo -e "  ${BOLD}0)${NC} Back to Main Menu"
         echo -e "${BLUE}=====================================================${NC}"
-        read -rp "Select an option [0-12]: " w_choice
+        read -rp "Select an option [0-6]: " w_choice
         case "$w_choice" in
             1)
-                run_waydroid_init_wizard
+                install_all_waydroid_apps
                 ;;
             2)
-                manage_libndk
-                ;;
-            3)
-                manage_widevine
-                ;;
-            4)
                 run_waydroid_init_wizard
                 local SCRIPT_DIR
                 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1063,35 +1127,51 @@ fedora_waydroid_setup_wizard() {
                     sudo "$SCRIPT_DIR/install-widevine.sh" install
                 fi
                 ;;
+            3)
+                run_waydroid_init_wizard
+                ;;
+            4)
+                manage_libndk
+                ;;
             5)
-                install_fdroid_official
+                manage_widevine
                 ;;
             6)
-                install_aurora_store
-                ;;
-            7)
-                install_neostore_fdroid
-                ;;
-            8)
-                install_smartdock
-                ;;
-            9)
-                install_xtmapper
-                ;;
-            10)
-                install_3dmark
-                ;;
-            11)
-                install_mobilerun
-                ;;
-            12)
-                install_all_waydroid_apps
+                while true; do
+                    clear
+                    echo -e "${BLUE}=====================================================${NC}"
+                    echo -e "${BOLD}       Install Single Waydroid APK / Add-on          ${NC}"
+                    echo -e "${BLUE}=====================================================${NC}"
+                    echo -e "  ${BOLD}1)${NC} F-Droid (Official APK)"
+                    echo -e "  ${BOLD}2)${NC} Aurora Store (Google Play Client)"
+                    echo -e "  ${BOLD}3)${NC} Neo Store (Modern F-Droid Client)"
+                    echo -e "  ${BOLD}4)${NC} SmartDock (Desktop UI / Dock)"
+                    echo -e "  ${BOLD}5)${NC} XtMapper (Keymapper / Controller)"
+                    echo -e "  ${BOLD}6)${NC} 3DMark (Android Benchmark APK)"
+                    echo -e "  ${BOLD}7)${NC} MobileRun (via uv, installs to ADB device)"
+                    echo -e "  ${BOLD}0)${NC} Back"
+                    echo -e "${BLUE}-----------------------------------------------------${NC}"
+                    read -rp "Select an APK [0-7]: " apk_choice
+                    case "$apk_choice" in
+                        1) install_fdroid_official ;;
+                        2) install_aurora_store ;;
+                        3) install_neostore_fdroid ;;
+                        4) install_smartdock ;;
+                        5) install_xtmapper ;;
+                        6) install_3dmark ;;
+                        7) install_mobilerun ;;
+                        0|[Qq]|back) break ;;
+                        *) echo -e "${RED}Invalid selection.${NC}"; sleep 1 ;;
+                    esac
+                    echo ""
+                    read -rp "Press Enter to continue..." _
+                done
                 ;;
             0|[Qq]|back)
                 break
                 ;;
             *)
-                echo -e "\n${RED}Invalid option: '$w_choice'. Please enter 0-12.${NC}"
+                echo -e "\n${RED}Invalid option: '$w_choice'. Please enter 0-6.${NC}"
                 ;;
         esac
         echo ""
@@ -1206,26 +1286,88 @@ install_unigine_superposition() {
 }
 
 cleanup_system() {
+    local tasks=(
+        "Podman system prune (containers, networks, dangling images)"
+        "Podman system prune ALL (-a --volumes: unused images & volumes)"
+        "Remove saved Snap snapshots"
+        "Folder read/write benchmark (direct I/O dd test)"
+        "Download & Setup Unigine Superposition Benchmark (.run)"
+    )
+    local selected=(1 0 1 0 0)
+    local i
+
     while true; do
-        echo -e "\n${BLUE}=====================================================${NC}"
+        clear
+        echo -e "${BLUE}=====================================================${NC}"
         echo -e "${BOLD}       System Cleanup & Benchmark                    ${NC}"
         echo -e "${BLUE}=====================================================${NC}"
-        echo "  1) Podman prune (unused containers, networks, dangling images)"
-        echo "  2) Podman prune ALL (-a --volumes)"
-        echo "  3) Remove saved snap snapshots"
-        echo "  4) Folder read/write benchmark"
-        echo "  5) Download & Setup Unigine Superposition Benchmark (.run)"
-        echo "  0) Back to Main Menu"
+        echo " Toggle tasks to run with numbers [1-${#tasks[@]}]."
         echo -e "${BLUE}-----------------------------------------------------${NC}"
-        read -rp "Select an option [0-5]: " c_choice
+
+        for i in "${!tasks[@]}"; do
+            local mark=" "
+            [ "${selected[i]}" -eq 1 ] && mark="X"
+            printf "  %2d) [${GREEN}%s${NC}] %s\n" "$((i + 1))" "$mark" "${tasks[i]}"
+        done
+
+        echo -e "${BLUE}-----------------------------------------------------${NC}"
+        echo "   A) Toggle Select ALL / NONE"
+        echo "   R) RUN selected cleanup & benchmark tasks"
+        echo "   0) Back to Main Menu"
+        echo -e "${BLUE}=====================================================${NC}"
+
+        read -rp "Enter choice: " c_choice
         case "$c_choice" in
-            1) prune_podman ;;
-            2) prune_podman_all ;;
-            3) forget_snap_snapshots ;;
-            4) benchmark_folder ;;
-            5) install_unigine_superposition ;;
-            0|[Qq]|back) return 0 ;;
-            *) echo -e "${RED}Invalid option: '$c_choice'.${NC}" ;;
+            0|[Qq]|back)
+                return 0
+                ;;
+            [Aa])
+                local all_set=1
+                for i in "${!tasks[@]}"; do
+                    if [ "${selected[i]}" -eq 0 ]; then
+                        all_set=0
+                        break
+                    fi
+                done
+                local new_state=$((1 - all_set))
+                for i in "${!tasks[@]}"; do
+                    selected[i]=$new_state
+                done
+                ;;
+            [Rr])
+                local any_selected=0
+                for i in "${!tasks[@]}"; do
+                    if [ "${selected[i]}" -eq 1 ]; then
+                        any_selected=1
+                        break
+                    fi
+                done
+
+                if [ "$any_selected" -eq 0 ]; then
+                    echo -e "\n${YELLOW}No tasks selected. Mark at least one.${NC}"
+                    sleep 1.5
+                    continue
+                fi
+
+                echo -e "\n${BOLD}${BLUE}=== Executing Selected Cleanup & Benchmark Tasks ===${NC}"
+                [ "${selected[0]}" -eq 1 ] && prune_podman
+                [ "${selected[1]}" -eq 1 ] && prune_podman_all
+                [ "${selected[2]}" -eq 1 ] && forget_snap_snapshots
+                [ "${selected[3]}" -eq 1 ] && benchmark_folder
+                [ "${selected[4]}" -eq 1 ] && install_unigine_superposition
+
+                echo -e "\n${GREEN}✓ Cleanup and benchmark tasks completed!${NC}"
+                read -rp "Press Enter to continue..." _
+                return 0
+                ;;
+            *)
+                for token in $(echo "$c_choice" | tr ',' ' '); do
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#tasks[@]}" ]; then
+                        local idx=$((token - 1))
+                        selected[idx]=$((1 - selected[idx]))
+                    fi
+                done
+                ;;
         esac
     done
 }
@@ -1452,6 +1594,32 @@ configure_vagrant() {
             2) manage_vagrant_vm yunohost ;;
             0|[Qq]|back) return 0 ;;
             *) echo -e "${RED}Invalid option: '$vg_choice'.${NC}" ;;
+        esac
+    done
+}
+
+manage_virtualization() {
+    while true; do
+        clear
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e "${BOLD}       Virtualization & VM Management                ${NC}"
+        echo -e "${BLUE}=====================================================${NC}"
+        echo -e "  ${BOLD}1)${NC} Define Libvirt VMs from XML (Android, Linux, Windows)"
+        echo -e "  ${BOLD}2)${NC} Autostart Libvirt VM at boot"
+        echo -e "  ${BOLD}3)${NC} Forward Ports to Libvirt VMs (firewalld libvirt zone)"
+        echo -e "  ${BOLD}4)${NC} Manage Vagrant Ubuntu 24.04 Desktop VM"
+        echo -e "  ${BOLD}5)${NC} Manage Vagrant YunoHost Server VM"
+        echo -e "  ${BOLD}0)${NC} Back to Main Menu"
+        echo -e "${BLUE}=====================================================${NC}"
+        read -rp "Select an option [0-5]: " vm_choice
+        case "$vm_choice" in
+            1) define_libvirt_vms ;;
+            2) autostart_libvirt_vm ;;
+            3) forward_libvirt_ports ;;
+            4) manage_vagrant_vm ubuntu ;;
+            5) manage_vagrant_vm yunohost ;;
+            0|[Qq]|back) return 0 ;;
+            *) echo -e "${RED}Invalid option: '$vm_choice'.${NC}" ;;
         esac
     done
 }
@@ -2429,18 +2597,21 @@ appimage_hub_menu() {
         "Bionic (LM Studio Agent)"
         "Darktable (Photography & RAW Developer)"
         "DeepSeek Harness Desktop (DSH GUI)"
+        "DeepSeek Harness Web (Pixi env & dsh web in ~/AppImages)"
+        "DevPod CLI (loft-sh/devpod binary into ~/.local/bin)"
         "Eden (Nintendo Switch Emulator)"
         "Jan (Open-source ChatGPT Alternative)"
         "KoboldCpp (Standalone llama.cpp & UI)"
         "LMMS (Music Production Suite)"
         "LocalAI (Multi-model local AI runtime)"
         "MuseScore Studio (Music Notation & Scoring)"
+        "OpenClaw (CLI, Gateway & Distrobox .deb)"
         "Prism llama.cpp (Pre-compiled LLM inference binaries)"
         "QtScrcpy (Android Screen Mirror & Control)"
         "Unsloth (Fast LLM Finetuning & Studio)"
     )
 
-    local selected=(0 0 0 0 0 0 0 0 0 0 0 0)
+    local selected=(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
     local i
 
     while true; do
@@ -2460,7 +2631,7 @@ appimage_hub_menu() {
 
         echo -e "${BLUE}-----------------------------------------------------${NC}"
         echo "   A) Toggle Select ALL / NONE"
-        echo "   R) RUN Download for Selected AppImages"
+        echo "   R) RUN Download for Selected AppImages & AI Tools"
         echo "   C) Compact & Configure Portable AppImages"
         echo "   0) Back to Main Menu"
         echo -e "${BLUE}=====================================================${NC}"
@@ -2501,21 +2672,24 @@ appimage_hub_menu() {
                     continue
                 fi
 
-                echo -e "\n${BOLD}${BLUE}=== Downloading Selected AppImages ===${NC}"
+                echo -e "\n${BOLD}${BLUE}=== Downloading Selected AppImages & AI Tools ===${NC}"
                 [ "${selected[0]}" -eq 1 ] && install_bionic_appimage
                 [ "${selected[1]}" -eq 1 ] && install_darktable_appimage
                 [ "${selected[2]}" -eq 1 ] && install_deepseek_harness_appimage
-                [ "${selected[3]}" -eq 1 ] && install_eden_appimage
-                [ "${selected[4]}" -eq 1 ] && install_jan_appimage
-                [ "${selected[5]}" -eq 1 ] && install_koboldcpp
-                [ "${selected[6]}" -eq 1 ] && install_lmms_appimage
-                [ "${selected[7]}" -eq 1 ] && install_localai
-                [ "${selected[8]}" -eq 1 ] && install_musescore_appimage
-                [ "${selected[9]}" -eq 1 ] && install_prism_llamacpp
-                [ "${selected[10]}" -eq 1 ] && install_qtscrcpy_appimage
-                [ "${selected[11]}" -eq 1 ] && install_unsloth_appimage
+                [ "${selected[3]}" -eq 1 ] && setup_deepseek_harness
+                [ "${selected[4]}" -eq 1 ] && install_devpod
+                [ "${selected[5]}" -eq 1 ] && install_eden_appimage
+                [ "${selected[6]}" -eq 1 ] && install_jan_appimage
+                [ "${selected[7]}" -eq 1 ] && install_koboldcpp
+                [ "${selected[8]}" -eq 1 ] && install_lmms_appimage
+                [ "${selected[9]}" -eq 1 ] && install_localai
+                [ "${selected[10]}" -eq 1 ] && install_musescore_appimage
+                [ "${selected[11]}" -eq 1 ] && install_openclaw
+                [ "${selected[12]}" -eq 1 ] && install_prism_llamacpp
+                [ "${selected[13]}" -eq 1 ] && install_qtscrcpy_appimage
+                [ "${selected[14]}" -eq 1 ] && install_unsloth_appimage
 
-                echo -e "\n${GREEN}${BOLD}[+] Selected AppImage installations complete!${NC}"
+                echo -e "\n${GREEN}${BOLD}[+] Selected AppImage & AI installations complete!${NC}"
                 read -rp "Press Enter to continue..." _
                 ;;
             *)
@@ -2702,11 +2876,17 @@ elif [ "$1" == "--cleanup" ]; then
 elif [ "$1" == "--superposition" ] || [ "$1" == "--unigine" ]; then
     install_unigine_superposition
     exit 0
+elif [ "$1" == "--vm" ] || [ "$1" == "--vms" ] || [ "$1" == "--virtualization" ]; then
+    manage_virtualization
+    exit 0
 elif [ "$1" == "--libvirt" ]; then
     configure_libvirt
     exit 0
 elif [ "$1" == "--vagrant" ]; then
     configure_vagrant
+    exit 0
+elif [ "$1" == "--flatpaks" ] || [ "$1" == "--flatpak-remotes" ]; then
+    configure_flatpak_remotes_user
     exit 0
 elif [ "$1" == "--appimages" ] || [ "$1" == "--appimage-hub" ]; then
     appimage_hub_menu
@@ -2770,52 +2950,36 @@ while true; do
     echo -e "  ${BOLD}2)${NC} Install Pixi Package Manager (pixi.sh)"
     echo -e "  ${BOLD}3)${NC} Update TLDR Cache & Terminal Utilities"
     echo -e "  ${BOLD}4)${NC} Create Ubuntu Distrobox Container"
-    echo -e "  ${BOLD}5)${NC} Add Flathub Remote (User)"
-    echo -e "  ${BOLD}6)${NC} Add Fedora Flatpak Remote (User)"
-    echo -e "  ${BOLD}7)${NC} Configure PipeWire Audio Redirection"
-    echo -e "  ${BOLD}8)${NC} Fedora Waydroid Setup Wizard"
-    echo -e "  ${BOLD}9)${NC} System Cleanup & Benchmark"
-    echo -e "  ${BOLD}10)${NC} Libvirt VM Helpers (autostart, port forwarding)"
-    echo -e "  ${BOLD}11)${NC} Vagrant VMs (Ubuntu, YunoHost)"
-    echo -e "  ${BOLD}12)${NC} ${BOLD}AppImage Hub & Local AI Engines (Bionic, Eden, Jan, etc.)${NC}"
-    echo -e "  ${BOLD}13)${NC} Install DeepSeek Harness (Pixi env & dsh web)"
-    echo -e "  ${BOLD}14)${NC} Install Prism llama.cpp Binaries (AppImages)"
-    echo -e "  ${BOLD}15)${NC} Install KoboldCpp Standalone Binary (AppImages)"
-    echo -e "  ${BOLD}16)${NC} Install LocalAI Binary / AppImage (AppImages)"
-    echo -e "  ${BOLD}17)${NC} Install OpenClaw (CLI, Gateway & Distrobox .deb)"
-    echo -e "  ${BOLD}18)${NC} Install DevPod (CLI binary into ~/.local/bin)"
-    echo -e "  ${BOLD}19)${NC} Compact & Configure Portable AppImages (--appimage-portable-*)"
-    echo -e "  ${BOLD}20)${NC} ${BOLD}Install / Configure Items 1-8${NC}"
+    echo -e "  ${BOLD}5)${NC} Configure User Flatpak Remotes (Flathub & Fedora) [Checkbox]"
+    echo -e "  ${BOLD}6)${NC} Configure PipeWire Audio Redirection"
+    echo -e "  ${BOLD}7)${NC} Fedora Waydroid Setup Wizard (APKs & Emulation) [Checkbox]"
+    echo -e "  ${BOLD}8)${NC} System Cleanup & Benchmarks (Podman, Snap, Storage) [Checkbox]"
+    echo -e "  ${BOLD}9)${NC} Virtualization & VM Management (Libvirt & Vagrant)"
+    echo -e "  ${BOLD}10)${NC} ${BOLD}AppImage Hub & Local AI Engines (15+ Tools & Models)${NC} [Checkbox]"
+    echo -e "  ${BOLD}11)${NC} Compact & Configure Portable AppImages (--appimage-portable-*) [Checkbox]"
+    echo -e "  ${BOLD}12)${NC} ${BOLD}Run Core Onboarding Sequence (Stages 1-7)${NC}"
     echo -e "  ${BOLD}0)${NC} Exit"
     echo -e "${CYAN}=====================================================${NC}"
-    read -rp "Select an option [0-20]: " choice
+    read -rp "Select an option [0-12]: " choice
     case "$choice" in
         1) configure_homebrew ;;
         2) install_pixi ;;
         3) update_terminal_utilities ;;
         4) setup_distrobox ;;
-        5) configure_flathub_user ;;
-        6) configure_fedora_flatpak_user ;;
-        7) configure_pipewire_streaming ;;
-        8) fedora_waydroid_setup_wizard ;;
-        9) cleanup_system ;;
-        10) configure_libvirt ;;
-        11) configure_vagrant ;;
-        12) appimage_hub_menu ;;
-        13) setup_deepseek_harness ;;
-        14) install_prism_llamacpp ;;
-        15) install_koboldcpp ;;
-        16) install_localai ;;
-        17) install_openclaw ;;
-        18) install_devpod ;;
-        19) run_appimage_compact ;;
-        20) run_all ;;
+        5) configure_flatpak_remotes_user ;;
+        6) configure_pipewire_streaming ;;
+        7) fedora_waydroid_setup_wizard ;;
+        8) cleanup_system ;;
+        9) manage_virtualization ;;
+        10) appimage_hub_menu ;;
+        11) run_appimage_compact ;;
+        12) run_all ;;
         0|[Qq]|exit)
             echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-20.${NC}"
+            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-12.${NC}"
             ;;
     esac
     echo ""
