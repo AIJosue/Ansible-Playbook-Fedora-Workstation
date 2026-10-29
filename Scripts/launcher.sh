@@ -23,7 +23,7 @@
 # 14. KoboldCpp Standalone Binary (Linux releases directly in ~/AppImages)
 # 15. LocalAI Binary / AppImage (Linux releases directly in ~/AppImages)
 # 16. OpenClaw CLI, Gateway Service & AppImage (openclaw.ai)
-# 17. DevPod CLI & Desktop AppImage (loft-sh/devpod)
+# 17. DevPod CLI (loft-sh/devpod)
 # 18. AppImages Compact & Portable Setup (--appimage-portable-config/home)
 # ==============================================================================
 
@@ -2230,120 +2230,8 @@ download_devpod_cli() {
     fi
 }
 
-download_devpod_appimage() {
-    local appimages_dir="$HOME/AppImages"
-    mkdir -p "$appimages_dir"
-
-    local target_file="$appimages_dir/DevPod_linux_amd64.AppImage"
-
-    echo -e "\n${BLUE}[*] Fetching latest DevPod AppImage release...${NC}"
-    local download_url=""
-    local tag=""
-    if command -v curl &>/dev/null; then
-        local release_json
-        release_json="$(curl -fsSL https://api.github.com/repos/loft-sh/devpod/releases/latest 2>/dev/null || true)"
-        tag="$(echo "$release_json" | grep -m1 '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
-        download_url="$(echo "$release_json" | grep "browser_download_url" | grep "DevPod_linux_amd64\.AppImage\"" | head -n 1 | cut -d '"' -f 4)"
-    fi
-
-    # Fallback to direct releases/latest/download URL
-    if [ -z "$download_url" ]; then
-        download_url="https://github.com/loft-sh/devpod/releases/latest/download/DevPod_linux_amd64.AppImage"
-    fi
-
-    local ver_label="${tag:-latest}"
-    echo -e "${BLUE}[*] Downloading DevPod AppImage ($ver_label) to $target_file...${NC}"
-    if curl -fsSL -L "$download_url" -o "$target_file"; then
-        chmod +x "$target_file"
-        echo -e "${GREEN}✓ Downloaded DevPod AppImage: $target_file${NC}"
-
-        # Configure portable config and home directories
-        echo -e "    Setting up portable config and home..."
-        (cd "$appimages_dir" && ./"DevPod_linux_amd64.AppImage" --appimage-portable-config 2>/dev/null || true)
-        (cd "$appimages_dir" && ./"DevPod_linux_amd64.AppImage" --appimage-portable-home 2>/dev/null || true)
-    else
-        echo -e "${RED}✗ Failed to download DevPod AppImage from $download_url${NC}"
-        return 1
-    fi
-}
-
 install_devpod() {
-    local options=(
-        "DevPod CLI binary into ~/.local/bin (latest release, auto-detect arch)"
-        "DevPod Desktop AppImage into ~/AppImages (latest release, amd64)"
-    )
-
-    local selected=(1 1)
-    local dp_choice
-
-    while true; do
-        clear
-        echo -e "${BLUE}=====================================================${NC}"
-        echo -e "${BOLD}       Install DevPod (Loft Labs Latest Release)     ${NC}"
-        echo -e "${BLUE}=====================================================${NC}"
-        echo " Toggle items with their number (checkbox [X] / [ ])."
-        echo -e "${BLUE}-----------------------------------------------------${NC}"
-
-        for i in "${!options[@]}"; do
-            local mark=" "
-            [ "${selected[i]}" -eq 1 ] && mark="X"
-            printf "  %2d) [${GREEN}%s${NC}] %s\n" "$((i + 1))" "$mark" "${options[i]}"
-        done
-
-        echo -e "${BLUE}-----------------------------------------------------${NC}"
-        echo "   A) Toggle Select ALL / NONE"
-        echo "   R) RUN installation for selected items"
-        echo "   0) Cancel / Back"
-        echo -e "${BLUE}=====================================================${NC}"
-
-        read -rp "Enter choice: " dp_choice
-        case "$dp_choice" in
-            0|[Qq]|back)
-                return 0
-                ;;
-            [Aa])
-                local all_set=1
-                for i in "${!options[@]}"; do
-                    if [ "${selected[i]}" -eq 0 ]; then
-                        all_set=0
-                        break
-                    fi
-                done
-                local new_state=$((1 - all_set))
-                for i in "${!options[@]}"; do
-                    selected[i]=$new_state
-                done
-                ;;
-            [Rr])
-                local total_selected=0
-                for i in "${!options[@]}"; do
-                    [ "${selected[i]}" -eq 1 ] && total_selected=$((total_selected + 1))
-                done
-
-                if [ "$total_selected" -eq 0 ]; then
-                    echo -e "\n${YELLOW}No items selected. Select at least one item.${NC}"
-                    sleep 1.5
-                    continue
-                fi
-
-                echo -e "\n${BOLD}${BLUE}=== Executing DevPod Installation ===${NC}"
-                [ "${selected[0]}" -eq 1 ] && download_devpod_cli
-                [ "${selected[1]}" -eq 1 ] && download_devpod_appimage
-
-                echo -e "\n${GREEN}✓ DevPod tasks finished.${NC}"
-                read -rp "Press Enter to continue..." _
-                return 0
-                ;;
-            *)
-                for token in $(echo "$dp_choice" | tr ',' ' '); do
-                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#options[@]}" ]; then
-                        local idx=$((token - 1))
-                        selected[idx]=$((1 - selected[idx]))
-                    fi
-                done
-                ;;
-        esac
-    done
+    download_devpod_cli
 }
 
 download_and_install_single_appimage() {
@@ -2541,7 +2429,6 @@ appimage_hub_menu() {
         "Bionic (LM Studio Agent)"
         "Darktable (Photography & RAW Developer)"
         "DeepSeek Harness Desktop (DSH GUI)"
-        "DevPod (Client-only developer environments)"
         "Eden (Nintendo Switch Emulator)"
         "Jan (Open-source ChatGPT Alternative)"
         "KoboldCpp (Standalone llama.cpp & UI)"
@@ -2553,7 +2440,7 @@ appimage_hub_menu() {
         "Unsloth (Fast LLM Finetuning & Studio)"
     )
 
-    local selected=(0 0 0 0 0 0 0 0 0 0 0 0 0)
+    local selected=(0 0 0 0 0 0 0 0 0 0 0 0)
     local i
 
     while true; do
@@ -2618,16 +2505,15 @@ appimage_hub_menu() {
                 [ "${selected[0]}" -eq 1 ] && install_bionic_appimage
                 [ "${selected[1]}" -eq 1 ] && install_darktable_appimage
                 [ "${selected[2]}" -eq 1 ] && install_deepseek_harness_appimage
-                [ "${selected[3]}" -eq 1 ] && download_devpod_appimage
-                [ "${selected[4]}" -eq 1 ] && install_eden_appimage
-                [ "${selected[5]}" -eq 1 ] && install_jan_appimage
-                [ "${selected[6]}" -eq 1 ] && install_koboldcpp
-                [ "${selected[7]}" -eq 1 ] && install_lmms_appimage
-                [ "${selected[8]}" -eq 1 ] && install_localai
-                [ "${selected[9]}" -eq 1 ] && install_musescore_appimage
-                [ "${selected[10]}" -eq 1 ] && install_prism_llamacpp
-                [ "${selected[11]}" -eq 1 ] && install_qtscrcpy_appimage
-                [ "${selected[12]}" -eq 1 ] && install_unsloth_appimage
+                [ "${selected[3]}" -eq 1 ] && install_eden_appimage
+                [ "${selected[4]}" -eq 1 ] && install_jan_appimage
+                [ "${selected[5]}" -eq 1 ] && install_koboldcpp
+                [ "${selected[6]}" -eq 1 ] && install_lmms_appimage
+                [ "${selected[7]}" -eq 1 ] && install_localai
+                [ "${selected[8]}" -eq 1 ] && install_musescore_appimage
+                [ "${selected[9]}" -eq 1 ] && install_prism_llamacpp
+                [ "${selected[10]}" -eq 1 ] && install_qtscrcpy_appimage
+                [ "${selected[11]}" -eq 1 ] && install_unsloth_appimage
 
                 echo -e "\n${GREEN}${BOLD}[+] Selected AppImage installations complete!${NC}"
                 read -rp "Press Enter to continue..." _
@@ -2897,7 +2783,7 @@ while true; do
     echo -e "  ${BOLD}15)${NC} Install KoboldCpp Standalone Binary (AppImages)"
     echo -e "  ${BOLD}16)${NC} Install LocalAI Binary / AppImage (AppImages)"
     echo -e "  ${BOLD}17)${NC} Install OpenClaw (CLI, Gateway & Distrobox .deb)"
-    echo -e "  ${BOLD}18)${NC} Install DevPod (CLI & Desktop AppImage)"
+    echo -e "  ${BOLD}18)${NC} Install DevPod (CLI binary into ~/.local/bin)"
     echo -e "  ${BOLD}19)${NC} Compact & Configure Portable AppImages (--appimage-portable-*)"
     echo -e "  ${BOLD}20)${NC} ${BOLD}Install / Configure Items 1-8${NC}"
     echo -e "  ${BOLD}0)${NC} Exit"
