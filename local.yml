@@ -1,45 +1,91 @@
 ---
-- hosts: localhost
+- name: Configure Fedora Workstation
+  hosts: localhost
   connection: local
   become: true
   vars:
-    hostname: "Desktop" # CHANGE THIS: Desired system hostname
+    # --- Host & User Configuration ---
+    hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # Dynamic phonetic name hostname (e.g., desktop-adam, desktop-david)
+    admin_username: "admin" # CHANGE THIS: Primary/Secondary admin username
+    sandbox_username: "sandbox" # CHANGE THIS: Second standard/sandbox username
     target_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
-    target_user_home: "{{ '/home/' + (ansible_env.SUDO_USER | default(ansible_env.USER)) if (ansible_env.SUDO_USER | default(ansible_env.USER)) != 'root' else ansible_env.HOME }}"
-    xml_dir: "{{ target_user_home }}/virtualization/kvm-qemu"
-    vagrant_dir: "{{ target_user_home }}/virtualization/vagrant"
+    target_user_home: "{{ '/home/' + target_user if target_user != 'root' else ansible_env.HOME }}"
+    xml_dir: "{{ target_user_home }}/Platforms/Virtualization/kvm-qemu"
+    vagrant_dir: "{{ target_user_home }}/Platforms/Virtualization/vagrant"
+
+    # --- Sub-Task Toggles (Enable/Disable YAML sections) ---
+    enable_repositories: true
+    enable_update: true
+    enable_packages: true
+    enable_flatpaks: true
+    enable_snaps: true
+    enable_services: true
+    enable_udev: true
+    enable_waydroid: true
+    enable_homebrew: true
+    enable_users_groups: true
+    enable_ujust: true
+    enable_initialize: true
+
+    # --- Waydroid Preferences ---
+    waydroid_multi_windows: true      # Enable freeform multi-window mode (persist.waydroid.multi_windows)
+    waydroid_system_type: "GAPPS"     # Android image flavor: "GAPPS" or "VANILLA"
+    waydroid_init_images: false       # Set true to automatically pull official LineageOS Android images during playbook run
+    waydroid_install_libndk: false    # Set true to automatically run libndk ARM translation installer
+
+  handlers:
+    - name: Import playbook handlers
+      ansible.builtin.import_tasks: handlers/main.yml
 
   tasks:
     - name: Configure repositories
-      include_tasks: tasks/repositories.yml
+      ansible.builtin.include_tasks: tasks/repositories.yml
+      when: enable_repositories | default(true) | bool
 
     - name: Update system
-      include_tasks: tasks/update.yml
+      ansible.builtin.include_tasks: tasks/update.yml
+      when: enable_update | default(true) | bool
 
     - name: Install packages
-      include_tasks: tasks/packages.yml
-
-    - name: Install snaps
-      include_tasks: tasks/snaps.yml
-
-    - name: Enable system services
-      include_tasks: tasks/services.yml
+      ansible.builtin.include_tasks: tasks/packages.yml
+      when: enable_packages | default(true) | bool
 
     - name: Install flatpaks
-      include_tasks: tasks/flatpaks.yml
+      ansible.builtin.include_tasks: tasks/flatpaks.yml
+      when: enable_flatpaks | default(true) | bool
+
+    - name: Install snaps
+      ansible.builtin.include_tasks: tasks/snaps.yml
+      when: enable_snaps | default(true) | bool
+
+    - name: Enable system services
+      ansible.builtin.include_tasks: tasks/services.yml
+      when: enable_services | default(true) | bool
+
+    - name: Configure gamepad, joystick, and VR udev rules
+      ansible.builtin.include_tasks: tasks/udev.yml
+      when: enable_udev | default(true) | bool
+
+    - name: Configure Waydroid integration and container controls
+      ansible.builtin.include_tasks: tasks/waydroid.yml
+      when: enable_waydroid | default(true) | bool
 
     - name: Install and configure Homebrew #in-progress
-      include_tasks: tasks/homebrew.yml
+      ansible.builtin.include_tasks: tasks/homebrew.yml
+      when: enable_homebrew | default(true) | bool
       args:
         apply:
-          become: yes
-          become_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+          become: true
+          become_user: "{{ target_user }}"
 
     - name: Configure users and groups
-      include_tasks: tasks/users-groups.yml
+      ansible.builtin.include_tasks: tasks/users-groups.yml
+      when: enable_users_groups | default(true) | bool
 
     - name: Configure ujust and Bluefin components
-      include_tasks: tasks/ujust.yml
-      
+      ansible.builtin.include_tasks: tasks/ujust.yml
+      when: enable_ujust | default(true) | bool
+
     - name: Initialize system
-      include_tasks: tasks/initialize.yml #in-progress
+      ansible.builtin.include_tasks: tasks/initialize.yml #in-progress
+      when: enable_initialize | default(true) | bool

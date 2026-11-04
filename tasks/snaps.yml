@@ -1,11 +1,19 @@
+---
+- name: Ensure snapd.socket is enabled and started
+  ansible.builtin.systemd:
+    name: snapd.socket
+    enabled: true
+    state: started
+  become: true
+
 - name: Create a symlink for snapd
-  file:
+  ansible.builtin.file:
     src: "/var/lib/snapd/snap"
     dest: "/snap"
     state: link
-  
+
 - name: Install Snap packages (Standard)
-  snap:
+  community.general.snap:
     name:
       - audacity
       - bitwarden
@@ -40,8 +48,8 @@
 #      - anbox-cloud-appliance
 
 - name: Install Snap packages with --classic flag
-  snap:
-    classic: yes
+  community.general.snap:
+    classic: true
     name:
       - android-studio
       - antigravity

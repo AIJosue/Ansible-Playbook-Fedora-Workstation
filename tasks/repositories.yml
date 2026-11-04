@@ -8,62 +8,44 @@
 #    - 'https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ansible_distribution_major_version}}.noarch.rpm'
 #    - 'https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ansible_distribution_major_version}}.noarch.rpm'
 
-- name: Add Google Chrome repository
-  yum_repository:
-    name: google-chrome
-    description: google-chrome
-    baseurl: https://dl.google.com/linux/chrome/rpm/stable/x86_64
-    gpgcheck: yes
-    gpgkey: https://dl.google.com/linux/linux_signing_key.pub
-    enabled: yes
+- name: Configure third-party YUM/DNF repositories
+  ansible.builtin.yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    gpgcheck: true
+    repo_gpgcheck: "{{ item.repo_gpgcheck | default(omit) }}"
+    gpgkey: "{{ item.gpgkey }}"
+    enabled: true
+    skip_if_unavailable: "{{ item.skip_if_unavailable | default(omit) }}"
+  loop:
+    - name: google-chrome
+      description: google-chrome
+      baseurl: https://dl.google.com/linux/chrome/rpm/stable/x86_64
+      gpgkey: https://dl.google.com/linux/linux_signing_key.pub
+    - name: microsoft-edge
+      description: microsoft-edge
+      baseurl: https://packages.microsoft.com/yumrepos/edge
+      gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+    - name: ms-teams-yum
+      description: ms-teams-yum
+      baseurl: https://packages.microsoft.com/yumrepos/ms-teams/
+      gpgkey: https://packages.microsoft.com/yumrepos/ms-teams/repodata/repomd.xml.key
+    - name: protonvpn-fedora-stable
+      description: ProtonVPN Fedora Stable repository
+      baseurl: https://repo.protonvpn.com/fedora-$releasever-stable
+      gpgkey: https://repo.protonvpn.com/fedora-$releasever-stable/public_key.asc
+    - name: vscode-yum
+      description: vscode-yum
+      baseurl: https://packages.microsoft.com/yumrepos/vscode/
+      gpgkey: https://packages.microsoft.com/yumrepos/vscode/repodata/repomd.xml.key
+    - name: zoom-release
+      description: zoom (release)
+      baseurl: https://repo.zoom.us/repo/rpm/release/
+      gpgkey: https://zoom.us/linux/download/pubkey
+      repo_gpgcheck: true
+      skip_if_unavailable: true
 
-- name: Add Microsoft Edge repository
-  yum_repository:
-    name: microsoft-edge
-    description: microsoft-edge
-    baseurl: https://packages.microsoft.com/yumrepos/edge
-    gpgcheck: yes
-    gpgkey: https://packages.microsoft.com/keys/microsoft.asc
-    enabled: yes
-
-
-- name: Add Microsoft Teams repository
-  yum_repository:
-    name: ms-teams-yum
-    description: ms-teams-yum
-    baseurl: https://packages.microsoft.com/yumrepos/ms-teams/
-    gpgcheck: yes
-    gpgkey: https://packages.microsoft.com/yumrepos/ms-teams/repodata/repomd.xml.key
-    enabled: yes
-
-- name: Add ProtonVPN Stable repository
-  yum_repository:
-    name: protonvpn-fedora-stable
-    description: ProtonVPN Fedora Stable repository
-    baseurl: https://repo.protonvpn.com/fedora-$releasever-stable
-    gpgcheck: yes
-    gpgkey: https://repo.protonvpn.com/fedora-$releasever-stable/public_key.asc
-    enabled: yes
-
-- name: Add VS Code repository
-  yum_repository:
-    name: vscode-yum
-    description: vscode-yum
-    baseurl: https://packages.microsoft.com/yumrepos/vscode/
-    gpgcheck: yes
-    gpgkey: https://packages.microsoft.com/yumrepos/vscode/repodata/repomd.xml.key
-    enabled: yes
-
-- name: Add Zoom repository
-  yum_repository:
-    name: zoom-release
-    description: zoom (release)
-    baseurl: https://repo.zoom.us/repo/rpm/release/
-    enabled: yes
-    gpgcheck: yes
-    repo_gpgcheck: yes
-    gpgkey: https://zoom.us/linux/download/pubkey
-    skip_if_unavailable: yes
 #- name: Add Hashicorp Stable repository
 #  yum_repository:
 #    name: hashicorp

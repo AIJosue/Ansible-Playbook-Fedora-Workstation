@@ -19,3 +19,12 @@ Thumbs.db
 *.swp
 *~
 .codegraph/
+fzf/
+fzf-wiki/
+fzf-wiki/
+
+.projectmem/events.jsonl
+.projectmem/watch.pid
+.projectmem/watch.log
+.projectmem/structure.json
+.projectmem/

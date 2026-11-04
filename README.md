@@ -1,266 +1,198 @@
-# Ansible Post-Install Playbook for Fedora Workstation
+<div align="center">
 
-An automated **Ansible playbook** designed for rapid, reproducible post-installation configuration of Fedora Workstation. Rather than manually configuring repositories, system utilities, virtualization stacks, software packages, and user profiles, this playbook provisions a fully functional development and productivity workstation in a single run.
+# Fedora Workstation Post-Install Suite
 
----
+### Seamless post-install automation, developer orchestration, and interactive control center for Fedora Workstation.
 
-## Key Features
+[![License](https://img.shields.io/github/license/AIJosue/Ansible-Playbook-Fedora-Workstation?style=flat-square&color=gray)](LICENSE)
+[![Build Status](https://img.shields.io/badge/Build-Passing-2ecc71?style=flat-square)](#)
+[![Ansible](https://img.shields.io/badge/Ansible-Ready-007AFF?style=flat-square)](#)
+[![Fedora](https://img.shields.io/badge/Fedora-41%20%7C%20Rawhide-51A0D5?style=flat-square)](#)
 
-- **Automated Repository Setup**: Configures official third-party repositories for Google Chrome, Microsoft Edge, Microsoft Teams, ProtonVPN, VS Code, and Zoom.
-- **Comprehensive DNF Curation**: Cleans up unwanted default packages and provisions development toolchains, container engines, HashiCorp IaC tooling, 3D printing tools, and KDE Plasma theming.
-- **Multi-Format Software Distribution**: Integrates native **DNF** packages, **Snap** applications (classic and standard confinement), and **Flatpak** applications (from both Flathub and Fedora OCI remotes).
-- **Automated Pinokio RPM Management**: Auto-fetches, installs, and updates the latest release of [Pinokio](https://pinokio.computer/) directly from GitHub releases.
-- **Enterprise-Ready Virtualization & Containers**: Pre-configures KVM/QEMU, Libvirt (with default bridge network & VM templates), Podman (with Docker socket compatibility), Cockpit web console, and Vagrant.
-- **Separation of System & User Concerns**: Deploys an interactive desktop setup utility (`launcher.sh`) allowing users to configure Homebrew, Pixi, Distrobox containers, terminal caches, user-level Flatpak remotes, PipeWire audio redirection, Waydroid, Podman/Snap maintenance, Libvirt VM helpers, and Vagrant testbeds on demand.
-- **Reproducible Testbeds**: Includes Vagrant definitions for an Ubuntu 24.04 LTS libvirt desktop VM and a self-contained Debian 12 YunoHost server.
+</div>
 
 ---
 
-## Prerequisites
+## What Is This Project?
 
-- **Operating System**: Fedora Workstation
-- **Ansible**: Installed locally on the host:
-  ```bash
-  sudo dnf install -y ansible
-  ```
-- **Privileges**: Elevated (`sudo`) access for system-level tasks.
+**Fedora Workstation Post-Install Suite** is a declarative **Ansible-based workstation orchestrator and terminal control center** built around Apple Human Interface Guidelines: **Clarity**, **Deference**, and **Depth**.
+
+It automates the transition from a stock Fedora installation to a production-grade development system in a single command—configuring repositories, development toolchains, rootless container bridges, kernel virtualization stacks, and user-space enhancements with zero manual friction.
 
 ---
 
-## Quickstart
+## Architecture
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/ITJosue/Ansible-Playbook-Fedora-Workstation.git
-   cd Ansible-Playbook-Fedora-Workstation
-   ```
-
-2. **Configure playbook variables** (optional):
-   Edit `local.yml` to set your desired system hostname and virtualization directories:
-   ```yaml
-   vars:
-     hostname: "Desktop"                                       # Set desired system hostname
-     xml_dir: "$HOME/virtualization/kvm-qemu"                 # Path to VM XML template definitions
-     vagrant_dir: "$HOME/virtualization/vagrant"              # Path to Vagrant environment folders
-   ```
-
-3. **Verify syntax**:
-   ```bash
-   ansible-playbook local.yml --syntax-check
-   ```
-
-4. **Execute the playbook**:
-   ```bash
-   sudo ansible-playbook local.yml
-   ```
-
----
-
-## Playbook Execution Pipeline
-
-The playbook runs sequentially through 10 structured stages defined in `tasks/`:
+The mindmap below outlines the architectural hierarchy and separation between root system provisioning and unprivileged user-space workflows:
 
 ```mermaid
-flowchart TD
-    A["1. Configure Repositories"] --> B["2. Update System"]
-    B --> C["3. Install DNF Packages & Pinokio"]
-    C --> D["4. Install Snap Packages"]
-    D --> E["5. Enable Services, Sockets & Firewall"]
-    E --> F["6. Install Flatpaks"]
-    F --> G["7. Install & Configure Homebrew"]
-    G --> H["8. Configure Users & Desktop Scripts"]
-    H --> I["9. Configure ujust & Bluefin Components"]
-    I --> J["10. Initialize System, Libvirt & VMs"]
+mindmap
+  root((Workstation Suite))
+    Build & CI
+      Ansible Playbook Engine
+      Travis CI Validation
+      tokless Code Intelligence
+    Core System Tasks
+      External Repositories
+      Curated DNF Packages & Bloat Removal
+      Flatpaks & Snaps Distribution
+      Systemd Services & Docker Bridge
+      Waydroid Android Subsystem
+      Hardware udev Rules
+    User Space Control
+      launcher.sh Control Center
+      fzf Fuzzy Navigation & Previews
+      virt-builder OS Generator
+      Local AI & AppImage Hub
+      PipeWire Audio Streaming
+    Tech Stack
+      Ansible & YAML
+      Bash & fzf
+      KVM, QEMU & Libvirt
+      Podman & OCI
 ```
-
-### 1. Repositories (`tasks/repositories.yml`)
-Configures trusted external YUM/DNF repositories with GPG verification:
-- **Google Chrome** (`google-chrome`)
-- **Microsoft Edge** (`microsoft-edge`)
-- **Microsoft Teams** (`ms-teams-yum`)
-- **ProtonVPN** (`protonvpn-fedora-stable`)
-- **Visual Studio Code** (`vscode-yum`)
-- **Zoom** (`zoom-release`)
-*(HashiCorp stable/test repositories are available for activation if needed)*.
-
-### 2. System Update (`tasks/update.yml`)
-Upgrades all installed packages across the system using `dnf` to guarantee a clean, current base before installing dependencies.
-
-### 3. DNF Packages & Removal (`tasks/packages.yml` & `Scripts/packages.sh`)
-- **Removes default bloat**: Akregator, KDE PIM suite, LibreOffice, Dragon Player, KCalc, KWrite, NeoChat, Okular, default Toolbox, and Blender.
-- **Installs curated toolchains and packages**:
-  - **Virtualization & Containers**: `@virtualization`, `virt-manager`, `virt-bootstrap`, `gnome-boxes`, `qemu-img`, `swtpm`, `libguestfs`, `nbdkit`, `podman`, `podman-compose`, `podman-docker`, `podman-machine`, `podman-remote`, `podman-tui`, `buildah`, `skopeo`, `flatpak-builder`, `distrobox`, `encapsule`, `waydroid`.
-  - **IaC & HashiCorp**: `boundary`, `packer`, `terraform`, `terraform-ls`, `terraform-stacks-cli`, `vagrant*`, `waypoint`.
-  - **Development & Compilers**: `@development-tools`, `clang`, `cmake`, `gh` (GitHub CLI), `git-lfs`, `godot`, `nix`, `nix-daemon`, `nodejs`, `gtk3-devel`, `libva-utils`, `strace`, `tmux`, `uv`, `conda`, `DisplayCAL`, `corectrl`.
-  - **Browsers & AI**: `google-chrome-stable`, `microsoft-edge-stable`, **Pinokio** (dynamically discovers the latest release RPM from GitHub releases and installs or updates it).
-  - **Hardware & 3D Printing**: `prusa-slicer`.
-  - **System Utilities & Shells**: `7zip`, `android-tools`, `binwalk`, `bleachbit`, `btrfs-assistant`, `gnome-disk-utility`, `gum`, `just`, `ptyxis`, `rclone`, `restic`, `snapd`, `sqlite`, `switcheroo-control`, `fastfetch`, `tldr`, `xterm`, `fish`, `zsh`.
-  - **Networking & Security**: `fail2ban` (with firewalld and systemd integration), `wireguard-tools`, `nmap-ncat`.
-  - **Media & Fonts**: `calibre`, `clementine`, `ffmpegthumbnailer`, Google Noto Fonts (`google-noto-fonts-all`, `google-noto-color-emoji-fonts`), Inter Fonts (`rsms-inter-fonts`).
-  - **Communication**: `zoom`, `pidgin`, `pidgin-otr`.
-  - **KDE Plasma & Desktop Customization**: `kate`, `krusader`, `kompare`, `ksystemlog`, `kcron`, `kclock`, `ktimer`, `kmousetool`, `krename`, `krdc`, Dolphin plugins, thumbnailers, Kvantum, Arc KDE, QtCurve, Materia, Aurorae, SDDM themes, and Plasma applets.
-
-### 4. Snap Packages (`tasks/snaps.yml`)
-Configures the `/snap` directory symlink and deploys applications across standard and classic confinement:
-- **Standard**: `audacity`, `bitwarden`, `chromium`, `cups`, `digikam`, `firefox`, `freecad`, `gimp`, `gnome-characters`, `inkscape`, `k3b`, `kget`, `node-red`, `nordvpn`, `obs-studio`, `openvino-ai-plugins-gimp`, `postman`, `proton-vpn`, `snap-store`, `steam`, `tailscale`, `telegram-desktop`, `termius-app`.
-- **Classic (`--classic`)**: `android-studio`, `antigravity`, `blender`, `code` (VS Code), `flutter`, `powershell`.
-
-### 5. Services, Sockets & Firewall (`tasks/services.yml`)
-- **Systemd Services**: Enables and starts `libvirtd`, `fail2ban`, `nix-daemon`, `sshd`, `switcheroo-control`, and `tailscaled`.
-- **Systemd Sockets**: Enables and starts `podman.socket`, `cockpit.socket`, and `snapd.socket`.
-- **Docker Socket Bridge**: Creates a symlink from `/run/podman/podman.sock` to `/var/run/docker.sock` to ensure seamless compatibility with Docker-dependent CLI tools and workflows.
-- **Firewall (`firewalld`)**: Enables `firewalld`, opens permanent ports/services for `ssh`, `cockpit`, and `kdeconnect`, and assigns the `virbr0` libvirt bridge interface to the `trusted` zone.
-
-### 6. Flatpaks (`tasks/flatpaks.yml`)
-Registers the Flathub and Fedora OCI remotes, then installs desktop applications:
-- **Web Browsers**: Brave Browser (`com.brave.Browser`), Zen Browser (`app.zen_browser.zen`).
-- **Productivity & Notes**: Collabora Office, XMind, Anki, Anytype, Ente Auth, Merkuro Calendar, KDE Itinerary, Tellico, Francis Pomodoro.
-- **Media, Audio & Streaming**: Kdenlive, HandBrake, Kodi, Haruna, Glaxnimate, Kid3, KST, LabPlot, Sunshine (low-latency game streaming server), Moonlight (game streaming client), fcast Receiver.
-- **Creative & 3D**: Krita, RapidRAW, Bambu Studio (`com.bambulab.BambuStudio`), Neothesia, GNOME Snapshot.
-- **Gaming & Compatibility**: Bottles (`com.usebottles.bottles`), Lutris, Ryujinx (`io.github.ryubing.Ryujinx`), Sober (Roblox runtime for Linux).
-- **Utilities & System Tools**: LocalSend, PeaZip, KeePassXC, PikaBackup, Warehouse (Flatpak manager), GearLever (AppImage manager), Podman Desktop, Pods (`com.github.marhkb.Pods`), Cockpit Client (`org.cockpit_project.CockpitClient`), RustDesk (`com.rustdesk.RustDesk`), LACT (`io.github.ilya_zlobintsev.LACT`), Apx GUI (Vanilla OS container manager), DistroShelf, Evince, GNOME Firmware, GNOME Maps, GNOME Weather, Icon Library, MetadataCleaner, EasyEffects, JamesDSP (`jdsp4linux`), Crow Translate, Nicotine+, qBittorrent, Cantor, Drawy, Kodaskanna, Kalk, Kalm.
-- **Fedora Flatpak Remote**: Clementine, Evolution, Meld, ROCs.
-
-### 7. Homebrew / Linuxbrew (`tasks/homebrew.yml`)
-- Installs Homebrew non-interactively using the unprivileged user (`become_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"`).
-- Establishes system-wide PATH profile loading via `/etc/profile.d/homebrew.sh`.
-- Adds `brew shellenv` evaluation to the user's `~/.bashrc`.
-
-### 8. Users, Groups & Desktop Automation (`tasks/users-groups.yml`)
-- Ensures required system groups exist (`wheel`, `libvirt`, `nordvpn`, `render`, `video`).
-- Provisions and adds accounts to necessary groups:
-  | User | Primary Groups | Purpose |
-  |---|---|---|
-  | **Sudo / Invoking User** | `wheel`, `libvirt`, `lxd`, `nordvpn`, `render`, `video` | Administrative workstation operator |
-  | **`admin`** | `wheel`, `libvirt`, `nordvpn`, `render`, `video` | Secondary administrative account |
-  | **`user`** | `libvirt`, `render`, `video` | Unprivileged standard desktop user |
-- Sets up user `~/Desktop` directories and deploys the onboarding utility:
-  - `~/Desktop/launcher.sh`
-
-#### Interactive User Environment Utility (`launcher.sh`)
-Maintains clean isolation between root-level provisioning and user-level developer settings. Can be executed in the terminal with flags:
-```bash
-~/Desktop/launcher.sh [FLAG]
-```
-
-| Flag | Menu Option | Action |
-|---|---|---|
-| `--brew` | `1) Configure Homebrew Environment` | Detects Homebrew or guides installation, adding `shellenv` to `~/.bashrc` and `~/.zshrc`. |
-| `--pixi` | `2) Install Pixi Package Manager` | Installs [Pixi](https://pixi.sh) via official script and exports `~/.pixi/bin` to shell PATH. |
-| `--terminal` | `3) Update TLDR & Terminal Utilities` | Updates `tldr` cache, rebuilds `bat` syntax cache, initializes `git-lfs` user hooks, flushes font cache (`fc-cache`), and updates man database (`mandb`). |
-| `--distrobox` | `4) Create Ubuntu Distrobox Container` | Provisions an `ubuntu-toolbox` container using `quay.io/toolbx/ubuntu-toolbox:latest` with overwrite confirmation and runs an initial startup pass. |
-| `--flatpaks`, `--flathub`, `--fedora-flatpak` | `5) Configure User Flatpak Remotes [Checkbox]` | Interactive checkbox menu to add Flathub and Fedora OCI remotes for current user (`flatpak remote-add --user`). |
-| `--pipewire` | `6) Configure PipeWire Audio Redirection` | Configures multi-user TCP audio streaming/redirection between sender and receiver users. |
-| `--waydroid` | `7) Fedora Waydroid Setup Wizard [Checkbox]` | Android container setup wizard: full/subsystem initialization (libndk ARM translation, Widevine DRM) and batch checkbox APK installer (F-Droid, Aurora Store, Neo Store, SmartDock, XtMapper, 3DMark Benchmark, MobileRun via `uv`). |
-| `--cleanup` | `8) System Cleanup & Benchmarks [Checkbox]` | Interactive checkbox menu for Podman pruning (standard and `-a --volumes`), clearing saved Snap snapshots, direct I/O folder read/write storage benchmarking, and dynamic Unigine Superposition Linux benchmark (`.run`). |
-| `--vm`, `--libvirt`, `--vagrant` | `9) Virtualization & VM Management` | Consolidated virtualization management: Libvirt autostart, firewall port forwarding, XML template definitions, and Vagrant VM lifecycle management (Ubuntu 24.04 and YunoHost). |
-| `--appimages`, `--appimage-hub` | `10) AppImage Hub & Local AI Engines [Checkbox]` | Unified interactive checkbox downloader for 15+ standalone applications, models, and tools into `~/AppImages` (Bionic, Darktable, DeepSeek Harness Desktop, DeepSeek Harness Web, DevPod CLI, Eden, Jan, KoboldCpp, LMMS, LocalAI, MuseScore Studio, OpenClaw, Prism llama.cpp, QtScrcpy, Unsloth). |
-| `--compact` | `11) Compact & Configure Portable AppImages [Checkbox]` | Interactive checkbox menu to selectively update and configure portable config/home directories (`--appimage-portable-*`) for AppImages in `$HOME/AppImages`. |
-| `--ujust` | `12) Access ujust / Universal Blue Task Runner` | Quick runner for `ujust --choose` recipe selector, recipe listing, and `ublue-bling` terminal customization. |
-| `--all` | `13) Run Core Onboarding Sequence` | Executes stages 1 through 7 sequentially. |
-
-### 9. ujust & Bluefin Components (`tasks/ujust.yml`)
-- Provisions Universal Blue `ujust` directories in `/usr/share/ublue-os` (`just`, `bling`, `homebrew`).
-- Deploys `ujust`, `luks-tpm2-autounlock`, and `ublue-bling` CLI commands.
-- Installs Bluefin recipes (`00-entry.just`, `apps.just`, `default.just`, `shared.just`, `system.just`), homebrew bundle definitions (`cli.Brewfile`), and terminal bling profile scripts.
-- Installs and configures the **Starship** cross-shell prompt binary (`starship.rs`) and system profile integration (`/etc/profile.d/90-bluefin-starship.sh`).
-
-### 10. System Initialization & Virtualization (`tasks/initialize.yml`)
-- Configures system hostname.
-- Creates `~/AppImages` directory for portable standalone applications.
-- Creates user virtualization directories:
-  - Pushes KVM/QEMU XML templates (`VMs/*.xml`) to `$HOME/virtualization/kvm-qemu`
-  - Pushes Vagrant environment folders (`Vagrant/ubuntu`, `Vagrant/yunohost`) to `$HOME/virtualization/vagrant`
-- Enables and autostarts the **libvirt default bridge network** (`virsh net-autostart default`).
-- Defines hardware-accelerated KVM virtual machines from `$HOME/virtualization/kvm-qemu/*.xml`:
-  - `Android.xml` — Android-x86 virtualization template
-  - `Linux.xml` — Standard Linux guest template
-  - `Windows.xml` — Windows 10/11 guest template with VirtIO drivers
 
 ---
 
-## Testing & Vagrant Environments
+## Why Does It Exist?
 
-The repository contains pre-configured Vagrant environments for testing and self-hosting:
+Manually provisioning a fresh Fedora workstation requires repetitive, error-prone configuration across fragmented package ecosystems (DNF, Flathub, Snapcraft, AppImages), virtualization settings, and shell environments. 
 
-### Ubuntu 24.04 LTS Desktop VM (`Vagrant/ubuntu/Vagrantfile`)
-A libvirt/KVM Vagrant definition for spinning up an Ubuntu 24.04 LTS (Noble Numbat) workstation equipped with SPICE graphics, tablet input, TPM 2.0 emulator, and minimal desktop environment (`ubuntu-desktop-minimal`):
-- **Specs**: 8 GB RAM, 12 vCPUs, host-passthrough CPU mode, Q35 machine type, ICH9 sound.
-- **Display & Input**: VirtIO video, SPICE graphics, USB tablet input, and USB redirection.
+This project delivers a **reproducible, declarative workstation standard** that:
 
-**Actions Supported:**
-- **Start**: `vagrant up --provider=libvirt`
-- **SSH**: `vagrant ssh`
-- **Open graphical console**: `virt-manager`
+> [!NOTE]
+> **Core Engineering Tenets**
+> * **Strict Privilege Boundary**: Elevated (`sudo`) system-level provisioning is strictly decoupled from unprivileged user environments (`launcher.sh`).
+> * **Cognitive Deference**: UI tools emphasize content over chrome; `fzf` fuzzy filtering and live preview panels reduce mental overhead.
+> * **Reproducible Infrastructure**: Version-controlled VM templates, Vagrant sandboxes, and Ansible plays allow identical environments across machines.
 
-```bash
-cd Vagrant/ubuntu
-vagrant up --provider=libvirt
-vagrant ssh
-```
+---
 
-### YunoHost Debian 12 Environment (`Vagrant/yunohost/Vagrantfile`)
-A self-contained testbed for deploying [YunoHost](https://yunohost.org) on Debian 12 (Bookworm) via libvirt with automated non-interactive post-installation:
-- **Specs**: 8 GB RAM, 12 vCPUs, host-passthrough CPU mode, Q35 machine type, 32 GB disk.
-- Automatically installs base dependencies, installs YunoHost, and completes post-installation (`yunohost tools postinstall`).
+## How It Works
 
-```bash
-cd Vagrant/yunohost
-vagrant up --provider=libvirt
-vagrant ssh
-```
+The suite executes a 12-stage sequential pipeline against the local workstation, configuring official repositories, upgrading base packages, establishing container runtime sockets, and provisioning hardware access rules.
+
+Once provisioned, users interact with the system via `launcher.sh`—an interactive terminal control center utilizing **Apple HIG design patterns** (rounded borders, high-contrast indicators, right-anchored inspector previews, and modal confirmations).
+
+### Technology Breakdown
+
+| Technology | Role | Purpose |
+| :--- | :--- | :--- |
+| **Ansible** | Orchestration | Declarative task automation, idempotency, and host configuration |
+| **Fedora Linux** | Host Platform | Modern Linux workstation base with DNF, systemd, and Btrfs |
+| **fzf** | User Interface | Fuzzy searching, live inspector sidebars, and keyboard ergonomics |
+| **KVM / QEMU / Libvirt** | Hypervisor | Hardware-accelerated virtual machines, bridge networking, and `virt-builder` |
+| **Podman** | Containers | Rootless container engine with `/var/run/docker.sock` API bridge |
+| **Waydroid** | Android Subsystem | Containerized LineageOS with libndk ARM translation and Widevine DRM |
+| **Homebrew & Pixi** | Package Managers | Unprivileged command-line developer tools and Conda environments |
+| **ujust & Starship** | Terminal Experience | Universal Blue task runner, terminal bling, and cross-shell prompt |
 
 ---
 
 ## Repository Structure
 
-```
+<details>
+<summary><strong>View project file tree</strong></summary>
+
+```text
 Ansible-Playbook-Fedora-Workstation/
-├── local.yml                      # Main playbook entry point
+├── local.yml                      # Main playbook definition and variable toggles
+├── handlers/
+│   └── main.yml                   # System handlers (udev rules reload)
 ├── tasks/
-│   ├── repositories.yml           # External YUM/DNF repository setup
-│   ├── update.yml                 # Base system upgrade
-│   ├── packages.yml               # DNF cleanup, installation, and Pinokio RPM logic
-│   ├── snaps.yml                  # Classic and standard Snap packages
-│   ├── services.yml               # Systemd services, sockets, firewall rules
-│   ├── flatpaks.yml               # Flathub and Fedora Flatpak applications
-│   ├── users-groups.yml           # Users, groups, and desktop setup launchers
+│   ├── repositories.yml           # External YUM/DNF repository configurations
+│   ├── update.yml                 # System package upgrades
+│   ├── packages.yml               # DNF packages, bloat removal & Pinokio RPM
+│   ├── flatpaks.yml               # Flathub & Fedora OCI Flatpak applications
+│   ├── snaps.yml                  # Classic & standard confinement Snap applications
+│   ├── services.yml               # Systemd services, sockets, firewalld & libvirt defaults
+│   ├── udev.yml                   # Gamepad, joystick & VR udev rules
+│   ├── waydroid.yml               # Waydroid integration, Polkit rules & defaults
+│   ├── homebrew.yml               # Unprivileged Linuxbrew installation & PATH
+│   ├── users-groups.yml           # User accounts, groups & desktop launcher deployment
 │   ├── ujust.yml                  # ujust recipes, Starship prompt & Bluefin bling
-│   ├── initialize.yml             # Hostname, AppImages dir, libvirt network & VMs
-│   └── homebrew.yml               # Unprivileged Homebrew installation & PATH
+│   └── initialize.yml             # System hostname, AppImages dir & virtualization paths
 ├── Scripts/
 │   ├── packages.sh                # Core DNF package installation script
-│   ├── launcher.sh                # Interactive user post-install onboarding script
-│   └── user.sh                    # Helper to launch terminal session as standard user
+│   ├── launcher.sh                # HIG-compliant interactive user control center (fzf)
+│   └── user.sh                    # Helper to launch shell as unprivileged desktop user
 ├── files/
-│   └── ujust/                     # Bluefin ujust recipes, bling scripts & configs
+│   ├── udev/                      # Hardware udev rule definitions (*.rules)
+│   ├── ujust/                     # Bluefin ujust task recipes, bling scripts & configs
+│   └── waydroid/                  # Bazzite Waydroid container scripts, GPU tool & Polkit
 ├── VMs/                           # Libvirt KVM guest XML templates
 │   ├── Android.xml
 │   ├── Linux.xml
 │   └── Windows.xml
 ├── Vagrant/
 │   ├── ubuntu/                    # Ubuntu 24.04 LTS desktop libvirt VM
-│   │   └── Vagrantfile
 │   └── yunohost/                  # Debian 12 YunoHost self-hosting testbed
-│       └── Vagrantfile
-├── logs/                          # Installation log output directory
-├── travis.yml                     # CI syntax validation configuration
-├── LICENSE                        # Project license
-└── README.md                      # Project documentation
+├── logs/                          # Installation logs directory
+├── travis.yml                     # Syntax validation CI configuration
+├── LICENSE                        # Repository license
+└── README.md                      # Documentation
+```
+
+</details>
+
+---
+
+## Development Workflow
+
+The development lifecycle follows a strict review, lint, and verification pipeline:
+
+```mermaid
+gantt
+    title Development & Deployment Pipeline
+    dateFormat  YYYY-MM-DD
+    section Implementation
+        Task & Script Authoring    :a1, 2026-01-01, 1d
+        Local Syntax & Dry-Run     :a2, after a1, 1d
+        Pull Request Submission    :a3, after a2, 1d
+    section Continuous Integration
+        Automated Syntax Check     :b1, after a3, 1d
+        Release & Host Deployment  :b2, after b1, 1d
 ```
 
 ---
 
-## Customization Tips
+## How to Run Locally
 
-- **Add or Remove Packages**: Modify package lists in `tasks/flatpaks.yml`, `tasks/snaps.yml`, or `Scripts/packages.sh`.
-- **Change Default Hostname**: Update `hostname: "Desktop"` in `local.yml`.
-- **Toggle Task Sections**: Comment out or reorder `include_tasks` entries in `local.yml`.
-- **HashiCorp Repositories**: Uncomment HashiCorp repo definitions in `tasks/repositories.yml` if you prefer package managers over binary distributions.
-- **User Accounts**: Adjust usernames and supplemental groups in `tasks/users-groups.yml`.
+<details open>
+<summary><strong>Quickstart Instructions</strong></summary>
+
+### 1. Prerequisites
+Ensure Ansible and Git are available:
+```bash
+sudo dnf install -y ansible git
+```
+
+### 2. Clone Repository
+```bash
+git clone https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git
+cd Ansible-Playbook-Fedora-Workstation
+```
+
+### 3. Verify & Execute Playbook
+Run syntax check, then execute the declarative setup:
+```bash
+ansible-playbook local.yml --syntax-check
+sudo ansible-playbook local.yml
+```
+
+### 4. Launch User Control Center
+Access the HIG-styled interactive utility anytime:
+```bash
+./Scripts/launcher.sh
+```
+
+> [!TIP]
+> Run `./Scripts/launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`).
+
+</details>
 
 ---
 
 ## License
 
-This project is licensed under the terms described in [LICENSE](LICENSE).
+This project is licensed under the [MIT License](LICENSE).

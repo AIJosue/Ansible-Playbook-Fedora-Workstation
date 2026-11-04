@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-CMD="su - user"
+TARGET_USER="${1:-sandbox}"
+CMD="su - ${TARGET_USER}"
 
 if command -v gnome-terminal &>/dev/null; then
     exec gnome-terminal -- bash -c "$CMD"

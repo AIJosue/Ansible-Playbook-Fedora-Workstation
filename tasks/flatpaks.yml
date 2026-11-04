@@ -1,3 +1,4 @@
+---
 - name: Ensure flatpak is installed
   ansible.builtin.package:
     name: flatpak
@@ -40,6 +41,7 @@
       - fr.romainvigier.MetadataCleaner
       - io.anytype.anytype
       - io.ente.auth
+      - io.github.antimicrox.antimicrox
       - io.github.CyberTimon.RapidRAW
       - io.github.flattool.Warehouse
       - io.github.ilya_zlobintsev.LACT
@@ -53,6 +55,8 @@
       - net.xmind.XMind
       - org.cockpit_project.CockpitClient
       - org.fcast.Receiver
+      - org.freedesktop.Platform.VulkanLayer.MangoHud
+      - org.freedesktop.Platform.VulkanLayer.gamescope
       - org.gnome.Evince
       - org.gnome.Firmware
       - org.gnome.Maps

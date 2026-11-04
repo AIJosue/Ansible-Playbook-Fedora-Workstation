@@ -1,0 +1,77 @@
+---
+- name: Ensure Waydroid helper scripts directory exists
+  ansible.builtin.file:
+    path: /usr/libexec
+    state: directory
+    mode: '0755'
+
+- name: Install Waydroid container control scripts
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/waydroid/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - { src: "waydroid-container-start", dest: "/usr/libexec/waydroid-container-start" }
+    - { src: "waydroid-container-stop", dest: "/usr/libexec/waydroid-container-stop" }
+    - { src: "waydroid-container-restart", dest: "/usr/libexec/waydroid-container-restart" }
+    - { src: "waydroid-fix-controllers", dest: "/usr/libexec/waydroid-fix-controllers" }
+    - { src: "waydroid-choose-gpu", dest: "/usr/bin/waydroid-choose-gpu" }
+    - { src: "waydroid-launcher", dest: "/usr/bin/waydroid-launcher" }
+
+- name: Install Waydroid launcher defaults configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/waydroid/waydroid-launcher.default"
+    dest: /etc/default/waydroid-launcher
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install Waydroid Polkit actions and rules
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/waydroid/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: "org.bazzite.waydroid.policy", dest: "/usr/share/polkit-1/actions/org.bazzite.waydroid.policy" }
+    - { src: "30-waydroid.rules", dest: "/usr/share/polkit-1/rules.d/30-waydroid.rules" }
+
+- name: Set Waydroid multi-window property
+  ansible.builtin.command:
+    cmd: "waydroid prop set persist.waydroid.multi_windows {{ 'true' if (waydroid_multi_windows | default(true) | bool) else 'false' }}"
+  changed_when: false
+  failed_when: false
+
+- name: Check if Waydroid images are initialized
+  ansible.builtin.stat:
+    path: /var/lib/waydroid/images/system.img
+  register: waydroid_system_img
+
+- name: Initialize Waydroid images if requested and not initialized
+  ansible.builtin.command:
+    cmd: "waydroid init -s {{ waydroid_system_type | default('GAPPS') }} -c https://ota.waydro.id/system -v https://ota.waydro.id/vendor"
+  when:
+    - waydroid_init_images | default(false) | bool
+    - not waydroid_system_img.stat.exists
+  register: waydroid_init_result
+  changed_when: waydroid_init_result.rc == 0
+  failed_when: false
+
+- name: Check if libndk installer script exists
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/Scripts/install-libndk.sh"
+  register: libndk_script_stat
+  when: waydroid_install_libndk | default(false) | bool
+
+- name: Install libndk ARM translation if requested
+  ansible.builtin.command:
+    cmd: "{{ playbook_dir }}/Scripts/install-libndk.sh install"
+  when:
+    - waydroid_install_libndk | default(false) | bool
+    - libndk_script_stat.stat.exists | default(false)
+  register: libndk_install_result
+  changed_when: libndk_install_result.rc == 0
+  failed_when: false

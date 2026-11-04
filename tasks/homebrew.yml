@@ -1,6 +1,6 @@
 ---
 - name: Set Homebrew binary and path variables
-  set_fact:
+  ansible.builtin.set_fact:
     homebrew_bin: "/home/linuxbrew/.linuxbrew/bin/brew"
     homebrew_path: "/home/linuxbrew/.linuxbrew/bin"
 
@@ -33,9 +33,13 @@
 
 - name: Ensure Homebrew shellenv is loaded in user bashrc
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ target_user_home }}/.bashrc"
     line: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
     state: present
-    create: yes
-  become: false
+    create: true
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0644'
+  become: true
+  become_user: root
 
