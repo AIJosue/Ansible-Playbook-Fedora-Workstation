@@ -50,7 +50,7 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET_DIR="$HOME/code/Ansible-Playbook-Fedora-Workstation"
+TARGET_DIR="$HOME/code/terminal/Ansible-Playbook-Fedora-Workstation"
 DESKTOP_SCRIPT="$HOME/Desktop/launcher.sh"
 
 if [ ! -d "$SCRIPT_DIR/tasks" ] || [ ! -f "$SCRIPT_DIR/local.yml" ]; then
@@ -60,7 +60,7 @@ if [ ! -d "$SCRIPT_DIR/tasks" ] || [ ! -f "$SCRIPT_DIR/local.yml" ]; then
             clone_choice="${clone_choice:-Y}"
             if [[ "$clone_choice" =~ ^[Yy]$ ]]; then
                 echo -e "${BLUE}[*] Cloning to $TARGET_DIR...${NC}"
-                mkdir -p "$HOME/code"
+                mkdir -p "$HOME/code/terminal"
                 if ! command -v git >/dev/null 2>&1; then
                     echo -e "${YELLOW}Git is not installed. Installing...${NC}"
                     sudo dnf install -y git
@@ -93,7 +93,7 @@ resolve_repo_root() {
     for candidate in \
         "$SCRIPT_DIR" \
         "$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)" \
-        "$HOME/code/Ansible-Playbook-Fedora-Workstation" \
+        "$HOME/code/terminal/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Ansible-Playbook-Fedora-Workstation"; do
         if [ -n "$candidate" ] && [ -d "$candidate/tasks" ] && [ -f "$candidate/local.yml" ]; then
