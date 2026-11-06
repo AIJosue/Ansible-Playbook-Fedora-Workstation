@@ -50,12 +50,40 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET_DIR="$HOME/code/Ansible-Playbook-Fedora-Workstation"
+DESKTOP_SCRIPT="$HOME/Desktop/launcher.sh"
+
+if [ ! -d "$SCRIPT_DIR/tasks" ] || [ ! -f "$SCRIPT_DIR/local.yml" ]; then
+    if [ "$SCRIPT_DIR" != "$TARGET_DIR" ]; then
+        if [ ! -d "$TARGET_DIR" ]; then
+            echo -e "${BLUE}[*] Repository not found locally. Cloning to $TARGET_DIR...${NC}"
+            mkdir -p "$HOME/code"
+            if ! command -v git >/dev/null 2>&1; then
+                echo -e "${YELLOW}Git is not installed. Installing...${NC}"
+                sudo dnf install -y git
+            fi
+            git clone https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git "$TARGET_DIR" || {
+                echo -e "${RED}[ERROR] Failed to clone repository.${NC}"
+                exit 1
+            }
+        fi
+
+        mkdir -p "$HOME/Desktop"
+        if [ "$0" != "$DESKTOP_SCRIPT" ]; then
+            echo -e "${BLUE}[*] Moving launcher script to Desktop...${NC}"
+            cp "$0" "$DESKTOP_SCRIPT"
+            chmod +x "$DESKTOP_SCRIPT"
+            exec "$DESKTOP_SCRIPT" "$@"
+        fi
+    fi
+fi
 
 resolve_repo_root() {
     local candidate
     for candidate in \
         "$SCRIPT_DIR" \
         "$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)" \
+        "$HOME/code/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Ansible-Playbook-Fedora-Workstation"; do
         if [ -n "$candidate" ] && [ -d "$candidate/tasks" ] && [ -f "$candidate/local.yml" ]; then
