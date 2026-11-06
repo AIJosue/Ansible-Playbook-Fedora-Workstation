@@ -2247,7 +2247,7 @@ except Exception as e:
 download_and_extract_prism_single_asset() {
     local name="$1"
     local url="$2"
-    local dest_dir="$HOME/AppImages/prism-llama.cpp"
+    local dest_dir="$HOME/AppImages/llama-prism"
     mkdir -p "$dest_dir"
 
     local target_archive="$dest_dir/$name"
@@ -2273,7 +2273,7 @@ download_and_extract_prism_single_asset() {
 
 download_and_extract_prism_assets() {
     local target_type="$1"
-    local dest_dir="$HOME/AppImages/prism-llama.cpp"
+    local dest_dir="$HOME/AppImages/llama-prism"
     mkdir -p "$dest_dir"
 
     echo -e "${BLUE}Fetching latest release assets for PrismML-Eng/llama.cpp...${NC}"
@@ -2327,7 +2327,7 @@ install_prism_llamacpp() {
         echo -e "${BOLD}       Install Prism llama.cpp Binaries (AppImages)  ${NC}"
         echo -e "${BLUE}=====================================================${NC}"
         echo " Source: https://github.com/PrismML-Eng/llama.cpp"
-        echo " Destination: $HOME/AppImages/prism-llama.cpp"
+        echo " Destination: $HOME/AppImages/llama-prism"
         echo -e "${BLUE}-----------------------------------------------------${NC}"
         echo "  1) Choose from ALL Linux & Android binaries"
         echo "  2) Choose from Linux binaries only (CUDA, Vulkan, ROCm, SYCL, CPU)"
@@ -2343,6 +2343,70 @@ install_prism_llamacpp() {
             *) echo -e "${RED}Invalid option: '$prism_choice'.${NC}" ;;
         esac
     done
+}
+
+install_llama_dory() {
+    local target_dir="$HOME/AppImages/llama-dory"
+    local repo_url="https://github.com/brianchmielNV/llama.cpp.git"
+    local branch="dory-support"
+
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}       Install / Build llama-dory (Nemotron Dory)    ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+    echo " Repository:  $repo_url"
+    echo " Branch:      $branch"
+    echo " Destination: $target_dir"
+    echo -e "${BLUE}-----------------------------------------------------${NC}"
+
+    if [ -d "$target_dir/.git" ]; then
+        echo -e "${BLUE}[*] Existing llama-dory git repo detected. Updating...${NC}"
+        git -C "$target_dir" fetch origin "$branch"
+        git -C "$target_dir" checkout "$branch"
+        git -C "$target_dir" pull origin "$branch"
+    else
+        echo -e "${BLUE}[*] Cloning llama-dory ($branch)...${NC}"
+        mkdir -p "$HOME/AppImages"
+        git clone -b "$branch" "$repo_url" "$target_dir"
+    fi
+
+    echo -e "${BLUE}[*] Building llama-dory binaries (Release)...${NC}"
+    mkdir -p "$target_dir/build"
+    (
+        cd "$target_dir/build" || exit 1
+        cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release -j"$(nproc 2>/dev/null || echo 4)"
+    )
+
+    if [ -f "$target_dir/build/bin/llama-server" ]; then
+        echo -e "${GREEN}✓ Successfully built llama-dory server & binaries in $target_dir/build/bin${NC}"
+        if [ ! -f "$target_dir/start-server.sh" ]; then
+            cat << 'EOF' > "$target_dir/start-server.sh"
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LD_LIBRARY_PATH="${SCRIPT_DIR}/build/bin:${SCRIPT_DIR}/../.pixi/envs/default/lib:${LD_LIBRARY_PATH}"
+
+MODEL="${1:-/home/admin/Platforms/AI/NVIDIA-Nemotron-Labs-Dory1.0-4B-Q5_K_M.gguf}"
+HOST="${HOST:-192.168.12.116}"
+PORT="${PORT:-5001}"
+LOOPS="${DORY_LOOPS:-2}"
+
+exec "${SCRIPT_DIR}/build/bin/llama-server" \
+  -m "${MODEL}" \
+  --device none \
+  --override-kv "dory.num_loops=int:${LOOPS},dory.recurrent_kv_cache_mode=str:per_loop" \
+  --host "${HOST}" \
+  --port "${PORT}" \
+  "$@"
+EOF
+            chmod +x "$target_dir/start-server.sh"
+        fi
+    else
+        echo -e "${RED}✗ Build failed or llama-server not found.${NC}"
+        read -rp "Press Enter to continue..." _
+        return 1
+    fi
+
+    read -rp "Press Enter to continue..." _
 }
 
 fetch_koboldcpp_release_assets() {
@@ -2456,7 +2520,7 @@ except Exception:
 download_localai_single_asset() {
     local name="$1"
     local url="$2"
-    local dest_dir="$HOME/AppImages"
+    local dest_dir="$HOME/AppImages/localai"
     mkdir -p "$dest_dir"
 
     local target_file="$dest_dir/$name"
@@ -2471,10 +2535,15 @@ download_localai_single_asset() {
         chmod +x "$target_file"
         echo -e "${GREEN}✓ Successfully installed executable to: $target_file${NC}"
     fi
+
+    # Also symlink LocalAI-Launcher or binary to $HOME/AppImages if AppImage
+    if [[ "$name" == *.AppImage ]]; then
+        ln -sf "$target_file" "$HOME/AppImages/$name" 2>/dev/null || true
+    fi
 }
 
 install_localai() {
-    local dest_dir="$HOME/AppImages"
+    local dest_dir="$HOME/AppImages/localai"
     mkdir -p "$dest_dir"
 
     echo -e "${BLUE}Fetching latest release assets for mudler/LocalAI...${NC}"
@@ -2741,7 +2810,7 @@ download_devpod_cli() {
     mkdir -p "$install_dir"
     local dest_file="$install_dir/devpod"
 
-    echo -e "\n${BLUE}[*] Fetching latest DevPod CLI release...${NC}"
+    echo -e "\n${BLUE}[*] Fetching latest DevPod release...${NC}"
     local download_url=""
     local tag=""
     if command -v curl &>/dev/null; then
@@ -2751,16 +2820,29 @@ download_devpod_cli() {
         download_url="$(echo "$release_json" | grep "browser_download_url" | grep "devpod-linux-${target_arch}\"" | head -n 1 | cut -d '"' -f 4)"
     fi
 
-    # Fallback to direct releases/latest/download URL
     if [ -z "$download_url" ]; then
         download_url="https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-${target_arch}"
     fi
 
     local ver_label="${tag:-latest}"
-    echo -e "${BLUE}[*] Downloading DevPod CLI ($ver_label, ${target_arch}) to $dest_file...${NC}"
-    if curl -fsSL -L "$download_url" -o "$dest_file"; then
+    local tmp_download
+    tmp_download="$(mktemp -t devpod-download-XXXXXX)"
+
+    echo -e "${BLUE}[*] Downloading DevPod binary ($ver_label, ${target_arch}) from $download_url...${NC}"
+    if curl -fsSL -L "$download_url" -o "$tmp_download"; then
+        # If downloaded file is an archive, extract the binary, else install directly
+        if file "$tmp_download" | grep -qi "gzip compressed data"; then
+            echo -e "${BLUE}[*] Extracting archive...${NC}"
+            tar -xzf "$tmp_download" -C "$install_dir" devpod 2>/dev/null || tar -xzf "$tmp_download" -C "$install_dir"
+        elif file "$tmp_download" | grep -qi "tar archive"; then
+            echo -e "${BLUE}[*] Extracting archive...${NC}"
+            tar -xf "$tmp_download" -C "$install_dir" devpod 2>/dev/null || tar -xf "$tmp_download" -C "$install_dir"
+        else
+            cp -f "$tmp_download" "$dest_file"
+        fi
+        rm -f "$tmp_download"
         chmod +x "$dest_file"
-        echo -e "${GREEN}✓ Installed DevPod CLI: $dest_file${NC}"
+        echo -e "${GREEN}✓ Successfully installed DevPod binary to $dest_file${NC}"
 
         # Ensure ~/.local/bin is in PATH for current session and shell config
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
@@ -2769,7 +2851,8 @@ download_devpod_cli() {
         fi
         "$dest_file" version 2>/dev/null || true
     else
-        echo -e "${RED}✗ Failed to download DevPod CLI from $download_url${NC}"
+        rm -f "$tmp_download"
+        echo -e "${RED}✗ Failed to download DevPod from $download_url${NC}"
         return 1
     fi
 }
@@ -2898,6 +2981,25 @@ sys.exit(1)
 " 2>/dev/null || echo "https://github.com/unslothai/unsloth/releases/latest/download/Unsloth-Desktop-Linux.AppImage"
 }
 
+fetch_latest_appimageupdatetool_url() {
+    python3 -c "
+import urllib.request, json, re, sys
+headers = {'User-Agent': 'Mozilla/5.0'}
+try:
+    req = urllib.request.Request('https://api.github.com/repos/AppImageCommunity/AppImageUpdate/releases/tags/continuous', headers=headers)
+    with urllib.request.urlopen(req, timeout=12) as r:
+        data = json.loads(r.read().decode())
+        pattern = re.compile(r'appimageupdatetool.*x86_64\.AppImage$', re.IGNORECASE)
+        for a in data.get('assets', []):
+            if pattern.search(a.get('name', '')):
+                print(a.get('browser_download_url'))
+                sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+" 2>/dev/null || echo "https://github.com/AppImageCommunity/AppImageUpdate/releases/download/continuous/appimageupdatetool-x86_64.AppImage"
+}
+
 # --- AppImage Installers ---
 
 install_bionic_appimage() {
@@ -2956,6 +3058,13 @@ install_unsloth_appimage() {
     download_and_install_single_appimage "Unsloth AI Studio" "$url" "$fn"
 }
 
+install_appimageupdatetool() {
+    local url
+    url="$(fetch_latest_appimageupdatetool_url)"
+    local fn="appimageupdatetool.AppImage"
+    download_and_install_single_appimage "AppImageUpdate Tool" "$url" "$fn"
+}
+
 install_deepseek_harness_desktop() {
     install_deepseek_harness_desktop_deb_distrobox
 }
@@ -2963,6 +3072,7 @@ install_deepseek_harness_desktop() {
 # Unified AppImage Hub
 appimage_hub_menu() {
     local hub_items=(
+        "AppImageUpdate Tool (Official Updater CLI)"
         "Bionic (LM Studio Agent)"
         "Darktable (Photography & RAW Developer)"
         "DeepSeek Harness Desktop (Distrobox .deb)"
@@ -2972,14 +3082,15 @@ appimage_hub_menu() {
         "Jan (Open-source ChatGPT Alternative)"
         "KoboldCpp (Standalone llama.cpp & UI)"
         "LMMS (Music Production Suite)"
-        "LocalAI (Multi-model local AI runtime)"
+        "LocalAI (Multi-model local AI runtime & AppImage in ~/AppImages/localai)"
         "MuseScore Studio (Music Notation & Scoring)"
         "OpenClaw (CLI, Gateway & Distrobox .deb)"
-        "Prism llama.cpp (Pre-compiled LLM inference binaries)"
+        "llama-dory (Nemotron-Dory llama.cpp build in ~/AppImages/llama-dory)"
+        "llama-prism (Prism llama.cpp inference binaries in ~/AppImages/llama-prism)"
         "QtScrcpy (Android Screen Mirror & Control)"
         "Unsloth (Fast LLM Finetuning & Studio)"
     )
-    local hub_sel=(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+    local hub_sel=(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
     local rc
 
     while true; do
@@ -3003,21 +3114,23 @@ appimage_hub_menu() {
         fi
 
         echo -e "\n${BOLD}${BLUE}=== Downloading Selected AppImages & AI Tools ===${NC}"
-        [ "${hub_sel[0]}" -eq 1 ] && install_bionic_appimage
-        [ "${hub_sel[1]}" -eq 1 ] && install_darktable_appimage
-        [ "${hub_sel[2]}" -eq 1 ] && install_deepseek_harness_desktop
-        [ "${hub_sel[3]}" -eq 1 ] && setup_deepseek_harness
-        [ "${hub_sel[4]}" -eq 1 ] && install_devpod
-        [ "${hub_sel[5]}" -eq 1 ] && install_eden_appimage
-        [ "${hub_sel[6]}" -eq 1 ] && install_jan_appimage
-        [ "${hub_sel[7]}" -eq 1 ] && install_koboldcpp
-        [ "${hub_sel[8]}" -eq 1 ] && install_lmms_appimage
-        [ "${hub_sel[9]}" -eq 1 ] && install_localai
-        [ "${hub_sel[10]}" -eq 1 ] && install_musescore_appimage
-        [ "${hub_sel[11]}" -eq 1 ] && install_openclaw
-        [ "${hub_sel[12]}" -eq 1 ] && install_prism_llamacpp
-        [ "${hub_sel[13]}" -eq 1 ] && install_qtscrcpy_appimage
-        [ "${hub_sel[14]}" -eq 1 ] && install_unsloth_appimage
+        [ "${hub_sel[0]}" -eq 1 ] && install_appimageupdatetool
+        [ "${hub_sel[1]}" -eq 1 ] && install_bionic_appimage
+        [ "${hub_sel[2]}" -eq 1 ] && install_darktable_appimage
+        [ "${hub_sel[3]}" -eq 1 ] && install_deepseek_harness_desktop
+        [ "${hub_sel[4]}" -eq 1 ] && setup_deepseek_harness
+        [ "${hub_sel[5]}" -eq 1 ] && install_devpod
+        [ "${hub_sel[6]}" -eq 1 ] && install_eden_appimage
+        [ "${hub_sel[7]}" -eq 1 ] && install_jan_appimage
+        [ "${hub_sel[8]}" -eq 1 ] && install_koboldcpp
+        [ "${hub_sel[9]}" -eq 1 ] && install_lmms_appimage
+        [ "${hub_sel[10]}" -eq 1 ] && install_localai
+        [ "${hub_sel[11]}" -eq 1 ] && install_musescore_appimage
+        [ "${hub_sel[12]}" -eq 1 ] && install_openclaw
+        [ "${hub_sel[13]}" -eq 1 ] && install_llama_dory
+        [ "${hub_sel[14]}" -eq 1 ] && install_prism_llamacpp
+        [ "${hub_sel[15]}" -eq 1 ] && install_qtscrcpy_appimage
+        [ "${hub_sel[16]}" -eq 1 ] && install_unsloth_appimage
 
         echo -e "\n${GREEN}${BOLD}[+] Selected AppImage & AI installations complete!${NC}"
         read -rp "Press Enter to continue..." _
@@ -3281,6 +3394,7 @@ Flags:
   --fedora-flatpak                Add Fedora OCI User Remote
   --appimages, --appimage-hub     Unified AppImage Hub & Local AI Engines
   --compact                       Compact & Configure Portable AppImages
+  --updatetool                    Install AppImageUpdate Tool
   --bionic | --darktable | --eden | --jan | --lmms | --musescore | --qtscrcpy | --unsloth
   --dsh-desktop, --dsh-deb        Install DeepSeek Harness Desktop (.deb) into Distrobox
   --deepseek, --dsh               Install DeepSeek Harness Web
@@ -3288,7 +3402,8 @@ Flags:
   --koboldcpp, --kobold           Install KoboldCpp Standalone Binary
   --localai, --local-ai           Install LocalAI Binary / AppImage
   --openclaw                      Install OpenClaw (CLI, Service & Distrobox .deb)
-  --prism, --llamacpp             Install Prism llama.cpp Binaries
+  --dory, --llama-dory            Install & Build llama-dory (Nemotron-Dory)
+  --prism, --llamacpp             Install Prism llama.cpp Binaries (llama-prism)
   --waydroid                      Fedora Waydroid Setup Wizard
   --waydroid-troubleshoot, --waydroid-fix  Waydroid Troubleshooting & Maintenance
   --vm, --vms, --virtualization   Virtualization & VM Management
@@ -3330,6 +3445,7 @@ if [ $# -gt 0 ]; then
         --vagrant)                      configure_vagrant ;;
         --appimages|--appimage-hub)     appimage_hub_menu ;;
         --compact)                      run_appimage_compact ;;
+        --updatetool)                   install_appimageupdatetool ;;
         --bionic)                       install_bionic_appimage ;;
         --darktable)                    install_darktable_appimage ;;
         --eden)                         install_eden_appimage ;;
@@ -3340,6 +3456,7 @@ if [ $# -gt 0 ]; then
         --unsloth)                      install_unsloth_appimage ;;
         --dsh-desktop|--dsh-deb)        install_deepseek_harness_desktop_deb_distrobox ;;
         --deepseek|--dsh)               setup_deepseek_harness ;;
+        --dory|--llama-dory)            install_llama_dory ;;
         --prism|--llamacpp)             install_prism_llamacpp ;;
         --koboldcpp|--kobold)           install_koboldcpp ;;
         --localai|--local-ai)           install_localai ;;

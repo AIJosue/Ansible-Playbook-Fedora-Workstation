@@ -187,7 +187,17 @@ Access the HIG-styled interactive utility anytime:
 ```
 
 > [!TIP]
-> Run `./Scripts/launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`).
+> Run `./Scripts/launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`, `--devpod`, `--dory`, `--prism`, `--localai`, `--updatetool`).
+
+### 5. AppImage Hub & Local AI Engines
+The AppImage Hub menu (`./Scripts/launcher.sh --appimages`) provisions and manages standalone AppImages and local AI inference suites in `~/AppImages`:
+* **Development & Tools**: DevPod (`~/.local/bin/devpod`), AppImageUpdate tool, Bionic, Darktable, Eden, Jan, LMMS, MuseScore Studio, QtScrcpy, Unsloth.
+* **Local Inference Engines**:
+  * **llama-prism**: Pre-compiled multi-backend llama.cpp binaries (CUDA, Vulkan, ROCm, SYCL, CPU) from PrismML.
+  * **llama-dory**: Nemotron-Dory llama.cpp engine with loop/recurrent cache launch script.
+  * **LocalAI**: Native binaries and containerized local model inference.
+  * **KoboldCpp**: Single-file LLM inference executable.
+
 
 </details>
 
