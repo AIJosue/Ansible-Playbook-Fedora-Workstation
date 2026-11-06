@@ -5,7 +5,7 @@
   become: true
   vars:
     # --- Host & User Configuration ---
-    hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # Dynamic phonetic name hostname (e.g., desktop-adam, desktop-david)
+    hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # noqa yaml[line-length]
     admin_username: "admin" # CHANGE THIS: Primary/Secondary admin username
     sandbox_username: "sandbox" # CHANGE THIS: Second standard/sandbox username
     target_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"

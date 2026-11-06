@@ -2,4 +2,4 @@
 - name: Update system
   ansible.builtin.dnf:
     name: "*"
-    state: latest
+    state: latest # noqa package-latest

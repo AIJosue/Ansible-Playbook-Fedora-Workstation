@@ -26,14 +26,20 @@
 
 - name: Get latest Pinokio download URL
   ansible.builtin.shell: |
-    API_URL=$(curl -sL https://api.github.com/repos/pinokiocomputer/pinokio/releases/latest | grep -o 'https://github.com/pinokiocomputer/pinokio/releases/download/[^"]*/Pinokio-[^"]*\.x86_64\.rpm' | head -n 1)
+    set -o pipefail
+    API_URL=$(curl -sL https://api.github.com/repos/pinokiocomputer/pinokio/releases/latest \
+      | grep -o 'https://github.com/pinokiocomputer/pinokio/releases/download/[^"]*/Pinokio-[^"]*\.x86_64\.rpm' \
+      | head -n 1)
     if [ -n "$API_URL" ]; then
       echo "$API_URL"
     else
-      TAG=$(curl -sIL https://github.com/pinokiocomputer/pinokio/releases/latest | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
+      TAG=$(curl -sIL https://github.com/pinokiocomputer/pinokio/releases/latest \
+        | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
       VERSION="${TAG#v}"
       echo "https://github.com/pinokiocomputer/pinokio/releases/download/${TAG}/Pinokio-${VERSION}.x86_64.rpm"
     fi
+  args:
+    executable: /bin/bash
   register: pinokio_url_result
   changed_when: false
   check_mode: false
@@ -41,7 +47,7 @@
   tags: [pinokio]
 
 - name: Check currently installed Pinokio version
-  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' Pinokio
+  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' Pinokio # noqa command-instead-of-module
   register: pinokio_installed_check
   failed_when: false
   changed_when: false
@@ -58,7 +64,10 @@
   tags: [pinokio]
 
 - name: Install or update latest Pinokio RPM
-  ansible.builtin.command: "dnf install -y --nogpgcheck {{ pinokio_latest_url }}"
+  ansible.builtin.dnf:
+    name: "{{ pinokio_latest_url }}"
+    state: present
+    disable_gpg_check: true
   become: true
   when:
     - enable_packages_pinokio | default(true) | bool
@@ -67,13 +76,19 @@
 
 - name: Get latest UniGetUI download URL
   ansible.builtin.shell: |
-    API_URL=$(curl -sL https://api.github.com/repos/Devolutions/UniGetUI/releases/latest | grep -o 'https://github.com/Devolutions/UniGetUI/releases/download/[^"]*/UniGetUI\.linux-x64\.rpm' | head -n 1)
+    set -o pipefail
+    API_URL=$(curl -sL https://api.github.com/repos/Devolutions/UniGetUI/releases/latest \
+      | grep -o 'https://github.com/Devolutions/UniGetUI/releases/download/[^"]*/UniGetUI\.linux-x64\.rpm' \
+      | head -n 1)
     if [ -n "$API_URL" ]; then
       echo "$API_URL"
     else
-      TAG=$(curl -sIL https://github.com/Devolutions/UniGetUI/releases/latest | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
+      TAG=$(curl -sIL https://github.com/Devolutions/UniGetUI/releases/latest \
+        | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
       echo "https://github.com/Devolutions/UniGetUI/releases/download/${TAG}/UniGetUI.linux-x64.rpm"
     fi
+  args:
+    executable: /bin/bash
   register: unigetui_url_result
   changed_when: false
   check_mode: false
@@ -81,7 +96,7 @@
   tags: [unigetui]
 
 - name: Check currently installed UniGetUI version
-  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' unigetui
+  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' unigetui # noqa command-instead-of-module
   register: unigetui_installed_check
   failed_when: false
   changed_when: false
@@ -98,7 +113,10 @@
   tags: [unigetui]
 
 - name: Install or update latest UniGetUI RPM
-  ansible.builtin.command: "dnf install -y --nogpgcheck {{ unigetui_latest_url }}"
+  ansible.builtin.dnf:
+    name: "{{ unigetui_latest_url }}"
+    state: present
+    disable_gpg_check: true
   become: true
   when:
     - enable_packages_unigetui | default(true) | bool

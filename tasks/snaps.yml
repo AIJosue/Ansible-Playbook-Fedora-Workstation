@@ -44,10 +44,10 @@
   when: enable_snap_apps | default(true) | bool
   tags: [snap_apps]
 
-#- name: Install Snap packages (Ubuntu)
-#  snap:
-#    name:
-#     - microcloud
+# - name: Install Snap packages (Ubuntu)
+#   snap:
+#     name:
+#      - microcloud
 #      - multipass
 #      - lxd
 #      - anbox-cloud-appliance
