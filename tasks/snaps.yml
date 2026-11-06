@@ -5,12 +5,15 @@
     enabled: true
     state: started
   become: true
+  tags: [snapd]
 
 - name: Create a symlink for snapd
   ansible.builtin.file:
     src: "/var/lib/snapd/snap"
     dest: "/snap"
     state: link
+  become: true
+  tags: [snapd]
 
 - name: Install Snap packages (Standard)
   community.general.snap:
@@ -38,6 +41,8 @@
       - tailscale
       - telegram-desktop
       - termius-app
+  when: enable_snap_apps | default(true) | bool
+  tags: [snap_apps]
 
 #- name: Install Snap packages (Ubuntu)
 #  snap:
@@ -57,3 +62,5 @@
       - code
       - flutter
       - powershell
+  when: enable_snap_classic | default(true) | bool
+  tags: [snap_classic]

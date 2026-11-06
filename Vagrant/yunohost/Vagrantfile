@@ -60,12 +60,10 @@ Vagrant.configure("2") do |config|
     lv.tpm_version = "2.0"
   end
 
-  # Auto upgrade and minimal desktop installation
+  # Auto upgrade and minimal dependencies installation
   config.vm.provision "shell", inline: <<-SHELL
   set -euo pipefail
   export DEBIAN_FRONTEND=noninteractive
-
-  apt-get update -y && apt-get upgrade -y && apt install curl ca-certificates
 
   # Configuration
   YUNO_DOMAIN="yunohost.local"
@@ -74,8 +72,8 @@ Vagrant.configure("2") do |config|
   YUNO_ADMIN_PASSWORD="ReplaceWithAStrongPassword!"
 
   echo ">>> [1/3] Updating system and installing base dependencies..."
-  export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
+  apt-get upgrade -y
   apt-get install -y curl ca-certificates sudo
 
   echo ">>> [2/3] Installing YunoHost non-interactively..."

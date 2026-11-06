@@ -3,6 +3,7 @@
   ansible.builtin.package:
     name: flatpak
     state: present
+  tags: [flatpak_cli]
 
 # --- REPOSITORY SETUP ---
 
@@ -12,6 +13,10 @@
     state: present
     method: system
     flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+  when:
+    - not (enable_flatpak_cli_only | default(false) | bool)
+    - enable_flatpak_remotes_system | default(true) | bool
+  tags: [flatpak_remotes]
 
 - name: Add the Fedora Flatpak repository
   community.general.flatpak_remote:
@@ -19,6 +24,10 @@
     state: present
     method: system
     flatpakrepo_url: oci+https://registry.fedoraproject.org
+  when:
+    - not (enable_flatpak_cli_only | default(false) | bool)
+    - enable_flatpak_remotes_system | default(true) | bool
+  tags: [flatpak_remotes]
 
 # --- INSTALLATION SECTIONS ---
 
@@ -29,6 +38,7 @@
       - com.bambulab.BambuStudio
       - com.brave.Browser
       - com.collaboraoffice.Office
+      - com.github.johnfactotum.Foliate
       - com.github.marhkb.Pods
       - com.github.polymeilex.neothesia
       - com.github.wwmm.easyeffects
@@ -45,6 +55,7 @@
       - io.github.CyberTimon.RapidRAW
       - io.github.flattool.Warehouse
       - io.github.ilya_zlobintsev.LACT
+      - io.github.kolunmi.Bazaar
       - io.github.peazip.PeaZip
       - io.github.ryubing.Ryujinx
       - io.podman_desktop.PodmanDesktop
@@ -91,6 +102,10 @@
     state: present
     method: system
     remote: flathub
+  when:
+    - not (enable_flatpak_cli_only | default(false) | bool)
+    - enable_flatpak_apps | default(true) | bool
+  tags: [flatpak_apps]
 
 - name: Install packages from Fedora Repo
   community.general.flatpak:
@@ -102,3 +117,7 @@
     state: present
     method: system
     remote: fedora
+  when:
+    - not (enable_flatpak_cli_only | default(false) | bool)
+    - enable_flatpak_apps | default(true) | bool
+  tags: [flatpak_apps]

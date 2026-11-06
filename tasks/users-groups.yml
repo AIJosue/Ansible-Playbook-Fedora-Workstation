@@ -11,6 +11,7 @@
     - nordvpn
     - render
     - video
+  tags: [users_groups]
 
 - name: Create users and assign to necessary system groups
   ansible.builtin.user:
@@ -27,6 +28,7 @@
     - { name: "{{ admin_username | default('admin') }}", groups: 'wheel,libvirt,nordvpn,render,video' }
     # Standard / sandbox users get standard virtualization and GPU access (libvirt, render, video), but no wheel
     - { name: "{{ sandbox_username | default('sandbox') }}", groups: 'libvirt,render,video' }
+  tags: [users_groups]
 
 - name: Ensure Desktop directory exists for user accounts
   ansible.builtin.file:
@@ -38,16 +40,20 @@
   become: true
   loop: "{{ [sandbox_username | default('sandbox'), admin_username | default('admin'), target_user] | unique }}"
   when: item != 'root'
+  tags: [desktop_launcher]
 
 - name: Deploy interactive setup script to user Desktop
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/Scripts/launcher.sh"
+    src: "{{ playbook_dir }}/launcher.sh"
     dest: "/home/{{ item }}/Desktop/launcher.sh"
     owner: "{{ item }}"
     group: "{{ item }}"
     mode: '0755'
   become: true
   loop: "{{ [sandbox_username | default('sandbox'), admin_username | default('admin'), target_user] | unique }}"
-  when: item != 'root'
+  when:
+    - enable_users_desktop_launcher | default(true) | bool
+    - item != 'root'
+  tags: [desktop_launcher]
 
 

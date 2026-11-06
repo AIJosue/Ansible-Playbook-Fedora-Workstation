@@ -2,6 +2,7 @@
 - name: Set system hostname
   ansible.builtin.hostname:
     name: "{{ hostname }}"
+  tags: [init_hostname]
 
 - name: Ensure AppImages directory exists for local user
   ansible.builtin.file:
@@ -11,6 +12,8 @@
     group: "{{ target_user }}"
     mode: '0755'
   become: true
+  when: enable_init_appimages_dir | default(true) | bool
+  tags: [init_appimages]
 
 - name: Ensure user virtualization directories exist
   ansible.builtin.file:
@@ -25,6 +28,8 @@
     - "{{ xml_dir }}"
     - "{{ vagrant_dir }}"
   become: true
+  when: enable_init_virt_dirs | default(true) | bool
+  tags: [init_virt, vagrant, libvirt]
 
 - name: Push VM XML definitions to KVM/QEMU directory
   ansible.builtin.copy:
@@ -36,6 +41,8 @@
   with_fileglob:
     - "{{ playbook_dir }}/VMs/*.xml"
   become: true
+  when: enable_init_virt_dirs | default(true) | bool
+  tags: [init_virt, libvirt]
 
 - name: Ensure Vagrant environment directories exist
   ansible.builtin.file:
@@ -48,6 +55,8 @@
     - ubuntu
     - yunohost
   become: true
+  when: enable_init_virt_dirs | default(true) | bool
+  tags: [init_virt, vagrant]
 
 - name: Push Vagrant environment folders to Vagrant directory
   ansible.builtin.copy:
@@ -59,3 +68,5 @@
   with_fileglob:
     - "{{ playbook_dir }}/Vagrant/*/*"
   become: true
+  when: enable_init_virt_dirs | default(true) | bool
+  tags: [init_virt, vagrant]

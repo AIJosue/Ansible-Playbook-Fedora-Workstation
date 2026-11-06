@@ -112,9 +112,9 @@ Ansible-Playbook-Fedora-Workstation/
 │   ├── users-groups.yml           # User accounts, groups & desktop launcher deployment
 │   ├── ujust.yml                  # ujust recipes, Starship prompt & Bluefin bling
 │   └── initialize.yml             # System hostname, AppImages dir & virtualization paths
+├── launcher.sh                    # HIG-compliant interactive user control center (fzf)
 ├── Scripts/
 │   ├── packages.sh                # Core DNF package installation script
-│   ├── launcher.sh                # HIG-compliant interactive user control center (fzf)
 │   └── user.sh                    # Helper to launch shell as unprivileged desktop user
 ├── files/
 │   ├── udev/                      # Hardware udev rule definitions (*.rules)
@@ -174,23 +174,25 @@ cd Ansible-Playbook-Fedora-Workstation
 ```
 
 ### 3. Verify & Execute Playbook
-Run syntax check, then execute the declarative setup:
+Run syntax check, then execute the declarative setup (full playbook or selective tags):
 ```bash
 ansible-playbook local.yml --syntax-check
-sudo ansible-playbook local.yml
+ansible-playbook local.yml --ask-become-pass
+# Or run specific sections using tags:
+ansible-playbook local.yml --tags ujust --ask-become-pass
 ```
 
 ### 4. Launch User Control Center
 Access the HIG-styled interactive utility anytime:
 ```bash
-./Scripts/launcher.sh
+./launcher.sh
 ```
 
 > [!TIP]
-> Run `./Scripts/launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`, `--devpod`, `--dory`, `--prism`, `--localai`, `--updatetool`).
+> Run `./launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--playbook`, `--ujust`, `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`, `--devpod`, `--dory`, `--prism`, `--localai`, `--updatetool`).
 
 ### 5. AppImage Hub & Local AI Engines
-The AppImage Hub menu (`./Scripts/launcher.sh --appimages`) provisions and manages standalone AppImages and local AI inference suites in `~/AppImages`:
+The AppImage Hub menu (`./launcher.sh --appimages`) provisions and manages standalone AppImages and local AI inference suites in `~/AppImages`:
 * **Development & Tools**: DevPod (`~/.local/bin/devpod`), AppImageUpdate tool, Bionic, Darktable, Eden, Jan, LMMS, MuseScore Studio, QtScrcpy, Unsloth.
 * **Local Inference Engines**:
   * **llama-prism**: Pre-compiled multi-backend llama.cpp binaries (CUDA, Vulkan, ROCm, SYCL, CPU) from PrismML.

@@ -1,4 +1,10 @@
 ---
+- name: Ensure just command runner is installed
+  become: true
+  ansible.builtin.package:
+    name: just
+    state: present
+
 - name: Ensure ujust directories exist
   become: true
   ansible.builtin.file:

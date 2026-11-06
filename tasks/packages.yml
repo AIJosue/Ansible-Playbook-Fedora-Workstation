@@ -4,10 +4,16 @@
   become: true
   register: dnf_shell_output
   changed_when: "'Nothing to do' not in dnf_shell_output.stdout"
+  when: enable_packages_cleanup | default(true) | bool
+  tags: [packages_cleanup]
 
 - name: Print the DNF removal output
   ansible.builtin.debug:
     msg: "{{ dnf_shell_output.stdout_lines }}"
+  when:
+    - enable_packages_cleanup | default(true) | bool
+    - dnf_shell_output is defined
+  tags: [packages_cleanup]
 
 - name: Install packages script
   ansible.builtin.script: ../Scripts/packages.sh
@@ -15,6 +21,8 @@
   args:
     # This prevents the script from running again if this file exists
     creates: /var/log/packages.log
+  when: enable_packages_dnf_batch | default(true) | bool
+  tags: [packages_dnf]
 
 - name: Get latest Pinokio download URL
   ansible.builtin.shell: |
@@ -29,6 +37,8 @@
   register: pinokio_url_result
   changed_when: false
   check_mode: false
+  when: enable_packages_pinokio | default(true) | bool
+  tags: [pinokio]
 
 - name: Check currently installed Pinokio version
   ansible.builtin.command: rpm -q --queryformat '%{VERSION}' Pinokio
@@ -36,14 +46,61 @@
   failed_when: false
   changed_when: false
   check_mode: false
+  when: enable_packages_pinokio | default(true) | bool
+  tags: [pinokio]
 
 - name: Set latest Pinokio facts
   ansible.builtin.set_fact:
     pinokio_latest_url: "{{ pinokio_url_result.stdout | trim }}"
     pinokio_latest_version: "{{ (pinokio_url_result.stdout | regex_search('Pinokio-([0-9A-Za-z.-]+)\\.x86_64\\.rpm', '\\1'))[0] | default('') }}"
     pinokio_installed_version: "{{ pinokio_installed_check.stdout | default('') }}"
+  when: enable_packages_pinokio | default(true) | bool
+  tags: [pinokio]
 
 - name: Install or update latest Pinokio RPM
   ansible.builtin.command: "dnf install -y --nogpgcheck {{ pinokio_latest_url }}"
   become: true
-  when: pinokio_installed_check.rc != 0 or pinokio_installed_version != pinokio_latest_version
+  when:
+    - enable_packages_pinokio | default(true) | bool
+    - pinokio_installed_check.rc != 0 or pinokio_installed_version != pinokio_latest_version
+  tags: [pinokio]
+
+- name: Get latest UniGetUI download URL
+  ansible.builtin.shell: |
+    API_URL=$(curl -sL https://api.github.com/repos/Devolutions/UniGetUI/releases/latest | grep -o 'https://github.com/Devolutions/UniGetUI/releases/download/[^"]*/UniGetUI\.linux-x64\.rpm' | head -n 1)
+    if [ -n "$API_URL" ]; then
+      echo "$API_URL"
+    else
+      TAG=$(curl -sIL https://github.com/Devolutions/UniGetUI/releases/latest | grep -i "^location:" | sed -E "s|.*/tag/([^/]+)|\1|" | tr -d "\r\n")
+      echo "https://github.com/Devolutions/UniGetUI/releases/download/${TAG}/UniGetUI.linux-x64.rpm"
+    fi
+  register: unigetui_url_result
+  changed_when: false
+  check_mode: false
+  when: enable_packages_unigetui | default(true) | bool
+  tags: [unigetui]
+
+- name: Check currently installed UniGetUI version
+  ansible.builtin.command: rpm -q --queryformat '%{VERSION}' unigetui
+  register: unigetui_installed_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  when: enable_packages_unigetui | default(true) | bool
+  tags: [unigetui]
+
+- name: Set latest UniGetUI facts
+  ansible.builtin.set_fact:
+    unigetui_latest_url: "{{ unigetui_url_result.stdout | trim }}"
+    unigetui_latest_version: "{{ (unigetui_url_result.stdout | regex_search('download/v?([0-9A-Za-z.-]+)/UniGetUI', '\\1'))[0] | default('') }}"
+    unigetui_installed_version: "{{ unigetui_installed_check.stdout | default('') }}"
+  when: enable_packages_unigetui | default(true) | bool
+  tags: [unigetui]
+
+- name: Install or update latest UniGetUI RPM
+  ansible.builtin.command: "dnf install -y --nogpgcheck {{ unigetui_latest_url }}"
+  become: true
+  when:
+    - enable_packages_unigetui | default(true) | bool
+    - unigetui_installed_check.rc != 0 or unigetui_installed_version != unigetui_latest_version
+  tags: [unigetui]

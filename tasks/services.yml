@@ -11,7 +11,8 @@
     - nix-daemon
     - sshd
     - switcheroo-control
-    - tailscaled
+  when: enable_services_core | default(true) | bool
+  tags: [services_core]
 
 - name: Enable and start system sockets
   become: true
@@ -23,6 +24,8 @@
     - podman.socket
     - cockpit.socket
     - snapd.socket
+  when: enable_services_core | default(true) | bool
+  tags: [services_core]
 
 - name: Create Docker compatibility symlink for Podman socket
   become: true
@@ -31,6 +34,8 @@
     dest: /var/run/docker.sock
     state: link
     force: true
+  when: enable_services_core | default(true) | bool
+  tags: [services_core]
 
 - name: Ensure firewalld service is enabled and started
   become: true
@@ -38,6 +43,8 @@
     name: firewalld
     enabled: true
     state: started
+  when: enable_services_firewall | default(true) | bool
+  tags: [services_firewall]
 
 - name: Configure core workstation services in firewall
   become: true
@@ -50,6 +57,8 @@
     - ssh
     - cockpit
     - kdeconnect
+  when: enable_services_firewall | default(true) | bool
+  tags: [services_firewall]
 
 - name: Add libvirt bridge virbr0 to trusted firewall zone
   become: true
@@ -59,6 +68,8 @@
     permanent: true
     immediate: true
     state: enabled
+  when: enable_services_firewall | default(true) | bool
+  tags: [services_firewall, libvirt]
 
 - name: Ensure libvirt default network is active and set to autostart
   ansible.builtin.shell: |
@@ -67,6 +78,8 @@
   register: libvirt_net_result
   changed_when: "'started' in libvirt_net_result.stdout or 'autostarted' in libvirt_net_result.stdout"
   become: true
+  when: enable_services_core | default(true) | bool
+  tags: [services_core, libvirt]
 
 - name: Ensure KVM/QEMU XML directory exists
   ansible.builtin.file:
@@ -76,7 +89,10 @@
     group: "{{ target_user }}"
     mode: '0755'
   become: true
-  when: xml_dir is defined
+  when:
+    - enable_services_libvirt_vms | default(true) | bool
+    - xml_dir is defined
+  tags: [libvirt_vms, libvirt]
 
 - name: Push VM XML definitions to KVM/QEMU directory
   ansible.builtin.copy:
@@ -88,14 +104,20 @@
   with_fileglob:
     - "{{ playbook_dir }}/VMs/*.xml"
   become: true
-  when: xml_dir is defined
+  when:
+    - enable_services_libvirt_vms | default(true) | bool
+    - xml_dir is defined
+  tags: [libvirt_vms, libvirt]
 
 - name: Find VM XML definitions in KVM/QEMU directory
   ansible.builtin.find:
     paths: "{{ xml_dir }}"
     patterns: "*.xml"
   register: kvm_xml_files
-  when: xml_dir is defined
+  when:
+    - enable_services_libvirt_vms | default(true) | bool
+    - xml_dir is defined
+  tags: [libvirt_vms, libvirt]
 
 - name: Define VMs via virsh
   ansible.builtin.command: "virsh define {{ item.path }}"
@@ -104,5 +126,7 @@
   changed_when: "'defined' in virsh_define_result.stdout"
   become: true
   when:
+    - enable_services_libvirt_vms | default(true) | bool
     - xml_dir is defined
     - kvm_xml_files.files is defined
+  tags: [libvirt_vms, libvirt]

@@ -17,15 +17,31 @@
     enable_repositories: true
     enable_update: true
     enable_packages: true
+    enable_packages_cleanup: true        # Remove conflicting pre-installed KDE/LibreOffice packages
+    enable_packages_dnf_batch: true      # Install full base suite via Packages.sh script
+    enable_packages_pinokio: true        # Install latest Pinokio RPM
+    enable_packages_unigetui: true       # Install latest UniGetUI RPM
     enable_flatpaks: true
+    enable_flatpak_cli_only: false       # When true, only installs the flatpak binary/package manager without apps/remotes
+    enable_flatpak_remotes_system: true  # Toggle system-wide Flathub & Fedora Flatpak remote setup
+    enable_flatpak_apps: true            # Toggle installing the full list of Flathub and Fedora Flatpak applications
     enable_snaps: true
+    enable_snap_classic: true            # Install classic confinement snap packages
+    enable_snap_apps: true               # Install standard snap applications
     enable_services: true
+    enable_services_core: true           # Enable base system services and sockets
+    enable_services_firewall: true       # Enable firewalld rules and virbr0 trusted bridge
+    enable_services_libvirt_vms: false    # Define libvirt KVM/QEMU VMs from XML
     enable_udev: true
     enable_waydroid: true
+    enable_waydroid_scripts: true        # Install Waydroid container control scripts and polkit policies
     enable_homebrew: true
     enable_users_groups: true
+    enable_users_desktop_launcher: true  # Copy launcher script to user Desktops
     enable_ujust: true
     enable_initialize: true
+    enable_init_appimages_dir: true      # Create ~/AppImages directory
+    enable_init_virt_dirs: true          # Create user Platforms/Virtualization and Vagrant directories
 
     # --- Waydroid Preferences ---
     waydroid_multi_windows: true      # Enable freeform multi-window mode (persist.waydroid.multi_windows)
@@ -39,53 +55,63 @@
 
   tasks:
     - name: Configure repositories
-      ansible.builtin.include_tasks: tasks/repositories.yml
+      ansible.builtin.import_tasks: tasks/repositories.yml
       when: enable_repositories | default(true) | bool
+      tags: [repositories, repos]
 
     - name: Update system
-      ansible.builtin.include_tasks: tasks/update.yml
+      ansible.builtin.import_tasks: tasks/update.yml
       when: enable_update | default(true) | bool
+      tags: [update]
 
     - name: Install packages
-      ansible.builtin.include_tasks: tasks/packages.yml
+      ansible.builtin.import_tasks: tasks/packages.yml
       when: enable_packages | default(true) | bool
+      tags: [packages]
 
     - name: Install flatpaks
-      ansible.builtin.include_tasks: tasks/flatpaks.yml
+      ansible.builtin.import_tasks: tasks/flatpaks.yml
       when: enable_flatpaks | default(true) | bool
+      tags: [flatpaks]
 
     - name: Install snaps
-      ansible.builtin.include_tasks: tasks/snaps.yml
+      ansible.builtin.import_tasks: tasks/snaps.yml
       when: enable_snaps | default(true) | bool
+      tags: [snaps]
 
     - name: Enable system services
-      ansible.builtin.include_tasks: tasks/services.yml
+      ansible.builtin.import_tasks: tasks/services.yml
       when: enable_services | default(true) | bool
+      tags: [services]
 
     - name: Configure gamepad, joystick, and VR udev rules
-      ansible.builtin.include_tasks: tasks/udev.yml
+      ansible.builtin.import_tasks: tasks/udev.yml
       when: enable_udev | default(true) | bool
+      tags: [udev]
 
     - name: Configure Waydroid integration and container controls
-      ansible.builtin.include_tasks: tasks/waydroid.yml
+      ansible.builtin.import_tasks: tasks/waydroid.yml
       when: enable_waydroid | default(true) | bool
+      tags: [waydroid]
 
-    - name: Install and configure Homebrew #in-progress
-      ansible.builtin.include_tasks: tasks/homebrew.yml
+    - name: Install and configure Homebrew
+      ansible.builtin.import_tasks: tasks/homebrew.yml
       when: enable_homebrew | default(true) | bool
-      args:
-        apply:
-          become: true
-          become_user: "{{ target_user }}"
+      become: true
+      become_user: "{{ target_user }}"
+      tags: [homebrew, brew]
 
     - name: Configure users and groups
-      ansible.builtin.include_tasks: tasks/users-groups.yml
+      ansible.builtin.import_tasks: tasks/users-groups.yml
       when: enable_users_groups | default(true) | bool
+      tags: [users, users_groups]
 
     - name: Configure ujust and Bluefin components
-      ansible.builtin.include_tasks: tasks/ujust.yml
+      ansible.builtin.import_tasks: tasks/ujust.yml
       when: enable_ujust | default(true) | bool
+      tags: [ujust]
 
     - name: Initialize system
-      ansible.builtin.include_tasks: tasks/initialize.yml #in-progress
+      ansible.builtin.import_tasks: tasks/initialize.yml
       when: enable_initialize | default(true) | bool
+      tags: [initialize, init]

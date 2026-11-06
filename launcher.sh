@@ -9,27 +9,28 @@
 # Supported Sections & Tools (Sorted into Logical Categories):
 # [Onboarding & Automation]
 # 1. Core User Onboarding Sequence (Stages 1-10 with interactive batch checkbox selection)
-# 2. ujust / Universal Blue Task Runner integration (interactive recipe runner)
+# 2. Run Entire Fedora Ansible Playbook (--ask-become-pass)
+# 3. ujust / Universal Blue Task Runner integration (interactive recipe runner)
 #
 # [Developer Environments & Package Managers]
-# 3. Homebrew Environment & PATH Configuration
-# 4. Pixi Package Manager (https://pixi.sh)
-# 5. TLDR Cache & Terminal Utilities Refresh (tldr, bat, fonts, man-db, git-lfs)
-# 6. Distrobox — Ubuntu toolbox container (quay.io/toolbx/ubuntu-toolbox:latest)
-# 7. User Flatpak Remotes (Flathub & Fedora OCI user remotes with checkbox selection)
+# 4. Homebrew Environment & PATH Configuration
+# 5. Pixi Package Manager (https://pixi.sh)
+# 6. TLDR Cache & Terminal Utilities Refresh (tldr, bat, fonts, man-db, git-lfs)
+# 7. Distrobox — Ubuntu toolbox container (quay.io/toolbx/ubuntu-toolbox:latest)
+# 8. User Flatpak Remotes (Flathub & Fedora OCI user remotes with checkbox selection)
 #
 # [AppImage Hub & Local AI Tools]
-# 8. Unified AppImage Hub & Local AI Engines (15+ tools, models, launchers with batch checkbox selection)
-# 9. Compact & Configure Portable AppImages (--appimage-portable-config/home with checkbox selection)
+# 9. Unified AppImage Hub & Local AI Engines (15+ tools, models, launchers with batch checkbox selection)
+# 10. Compact & Configure Portable AppImages (--appimage-portable-config/home with checkbox selection)
 #
 # [Virtualization & Android Emulation]
-# 10. Fedora Waydroid Setup Wizard (Initialization, libndk, Widevine, multi-window, and APKs with checkbox selection)
-# 11. Virtualization & VM Management (Libvirt autostart/ports/XML and Vagrant Ubuntu/YunoHost)
+# 11. Fedora Waydroid Setup Wizard (Initialization, libndk, Widevine, multi-window, and APKs with checkbox selection)
+# 12. Virtualization & VM Management (Libvirt autostart/ports/XML and Vagrant Ubuntu/YunoHost)
 #
 # [Hardware & System Utilities]
-# 12. Gamepad, Joystick & VR udev Rules Configuration
-# 13. PipeWire Audio Redirection (multi-user network/local streaming)
-# 14. System Cleanup & Benchmarks (Podman prune, Snap snapshots, disk I/O, Unigine Superposition with checkbox selection)
+# 13. Gamepad, Joystick & VR udev Rules Configuration
+# 14. PipeWire Audio Redirection (multi-user network/local streaming)
+# 15. System Cleanup & Benchmarks (Podman prune, Snap snapshots, disk I/O, Unigine Superposition with checkbox selection)
 # ==============================================================================
 
 # Formatting Colors
@@ -53,6 +54,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 resolve_repo_root() {
     local candidate
     for candidate in \
+        "$SCRIPT_DIR" \
         "$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)" \
         "$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Ansible-Playbook-Fedora-Workstation"; do
@@ -61,11 +63,77 @@ resolve_repo_root() {
             return 0
         fi
     done
-    cd "$SCRIPT_DIR/.." 2>/dev/null && pwd
+    echo "$SCRIPT_DIR"
 }
 
 REPO_ROOT="$(resolve_repo_root)"
 SUDO_CMD=""
+
+run_full_playbook() {
+    local playbook_path="$REPO_ROOT/local.yml"
+
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}       Run Full Fedora Workstation Playbook          ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    if [ ! -f "$playbook_path" ]; then
+        echo -e "${RED}[ERROR] Playbook not found at: $playbook_path${NC}"
+        return 1
+    fi
+
+    if ! command -v ansible-playbook >/dev/null 2>&1; then
+        echo -e "${RED}[ERROR] 'ansible-playbook' is not installed or not in PATH.${NC}"
+        echo -e "${YELLOW}Install it with: sudo dnf install ansible${NC}"
+        return 1
+    fi
+
+    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --ask-become-pass${NC}\n"
+    ansible-playbook "$playbook_path" --ask-become-pass
+    local status=$?
+
+    if [ $status -eq 0 ]; then
+        echo -e "\n${GREEN}✓ Full Ansible playbook completed successfully!${NC}"
+    else
+        echo -e "\n${RED}[ERROR] Playbook execution finished with exit code ${status}.${NC}"
+    fi
+    return $status
+}
+
+run_playbook_subtask() {
+    local subtask_tag="$1"
+    local playbook_path="$REPO_ROOT/local.yml"
+
+    if [ ! -f "$playbook_path" ]; then
+        echo -e "${RED}[ERROR] Playbook not found at: $playbook_path${NC}"
+        return 1
+    fi
+
+    if ! command -v ansible-playbook >/dev/null 2>&1; then
+        echo -e "${RED}[ERROR] 'ansible-playbook' is not installed or not in PATH.${NC}"
+        echo -e "${YELLOW}Install it with: sudo dnf install ansible${NC}"
+        return 1
+    fi
+
+    echo -e "\n${BLUE}[*] Preparing to run Ansible subtask tag: ${BOLD}${subtask_tag}${NC}..."
+    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --tags $subtask_tag --ask-become-pass${NC}"
+    ansible-playbook "$playbook_path" --tags "$subtask_tag" --ask-become-pass
+}
+
+prompt_run_playbook_subtask() {
+    local feature_name="$1"
+    local subtask_tag="$2"
+    local desc="$3"
+
+    echo -e "\n${YELLOW}[!] Required dependency or provisioned file for '${feature_name}' is missing.${NC}"
+    echo -e "    Ansible Tag: ${CYAN}--tags ${subtask_tag}${NC} (${desc})"
+    read -rp "Would you like to run the Ansible playbook for this subtask now? [Y/n]: " run_choice
+    run_choice="${run_choice:-Y}"
+    if [[ "$run_choice" =~ ^[Yy]$ ]]; then
+        run_playbook_subtask "$subtask_tag"
+        return $?
+    fi
+    return 1
+}
 
 require_sudo() {
     local reason="${1:-perform administrative tasks}"
@@ -480,9 +548,11 @@ setup_distrobox() {
 
     # Verify distrobox is available
     if ! command -v distrobox >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'distrobox' is not installed or not in PATH.${NC}"
-        echo -e "${YELLOW}Install it with: sudo dnf install distrobox${NC}"
-        return 1
+        prompt_run_playbook_subtask "Distrobox" "packages_dnf" "Install base DNF packages including distrobox" || return 1
+        if ! command -v distrobox >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'distrobox' is still not installed or not in PATH.${NC}"
+            return 1
+        fi
     fi
 
     # Check if a container with this name already exists
@@ -511,8 +581,80 @@ setup_distrobox() {
         distrobox enter "${CONTAINER_NAME}" -- true 2>/dev/null \
             && echo -e "${GREEN}✓ Container initialized and ready.${NC}" \
             || echo -e "${YELLOW}• Container created — it will finish initializing on first 'distrobox enter ${CONTAINER_NAME}'.${NC}"
+
+        # Option to default install UniGetUI (deb) inside the container
+        local install_unigetui_choice
+        read -rp "Install UniGetUI.linux-x64.deb inside '${CONTAINER_NAME}' by default? [Y/n]: " install_unigetui_choice
+        install_unigetui_choice="${install_unigetui_choice:-Y}"
+        if [[ "$install_unigetui_choice" =~ ^[Yy]$ ]]; then
+            install_unigetui_deb_distrobox "${CONTAINER_NAME}"
+        fi
     else
         echo -e "${RED}Error: Failed to create distrobox container '${CONTAINER_NAME}'.${NC}"
+        return 1
+    fi
+}
+
+install_unigetui_deb_distrobox() {
+    local container_name="${1:-ubuntu-toolbox}"
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/unigetui_downloads"
+    mkdir -p "$cache_dir"
+
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}       Install UniGetUI (.deb) into Distrobox         ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    if ! command -v distrobox >/dev/null 2>&1; then
+        echo -e "${RED}Error: 'distrobox' is not installed.${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}[*] Fetching latest UniGetUI .deb release from GitHub...${NC}"
+    local deb_info
+    deb_info=$(python3 -c "
+import urllib.request, json, sys
+repo = 'Devolutions/UniGetUI'
+try:
+    url = f'https://api.github.com/repos/{repo}/releases/latest'
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        d = json.loads(r.read().decode())
+    for a in d.get('assets', []):
+        name = a.get('name', '')
+        url = a.get('browser_download_url', '')
+        if name.endswith('.deb') and 'x64' in name:
+            print(f'{name}\t{url}')
+            sys.exit(0)
+    sys.exit(1)
+except Exception:
+    sys.exit(1)
+")
+
+    local deb_name deb_url
+    if [ -n "$deb_info" ]; then
+        IFS=$'\t' read -r deb_name deb_url <<< "$deb_info"
+    else
+        echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+        deb_url="https://github.com/Devolutions/UniGetUI/releases/download/v2026.3.3/UniGetUI.linux-x64.deb"
+        deb_name="UniGetUI.linux-x64.deb"
+    fi
+
+    local target_file="$cache_dir/$deb_name"
+    echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+    if ! curl -fLC - --progress-bar -o "$target_file" "$deb_url"; then
+        echo -e "${RED}[ERROR] Failed to download UniGetUI .deb from $deb_url${NC}"
+        return 1
+    fi
+
+    echo -e "\n${BLUE}[*] Installing ${deb_name} into '${container_name}' container via apt...${NC}"
+    if distrobox enter "${container_name}" -- sudo apt-get update && \
+       distrobox enter "${container_name}" -- sudo apt-get install -y "$target_file"; then
+        echo -e "\n${BLUE}[*] Exporting UniGetUI desktop app and binary to host...${NC}"
+        distrobox enter "${container_name}" -- distrobox-export --app unigetui 2>/dev/null || true
+        distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/unigetui --export-path "$HOME/.local/bin" 2>/dev/null || true
+        echo -e "${GREEN}✓ UniGetUI (.deb) installed and exported successfully from Distrobox!${NC}"
+    else
+        echo -e "${RED}[ERROR] Failed to install UniGetUI .deb inside distrobox container.${NC}"
         return 1
     fi
 }
@@ -523,8 +665,11 @@ configure_flathub_user() {
     echo -e "${BLUE}=====================================================${NC}"
 
     if ! command -v flatpak >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'flatpak' is not installed or not in PATH.${NC}"
-        return 1
+        prompt_run_playbook_subtask "Flatpak" "flatpak_cli" "Install flatpak package manager only" || return 1
+        if ! command -v flatpak >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'flatpak' is still not installed or not in PATH.${NC}"
+            return 1
+        fi
     fi
 
     echo -e "${BLUE}Adding Flathub repository for user: $(whoami)...${NC}"
@@ -542,8 +687,11 @@ configure_fedora_flatpak_user() {
     echo -e "${BLUE}=====================================================${NC}"
 
     if ! command -v flatpak >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'flatpak' is not installed or not in PATH.${NC}"
-        return 1
+        prompt_run_playbook_subtask "Flatpak" "flatpak_cli" "Install flatpak package manager only" || return 1
+        if ! command -v flatpak >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'flatpak' is still not installed or not in PATH.${NC}"
+            return 1
+        fi
     fi
 
     echo -e "${BLUE}Adding Fedora Flatpak repository for user: $(whoami)...${NC}"
@@ -851,15 +999,18 @@ run_waydroid_init_wizard() {
     echo -e "${BLUE}[*] Checking Waydroid package...${NC}"
     if ! rpm -q waydroid &>/dev/null; then
         echo -e "${YELLOW}[!] Waydroid is not installed.${NC}"
-        read -rp "Install waydroid from Fedora's official repos now? [Y/n]: " INSTALL_CONFIRM
-        INSTALL_CONFIRM="${INSTALL_CONFIRM:-Y}"
+        prompt_run_playbook_subtask "Waydroid" "packages_dnf,waydroid" "Install Waydroid package and configure integration"
+        if ! rpm -q waydroid &>/dev/null; then
+            read -rp "Install waydroid from Fedora's official repos now via dnf? [Y/n]: " INSTALL_CONFIRM
+            INSTALL_CONFIRM="${INSTALL_CONFIRM:-Y}"
 
-        if [[ "$INSTALL_CONFIRM" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}[*] Installing waydroid and sqlite via dnf...${NC}"
-            $SUDO_CMD dnf install -y waydroid sqlite
-        else
-            echo -e "${RED}[-] Cannot proceed without installing waydroid.${NC}"
-            return 1
+            if [[ "$INSTALL_CONFIRM" =~ ^[Yy]$ ]]; then
+                echo -e "${BLUE}[*] Installing waydroid and sqlite via dnf...${NC}"
+                $SUDO_CMD dnf install -y waydroid sqlite
+            else
+                echo -e "${RED}[-] Cannot proceed without installing waydroid.${NC}"
+                return 1
+            fi
         fi
     else
         echo -e "${GREEN}[+] Waydroid is already installed from official repos.${NC}"
@@ -1407,7 +1558,7 @@ Reinstalling / Complete Reset:
      rm -f ~/.local/share/applications/*aydroid*
 
 4. Run launcher setup wizard again to re-init:
-     ./Scripts/launcher.sh --waydroid
+     ./launcher.sh --waydroid
 EOF
                 ;;
             *)
@@ -1535,6 +1686,22 @@ fedora_waydroid_setup_wizard() {
                 )
                 local apk_choice
                 apk_choice=$(fzf_action_menu "Install Single Waydroid APK" "APK" "${apk_items[@]}")
+                local apk_fzf_status=$?
+                if [ $apk_fzf_status -eq 99 ]; then
+                    echo -e "\n${BLUE}=====================================================${NC}"
+                    echo -e "${BOLD}       Install Single Waydroid APK / Add-on          ${NC}"
+                    echo -e "${BLUE}=====================================================${NC}"
+                    echo "  1) F-Droid (Official APK)"
+                    echo "  2) Aurora Store (Google Play Client)"
+                    echo "  3) Neo Store (Modern F-Droid Client)"
+                    echo "  4) SmartDock (Desktop UI / Dock)"
+                    echo "  5) XtMapper (Keymapper / Controller)"
+                    echo "  6) 3DMark (Android Benchmark APK)"
+                    echo "  7) MobileRun (via uv, installs to ADB device)"
+                    echo "  0) Back"
+                    echo -e "${BLUE}-----------------------------------------------------${NC}"
+                    read -rp "Select an option [0-7]: " apk_choice
+                fi
                 case "$apk_choice" in
                     1) install_fdroid_official ;;
                     2) install_aurora_store ;;
@@ -1995,6 +2162,13 @@ build_virt_builder_vm() {
 }
 
 configure_libvirt() {
+    if ! command -v virsh >/dev/null 2>&1; then
+        prompt_run_playbook_subtask "Libvirt/KVM" "services" "Enable virtualization stack and services" || return 1
+        if ! command -v virsh >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'virsh' is still not installed.${NC}"
+            return 1
+        fi
+    fi
     local l_items=(
         "1\t🌐 Start & Autostart Default Network\tEnsure virbr0 default network is running and autostarts on boot"
         "2\t📋 List Available OS Templates\tView full repository of virt-builder pre-built cloud OS images"
@@ -2041,12 +2215,18 @@ manage_vagrant_vm() {
     local name="$1"
     local dir="$HOME/Platforms/Virtualization/vagrant/$name"
     if ! command -v vagrant >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'vagrant' is not installed.${NC}"
-        return 1
+        prompt_run_playbook_subtask "Vagrant" "packages_dnf" "Install virtualization packages" || return 1
+        if ! command -v vagrant >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'vagrant' is still not installed.${NC}"
+            return 1
+        fi
     fi
     if [ ! -f "$dir/Vagrantfile" ]; then
-        echo -e "${RED}Error: $dir/Vagrantfile not found. Run the playbook first.${NC}"
-        return 1
+        prompt_run_playbook_subtask "Vagrant VM (${name})" "vagrant" "Provision Vagrant environments and files" || return 1
+        if [ ! -f "$dir/Vagrantfile" ]; then
+            echo -e "${RED}Error: $dir/Vagrantfile not found. Run the playbook first.${NC}"
+            return 1
+        fi
     fi
 
     local vg_actions=(
@@ -3197,11 +3377,17 @@ run_appimage_compact() {
 }
 
 run_ujust() {
-    if ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; then
-        echo -e "${YELLOW}Notice: 'ujust' is not found at /usr/bin/ujust.${NC}"
-        echo -e "ujust is provisioned system-wide via Ansible (tasks/ujust.yml)."
-        echo -e "Run the playbook to install it: ${CYAN}sudo ansible-playbook local.yml${NC}"
-        return 1
+    if ! command -v just >/dev/null 2>&1 || { ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; }; then
+        echo -e "${YELLOW}Notice: 'just' or 'ujust' is missing.${NC}"
+        prompt_run_playbook_subtask "ujust" "ujust" "Configure just/ujust task runner and Bluefin recipes" || return 1
+        if ! command -v just >/dev/null 2>&1; then
+            echo -e "${RED}Error: 'just' binary is still not installed in PATH.${NC}"
+            return 1
+        fi
+        if ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; then
+            echo -e "${RED}Error: 'ujust' is still not found.${NC}"
+            return 1
+        fi
     fi
 
     local ujust_bin
@@ -3276,8 +3462,11 @@ configure_udev_rules() {
     local UDEV_DIR="$REPO_ROOT/files/udev"
 
     if [ ! -d "$UDEV_DIR" ]; then
-        echo -e "${RED}[ERROR] udev source directory not found: $UDEV_DIR${NC}"
-        return 1
+        prompt_run_playbook_subtask "udev rules" "udev" "Deploy gamepad, joystick & VR udev rules" || return 1
+        if [ ! -d "$UDEV_DIR" ]; then
+            echo -e "${RED}[ERROR] udev source directory still not found: $UDEV_DIR${NC}"
+            return 1
+        fi
     fi
 
     local rules=("$UDEV_DIR"/*.rules)
@@ -3383,6 +3572,7 @@ show_help() {
 Usage: launcher.sh [FLAG]
 
 Flags:
+  --playbook                      Execute the entire Ansible playbook (--ask-become-pass)
   --all                           Core User Onboarding Sequence (checkbox menu)
   --ujust                         Access ujust / Universal Blue Task Runner
   --brew                          Configure Homebrew Environment & PATH
@@ -3423,6 +3613,7 @@ EOF
 # Non-interactive CLI flag handling
 if [ $# -gt 0 ]; then
     case "$1" in
+        --playbook)                     run_full_playbook ;;
         --all)                          run_all ;;
         --ujust)                        run_ujust ;;
         --brew)                         configure_homebrew ;;
@@ -3479,19 +3670,20 @@ while true; do
     if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
         local_menu_entries=(
             "1\t🚀 Core User Onboarding Sequence\tRun essential onboarding tasks: Homebrew, Pixi, Distrobox, Flatpaks, udev rules, and Waydroid"
-            "2\t⚡ ujust / Universal Blue Task Runner\tAccess ujust recipes, list tasks, run bling setups, or execute custom system tasks"
-            "3\t🍺 Configure Homebrew & PATH\tConfigure Linuxbrew environment and shell rc paths (~/.bashrc, ~/.zshrc)"
-            "4\t📦 Install Pixi Package Manager\tInstall or update the ultra-fast Conda-compatible package manager (pixi.sh)"
-            "5\t📖 Refresh TLDR & Terminal Caches\tUpdate tldr pages, rebuild bat syntax themes, refresh font caches, and update man-db"
-            "6\t📦 Setup Ubuntu Distrobox Container\tCreate or recreate an Ubuntu 24.04 toolbox container for Debian software"
-            "7\t📦 User Flatpak Remotes (Flathub & Fedora)\tConfigure user-level Flathub and Fedora OCI remotes without root access"
-            "8\t🤖 AppImage Hub & Local AI Engines\tDownload and manage 15+ local AI models, LLM runtimes, and creative apps"
-            "9\t🗜️  Compact & Configure Portable AppImages\tOptimize AppImages with portable config/home dirs and run auto-updaters"
-            "10\t📱 Fedora Waydroid Setup Wizard\tAndroid container subsystem with ARM translation (libndk), GAPPS, and multi-window"
-            "11\t🖥️  Virtualization & VM Management\tManage Libvirt networks, autostart VMs, virt-builder OS templates, and Vagrant"
-            "12\t🎮 Gamepad, Joystick & VR udev Rules\tDeploy hardware input rules to /etc/udev/rules.d for Steam, VR, and controllers"
-            "13\t🔊 PipeWire Audio Redirection\tMulti-user low-latency network audio streaming between sender and receiver"
-            "14\t🧹 System Cleanup & Benchmarks\tClean container caches, snapshot storage, disk benchmarks, and Unigine GPU bench"
+            "2\t📖 Run Entire Fedora Ansible Playbook\tExecute complete system provisioning playbook with all tasks (ansible-playbook local.yml --ask-become-pass)"
+            "3\t⚡ ujust / Universal Blue Task Runner\tAccess ujust recipes, list tasks, run bling setups, or execute custom system tasks"
+            "4\t🍺 Configure Homebrew & PATH\tConfigure Linuxbrew environment and shell rc paths (~/.bashrc, ~/.zshrc)"
+            "5\t📦 Install Pixi Package Manager\tInstall or update the ultra-fast Conda-compatible package manager (pixi.sh)"
+            "6\t📖 Refresh TLDR & Terminal Caches\tUpdate tldr pages, rebuild bat syntax themes, refresh font caches, and update man-db"
+            "7\t📦 Setup Ubuntu Distrobox Container\tCreate or recreate an Ubuntu 24.04 toolbox container for Debian software"
+            "8\t📦 User Flatpak Remotes (Flathub & Fedora)\tConfigure user-level Flathub and Fedora OCI remotes without root access"
+            "9\t🤖 AppImage Hub & Local AI Engines\tDownload and manage 15+ local AI models, LLM runtimes, and creative apps"
+            "10\t🗜️  Compact & Configure Portable AppImages\tOptimize AppImages with portable config/home dirs and run auto-updaters"
+            "11\t📱 Fedora Waydroid Setup Wizard\tAndroid container subsystem with ARM translation (libndk), GAPPS, and multi-window"
+            "12\t🖥️  Virtualization & VM Management\tManage Libvirt networks, autostart VMs, virt-builder OS templates, and Vagrant"
+            "13\t🎮 Gamepad, Joystick & VR udev Rules\tDeploy hardware input rules to /etc/udev/rules.d for Steam, VR, and controllers"
+            "14\t🔊 PipeWire Audio Redirection\tMulti-user low-latency network audio streaming between sender and receiver"
+            "15\t🧹 System Cleanup & Benchmarks\tClean container caches, snapshot storage, disk benchmarks, and Unigine GPU bench"
             "0\t🚪 Exit Launcher\tQuit setup utility"
         )
 
@@ -3511,7 +3703,7 @@ while true; do
             --layout=reverse \
             --color="border:#555555,header:bold:white,prompt:#00afff,pointer:#5fd7ff,marker:#5fd700")
 
-        local fzf_status=$?
+        fzf_status=$?
         if [ $fzf_status -ne 0 ] || [ -z "$choice" ]; then
             choice=0
         fi
@@ -3524,54 +3716,56 @@ while true; do
         echo -e "${CYAN}-------------------------------------------------------------------${NC}"
         echo -e " ${BOLD}[Onboarding & Automation]${NC}"
         echo -e "   ${BOLD}1)${NC} ${BOLD}Core User Onboarding Sequence [Checkbox Menu]${NC}"
-        echo -e "   ${BOLD}2)${NC} Access ujust / Universal Blue Task Runner"
+        echo -e "   ${BOLD}2)${NC} ${BOLD}Run Entire Fedora Ansible Playbook (--ask-become-pass)${NC}"
+        echo -e "   ${BOLD}3)${NC} Access ujust / Universal Blue Task Runner"
         echo ""
         echo -e " ${BOLD}[Developer Environments & Package Managers]${NC}"
-        echo -e "   ${BOLD}3)${NC} Configure Homebrew Environment & PATH"
-        echo -e "   ${BOLD}4)${NC} Install Pixi Package Manager (pixi.sh)"
-        echo -e "   ${BOLD}5)${NC} Update TLDR Cache & Terminal Utilities Refresh"
-        echo -e "   ${BOLD}6)${NC} Create Ubuntu Distrobox Container"
-        echo -e "   ${BOLD}7)${NC} Configure User Flatpak Remotes (Flathub & Fedora) [Checkbox]"
+        echo -e "   ${BOLD}4)${NC} Configure Homebrew Environment & PATH"
+        echo -e "   ${BOLD}5)${NC} Install Pixi Package Manager (pixi.sh)"
+        echo -e "   ${BOLD}6)${NC} Update TLDR Cache & Terminal Utilities Refresh"
+        echo -e "   ${BOLD}7)${NC} Create Ubuntu Distrobox Container"
+        echo -e "   ${BOLD}8)${NC} Configure User Flatpak Remotes (Flathub & Fedora) [Checkbox]"
         echo ""
         echo -e " ${BOLD}[AppImage Hub & Local AI Tools]${NC}"
-        echo -e "   ${BOLD}8)${NC} ${BOLD}AppImage Hub & Local AI Engines (15+ Tools & Models) [Checkbox]${NC}"
-        echo -e "   ${BOLD}9)${NC} Compact & Configure Portable AppImages (--appimage-portable-*) [Checkbox]"
+        echo -e "   ${BOLD}9)${NC} ${BOLD}AppImage Hub & Local AI Engines (15+ Tools & Models) [Checkbox]${NC}"
+        echo -e "  ${BOLD}10)${NC} Compact & Configure Portable AppImages (--appimage-portable-*) [Checkbox]"
         echo ""
         echo -e " ${BOLD}[Virtualization & Android Emulation]${NC}"
-        echo -e "  ${BOLD}10)${NC} Fedora Waydroid Setup Wizard (Subsystems, APKs & Fixes) [Checkbox]"
-        echo -e "  ${BOLD}11)${NC} Virtualization & VM Management (Libvirt & Vagrant)"
+        echo -e "  ${BOLD}11)${NC} Fedora Waydroid Setup Wizard (Subsystems, APKs & Fixes) [Checkbox]"
+        echo -e "  ${BOLD}12)${NC} Virtualization & VM Management (Libvirt & Vagrant)"
         echo ""
         echo -e " ${BOLD}[Hardware & System Utilities]${NC}"
-        echo -e "  ${BOLD}12)${NC} Configure Gamepad, Joystick & VR udev Rules"
-        echo -e "  ${BOLD}13)${NC} Configure PipeWire Audio Redirection (Multi-User Streaming)"
-        echo -e "  ${BOLD}14)${NC} System Cleanup & Storage Benchmarks (Podman, Snap, Disk) [Checkbox]"
+        echo -e "  ${BOLD}13)${NC} Configure Gamepad, Joystick & VR udev Rules"
+        echo -e "  ${BOLD}14)${NC} Configure PipeWire Audio Redirection (Multi-User Streaming)"
+        echo -e "  ${BOLD}15)${NC} System Cleanup & Storage Benchmarks (Podman, Snap, Disk) [Checkbox]"
         echo -e "${CYAN}-------------------------------------------------------------------${NC}"
         echo -e "   ${BOLD}0)${NC} Exit"
         echo -e "${CYAN}===================================================================${NC}"
-        read -rp "Select an option [0-14]: " choice
+        read -rp "Select an option [0-15]: " choice
     fi
 
     case "$choice" in
         1) run_all ;;
-        2) run_ujust ;;
-        3) configure_homebrew ;;
-        4) install_pixi ;;
-        5) update_terminal_utilities ;;
-        6) setup_distrobox ;;
-        7) configure_flatpak_remotes_user ;;
-        8) appimage_hub_menu ;;
-        9) run_appimage_compact ;;
-        10) fedora_waydroid_setup_wizard ;;
-        11) manage_virtualization ;;
-        12) configure_udev_rules ;;
-        13) configure_pipewire_streaming ;;
-        14) cleanup_system ;;
+        2) run_full_playbook ;;
+        3) run_ujust ;;
+        4) configure_homebrew ;;
+        5) install_pixi ;;
+        6) update_terminal_utilities ;;
+        7) setup_distrobox ;;
+        8) configure_flatpak_remotes_user ;;
+        9) appimage_hub_menu ;;
+        10) run_appimage_compact ;;
+        11) fedora_waydroid_setup_wizard ;;
+        12) manage_virtualization ;;
+        13) configure_udev_rules ;;
+        14) configure_pipewire_streaming ;;
+        15) cleanup_system ;;
         0|[Qq]|exit)
             echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-14.${NC}"
+            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-15.${NC}"
             ;;
     esac
     echo ""

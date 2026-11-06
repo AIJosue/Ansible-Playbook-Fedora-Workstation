@@ -4,6 +4,8 @@
     path: /usr/libexec
     state: directory
     mode: '0755'
+  when: enable_waydroid_scripts | default(true) | bool
+  tags: [waydroid_scripts]
 
 - name: Install Waydroid container control scripts
   ansible.builtin.copy:
@@ -19,6 +21,8 @@
     - { src: "waydroid-fix-controllers", dest: "/usr/libexec/waydroid-fix-controllers" }
     - { src: "waydroid-choose-gpu", dest: "/usr/bin/waydroid-choose-gpu" }
     - { src: "waydroid-launcher", dest: "/usr/bin/waydroid-launcher" }
+  when: enable_waydroid_scripts | default(true) | bool
+  tags: [waydroid_scripts]
 
 - name: Install Waydroid launcher defaults configuration
   ansible.builtin.copy:
@@ -27,6 +31,8 @@
     owner: root
     group: root
     mode: '0644'
+  when: enable_waydroid_scripts | default(true) | bool
+  tags: [waydroid_scripts]
 
 - name: Install Waydroid Polkit actions and rules
   ansible.builtin.copy:
@@ -38,17 +44,21 @@
   loop:
     - { src: "org.bazzite.waydroid.policy", dest: "/usr/share/polkit-1/actions/org.bazzite.waydroid.policy" }
     - { src: "30-waydroid.rules", dest: "/usr/share/polkit-1/rules.d/30-waydroid.rules" }
+  when: enable_waydroid_scripts | default(true) | bool
+  tags: [waydroid_scripts]
 
 - name: Set Waydroid multi-window property
   ansible.builtin.command:
     cmd: "waydroid prop set persist.waydroid.multi_windows {{ 'true' if (waydroid_multi_windows | default(true) | bool) else 'false' }}"
   changed_when: false
   failed_when: false
+  tags: [waydroid_scripts]
 
 - name: Check if Waydroid images are initialized
   ansible.builtin.stat:
     path: /var/lib/waydroid/images/system.img
   register: waydroid_system_img
+  tags: [waydroid_init]
 
 - name: Initialize Waydroid images if requested and not initialized
   ansible.builtin.command:
@@ -59,12 +69,14 @@
   register: waydroid_init_result
   changed_when: waydroid_init_result.rc == 0
   failed_when: false
+  tags: [waydroid_init]
 
 - name: Check if libndk installer script exists
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/Scripts/install-libndk.sh"
   register: libndk_script_stat
   when: waydroid_install_libndk | default(false) | bool
+  tags: [waydroid_libndk]
 
 - name: Install libndk ARM translation if requested
   ansible.builtin.command:
@@ -75,3 +87,4 @@
   register: libndk_install_result
   changed_when: libndk_install_result.rc == 0
   failed_when: false
+  tags: [waydroid_libndk]
