@@ -56,24 +56,34 @@ DESKTOP_SCRIPT="$HOME/Desktop/launcher.sh"
 if [ ! -d "$SCRIPT_DIR/tasks" ] || [ ! -f "$SCRIPT_DIR/local.yml" ]; then
     if [ "$SCRIPT_DIR" != "$TARGET_DIR" ]; then
         if [ ! -d "$TARGET_DIR" ]; then
-            echo -e "${BLUE}[*] Repository not found locally. Cloning to $TARGET_DIR...${NC}"
-            mkdir -p "$HOME/code"
-            if ! command -v git >/dev/null 2>&1; then
-                echo -e "${YELLOW}Git is not installed. Installing...${NC}"
-                sudo dnf install -y git
-            fi
-            git clone https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git "$TARGET_DIR" || {
-                echo -e "${RED}[ERROR] Failed to clone repository.${NC}"
+            read -rp "Repository not found locally. Would you like to clone the repository to $TARGET_DIR? [Y/n]: " clone_choice
+            clone_choice="${clone_choice:-Y}"
+            if [[ "$clone_choice" =~ ^[Yy]$ ]]; then
+                echo -e "${BLUE}[*] Cloning to $TARGET_DIR...${NC}"
+                mkdir -p "$HOME/code"
+                if ! command -v git >/dev/null 2>&1; then
+                    echo -e "${YELLOW}Git is not installed. Installing...${NC}"
+                    sudo dnf install -y git
+                fi
+                git clone https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git "$TARGET_DIR" || {
+                    echo -e "${RED}[ERROR] Failed to clone repository.${NC}"
+                    exit 1
+                }
+            else
+                echo -e "${YELLOW}Clone aborted. Exiting.${NC}"
                 exit 1
-            }
+            fi
         fi
 
         mkdir -p "$HOME/Desktop"
-        if [ "$0" != "$DESKTOP_SCRIPT" ]; then
-            echo -e "${BLUE}[*] Moving launcher script to Desktop...${NC}"
+        if [ ! "$0" -ef "$DESKTOP_SCRIPT" ]; then
+            echo -e "${BLUE}[*] Creating launcher script on Desktop...${NC}"
             cp "$0" "$DESKTOP_SCRIPT"
             chmod +x "$DESKTOP_SCRIPT"
-            exec "$DESKTOP_SCRIPT" "$@"
+            rm -f "$0"
+            echo -e "${GREEN}✓ Desktop launcher created.${NC}"
+            echo -e "${YELLOW}Please use the launcher located at: $DESKTOP_SCRIPT${NC}"
+            exit 0
         fi
     fi
 fi
