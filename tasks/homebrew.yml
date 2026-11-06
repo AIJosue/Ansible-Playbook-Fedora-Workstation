@@ -16,6 +16,7 @@
     NONINTERACTIVE: "1"
   when: not brew_check.stat.exists
   become: false # Critical: Homebrew must be installed as a regular user
+  changed_when: not brew_check.stat.exists
 
 - name: Configure system-wide Homebrew shell environment in profile.d
   ansible.builtin.copy:
@@ -42,4 +43,3 @@
     mode: '0644'
   become: true
   become_user: root
-

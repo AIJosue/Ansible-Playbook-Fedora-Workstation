@@ -55,5 +55,3 @@
     - enable_users_desktop_launcher | default(true) | bool
     - item != 'root'
   tags: [desktop_launcher]
-
-

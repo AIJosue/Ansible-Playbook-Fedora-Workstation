@@ -50,5 +50,9 @@
 - name: Install Starship prompt binary if missing
   become: true
   ansible.builtin.shell: |
-    curl -sS https://starship.rs/install.sh | sh -s -- -y
+    set -o pipefail
+    curl -sS https://starship.rs/install.sh | sh -s -- -y # noqa command-instead-of-module
+  args:
+    executable: /bin/bash
   when: starship_check.rc != 0
+  changed_when: true
