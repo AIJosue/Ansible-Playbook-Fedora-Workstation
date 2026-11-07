@@ -9,14 +9,30 @@
     path: "{{ homebrew_bin }}"
   register: brew_check
 
+- name: Ensure /home/linuxbrew directory exists with proper permissions
+  ansible.builtin.file:
+    path: /home/linuxbrew
+    state: directory
+    owner: "{{ target_user }}"
+    mode: '0755'
+  become: true
+  become_user: root
+  ignore_errors: true
+  tags: [homebrew, brew]
+
 - name: Install Homebrew (if not already present)
   ansible.builtin.shell: |
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   environment:
     NONINTERACTIVE: "1"
-  when: not brew_check.stat.exists
-  become: false # Critical: Homebrew must be installed as a regular user
-  changed_when: not brew_check.stat.exists
+  when:
+    - not (brew_check.stat.exists | default(false))
+    - target_user != 'root'
+  become: true
+  become_user: "{{ target_user }}"
+  changed_when: not (brew_check.stat.exists | default(false))
+  failed_when: false
+  ignore_errors: true
 
 - name: Configure system-wide Homebrew shell environment in profile.d
   ansible.builtin.copy:
@@ -31,6 +47,7 @@
     group: root
   become: true
   become_user: root
+  ignore_errors: true
 
 - name: Ensure Homebrew shellenv is loaded in user bashrc
   ansible.builtin.lineinfile:
@@ -39,7 +56,7 @@
     state: present
     create: true
     owner: "{{ target_user }}"
-    group: "{{ target_user }}"
     mode: '0644'
   become: true
   become_user: root
+  ignore_errors: true

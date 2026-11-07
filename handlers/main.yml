@@ -3,3 +3,4 @@
   ansible.builtin.shell: udevadm control --reload-rules && udevadm trigger
   become: true
   changed_when: true
+  failed_when: false

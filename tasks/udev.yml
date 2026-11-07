@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: '0755'
+  ignore_errors: true
 
 - name: Install gamepad, joystick, and VR udev rules
   ansible.builtin.copy:
@@ -17,3 +18,4 @@
   with_fileglob:
     - "{{ playbook_dir }}/files/udev/*.rules"
   notify: Reload udev rules
+  ignore_errors: true

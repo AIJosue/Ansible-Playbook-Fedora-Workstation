@@ -4,13 +4,25 @@ LOG_DIR="${SCRIPT_DIR}/../logs"
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
 LOG_FILE="${LOG_DIR}/packages_$(date +%Y%m%d_%H%M%S).log"
 
-exec > >(tee -a "${LOG_FILE}" /var/log/packages.log) 2>&1
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        SUDO="sudo"
+    fi
+fi
 
-echo "Starting package installation. Logging to ${LOG_FILE} and /var/log/packages.log..."
+# Prepare logging to both log file and system package log if writable
+if [ "$(id -u)" -eq 0 ] || [ -w /var/log/packages.log ] 2>/dev/null; then
+    exec > >(tee -a "${LOG_FILE}" /var/log/packages.log) 2>&1
+else
+    exec > >(tee -a "${LOG_FILE}") 2>&1
+fi
 
-dnf install -y --skip-unavailable --skip-broken \
-    @virtualization @development-tools\
-    # Core tools, desktop utilities, shells, and containers
+echo "Starting package installation. Logging to ${LOG_FILE}..."
+
+# Core tools, virtualization, development libraries, shells, and utilities
+$SUDO dnf install -y --skip-unavailable --skip-broken \
+    @virtualization @development-tools \
     7zip android-tools binwalk bleachbit btrfs-assistant calibre conda corectrl DisplayCAL distrobox encapsule fastfetch fish fzf gnome-disk-utility gtk3-devel gum just libva-utils p7zip p7zip-plugins pidgin pidgin-otr ptyxis rclone restic snapd sqlite strace switcheroo-control tldr tmux unzip uv waydroid xterm zsh \
     google-chrome-stable microsoft-edge-stable \
     clementine \
@@ -26,6 +38,13 @@ dnf install -y --skip-unavailable --skip-broken \
     zoom \
     google-noto-fonts-all google-noto-color-emoji-fonts rsms-inter-fonts \
     boundary packer terraform terraform-ls terraform-stacks-cli 'vagrant*' waypoint \
-    ffmpegthumbnailer
+    ffmpegthumbnailer || true
 
+if [ -n "$SUDO" ]; then
+    $SUDO touch /var/log/packages.log 2>/dev/null || true
+else
+    touch /var/log/packages.log 2>/dev/null || true
+fi
+
+echo "Package installation completed."
 exit 0

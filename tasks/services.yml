@@ -11,6 +11,7 @@
     - nix-daemon
     - sshd
     - switcheroo-control
+  ignore_errors: true
   when: enable_services_core | default(true) | bool
   tags: [services_core]
 
@@ -24,6 +25,7 @@
     - podman.socket
     - cockpit.socket
     - snapd.socket
+  ignore_errors: true
   when: enable_services_core | default(true) | bool
   tags: [services_core]
 
@@ -34,8 +36,20 @@
     dest: /var/run/docker.sock
     state: link
     force: true
+  ignore_errors: true
   when: enable_services_core | default(true) | bool
   tags: [services_core]
+
+- name: Ensure libvirt default network is active and set to autostart
+  ansible.builtin.shell: |
+    virsh -c qemu:///system net-autostart default || true
+    virsh -c qemu:///system net-start default || true
+  register: libvirt_net_result
+  changed_when: "'started' in libvirt_net_result.stdout or 'autostarted' in libvirt_net_result.stdout"
+  failed_when: false
+  become: true
+  when: enable_services_core | default(true) | bool
+  tags: [services_core, libvirt]
 
 - name: Ensure firewalld service is enabled and started
   become: true
@@ -43,6 +57,7 @@
     name: firewalld
     enabled: true
     state: started
+  ignore_errors: true
   when: enable_services_firewall | default(true) | bool
   tags: [services_firewall]
 
@@ -57,6 +72,7 @@
     - ssh
     - cockpit
     - kdeconnect
+  ignore_errors: true
   when: enable_services_firewall | default(true) | bool
   tags: [services_firewall]
 
@@ -68,27 +84,18 @@
     permanent: true
     immediate: true
     state: enabled
+  ignore_errors: true
   when: enable_services_firewall | default(true) | bool
   tags: [services_firewall, libvirt]
-
-- name: Ensure libvirt default network is active and set to autostart
-  ansible.builtin.shell: |
-    virsh -c qemu:///system net-autostart default || true
-    virsh -c qemu:///system net-start default || true
-  register: libvirt_net_result
-  changed_when: "'started' in libvirt_net_result.stdout or 'autostarted' in libvirt_net_result.stdout"
-  become: true
-  when: enable_services_core | default(true) | bool
-  tags: [services_core, libvirt]
 
 - name: Ensure KVM/QEMU XML directory exists
   ansible.builtin.file:
     path: "{{ xml_dir }}"
     state: directory
     owner: "{{ target_user }}"
-    group: "{{ target_user }}"
     mode: '0755'
   become: true
+  ignore_errors: true
   when:
     - enable_services_libvirt_vms | default(true) | bool
     - xml_dir is defined
@@ -99,11 +106,11 @@
     src: "{{ item }}"
     dest: "{{ xml_dir }}/{{ item | basename }}"
     owner: "{{ target_user }}"
-    group: "{{ target_user }}"
     mode: '0644'
   with_fileglob:
     - "{{ playbook_dir }}/VMs/*.xml"
   become: true
+  ignore_errors: true
   when:
     - enable_services_libvirt_vms | default(true) | bool
     - xml_dir is defined
@@ -114,6 +121,7 @@
     paths: "{{ xml_dir }}"
     patterns: "*.xml"
   register: kvm_xml_files
+  ignore_errors: true
   when:
     - enable_services_libvirt_vms | default(true) | bool
     - xml_dir is defined
@@ -124,9 +132,11 @@
   loop: "{{ kvm_xml_files.files | default([]) }}"
   register: virsh_define_result
   changed_when: "'defined' in virsh_define_result.stdout"
+  failed_when: false
   become: true
   when:
     - enable_services_libvirt_vms | default(true) | bool
     - xml_dir is defined
+    - kvm_xml_files is defined
     - kvm_xml_files.files is defined
   tags: [libvirt_vms, libvirt]

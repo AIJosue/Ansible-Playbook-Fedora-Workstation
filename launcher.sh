@@ -87,8 +87,13 @@ run_full_playbook() {
         return 1
     fi
 
-    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --ask-become-pass${NC}\n"
-    ansible-playbook "$playbook_path" --ask-become-pass
+    local become_flag="--ask-become-pass"
+    if [ "$(id -u)" -eq 0 ]; then
+        become_flag=""
+    fi
+
+    echo -e "${CYAN}Executing: ansible-playbook $playbook_path $become_flag${NC}\n"
+    ansible-playbook "$playbook_path" $become_flag
     local status=$?
 
     if [ $status -eq 0 ]; then
@@ -114,9 +119,14 @@ run_playbook_subtask() {
         return 1
     fi
 
+    local become_flag="--ask-become-pass"
+    if [ "$(id -u)" -eq 0 ]; then
+        become_flag=""
+    fi
+
     echo -e "\n${BLUE}[*] Preparing to run Ansible subtask tag: ${BOLD}${subtask_tag}${NC}..."
-    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --tags $subtask_tag --ask-become-pass${NC}"
-    ansible-playbook "$playbook_path" --tags "$subtask_tag" --ask-become-pass
+    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --tags $subtask_tag $become_flag${NC}"
+    ansible-playbook "$playbook_path" --tags "$subtask_tag" $become_flag
 }
 
 prompt_run_playbook_subtask() {

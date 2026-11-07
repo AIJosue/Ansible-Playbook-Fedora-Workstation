@@ -4,6 +4,7 @@
     path: /usr/libexec
     state: directory
     mode: '0755'
+  ignore_errors: true
   when: enable_waydroid_scripts | default(true) | bool
   tags: [waydroid_scripts]
 
@@ -21,6 +22,7 @@
     - { src: "waydroid-fix-controllers", dest: "/usr/libexec/waydroid-fix-controllers" }
     - { src: "waydroid-choose-gpu", dest: "/usr/bin/waydroid-choose-gpu" }
     - { src: "waydroid-launcher", dest: "/usr/bin/waydroid-launcher" }
+  ignore_errors: true
   when: enable_waydroid_scripts | default(true) | bool
   tags: [waydroid_scripts]
 
@@ -31,6 +33,7 @@
     owner: root
     group: root
     mode: '0644'
+  ignore_errors: true
   when: enable_waydroid_scripts | default(true) | bool
   tags: [waydroid_scripts]
 
@@ -44,6 +47,7 @@
   loop:
     - { src: "org.bazzite.waydroid.policy", dest: "/usr/share/polkit-1/actions/org.bazzite.waydroid.policy" }
     - { src: "30-waydroid.rules", dest: "/usr/share/polkit-1/rules.d/30-waydroid.rules" }
+  ignore_errors: true
   when: enable_waydroid_scripts | default(true) | bool
   tags: [waydroid_scripts]
 
@@ -65,7 +69,7 @@
     cmd: "waydroid init -s {{ waydroid_system_type | default('GAPPS') }} -c https://ota.waydro.id/system -v https://ota.waydro.id/vendor"
   when:
     - waydroid_init_images | default(false) | bool
-    - not waydroid_system_img.stat.exists
+    - not (waydroid_system_img.stat.exists | default(false))
   register: waydroid_init_result
   changed_when: waydroid_init_result.rc == 0
   failed_when: false

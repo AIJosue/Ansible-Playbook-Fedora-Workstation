@@ -11,6 +11,7 @@
     - nordvpn
     - render
     - video
+  ignore_errors: true
   tags: [users_groups]
 
 - name: Create users and assign to necessary system groups
@@ -21,6 +22,7 @@
     append: true # Ensures they are added to these groups without removing them from others
     create_home: true
     shell: /bin/bash # /bin/bash (default), /bin/zsh, /usr/bin/fish
+  become: true
   loop:
     # Current user running the playbook (captures the real user even if running via sudo)
     - { name: "{{ target_user }}", groups: 'wheel,libvirt,lxd,nordvpn,render,video' }
@@ -28,6 +30,11 @@
     - { name: "{{ admin_username | default('admin') }}", groups: 'wheel,libvirt,nordvpn,render,video' }
     # Standard / sandbox users get standard virtualization and GPU access (libvirt, render, video), but no wheel
     - { name: "{{ sandbox_username | default('sandbox') }}", groups: 'libvirt,render,video' }
+  when:
+    - item.name is defined
+    - item.name | length > 0
+    - item.name != 'root'
+  ignore_errors: true
   tags: [users_groups]
 
 - name: Ensure Desktop directory exists for user accounts
@@ -35,11 +42,14 @@
     path: "/home/{{ item }}/Desktop"
     state: directory
     owner: "{{ item }}"
-    group: "{{ item }}"
     mode: '0755'
   become: true
   loop: "{{ [sandbox_username | default('sandbox'), admin_username | default('admin'), target_user] | unique }}"
-  when: item != 'root'
+  when:
+    - item is defined
+    - item != 'root'
+    - item | length > 0
+  ignore_errors: true
   tags: [desktop_launcher]
 
 - name: Deploy interactive setup script to user Desktop
@@ -47,11 +57,13 @@
     src: "{{ playbook_dir }}/launcher.sh"
     dest: "/home/{{ item }}/Desktop/launcher.sh"
     owner: "{{ item }}"
-    group: "{{ item }}"
     mode: '0755'
   become: true
   loop: "{{ [sandbox_username | default('sandbox'), admin_username | default('admin'), target_user] | unique }}"
   when:
     - enable_users_desktop_launcher | default(true) | bool
+    - item is defined
     - item != 'root'
+    - item | length > 0
+  ignore_errors: true
   tags: [desktop_launcher]

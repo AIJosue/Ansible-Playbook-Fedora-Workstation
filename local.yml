@@ -6,10 +6,10 @@
   vars:
     # --- Host & User Configuration ---
     hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # noqa yaml[line-length]
-    admin_username: "admin" # CHANGE THIS: Primary/Secondary admin username
-    sandbox_username: "sandbox" # CHANGE THIS: Second standard/sandbox username
-    target_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
-    target_user_home: "{{ '/home/' + target_user if target_user != 'root' else ansible_env.HOME }}"
+    admin_username: "admin" # Primary/Secondary admin username
+    sandbox_username: "sandbox" # Second standard/sandbox username
+    target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id, true) | default(ansible_env.USER | default('admin', true), true) }}"
+    target_user_home: "{{ ('/home/' + target_user) if (target_user is defined and target_user != 'root') else (ansible_env.HOME | default('/root', true)) }}"
     xml_dir: "{{ target_user_home }}/Platforms/Virtualization/kvm-qemu"
     vagrant_dir: "{{ target_user_home }}/Platforms/Virtualization/vagrant"
 
@@ -97,8 +97,6 @@
     - name: Install and configure Homebrew
       ansible.builtin.import_tasks: tasks/homebrew.yml
       when: enable_homebrew | default(true) | bool
-      become: true
-      become_user: "{{ target_user }}"
       tags: [homebrew, brew]
 
     - name: Configure users and groups
