@@ -29,7 +29,7 @@ $SUDO dnf install -y --skip-unavailable --skip-broken \
     clang cmake gh git-lfs godot nix nix-daemon nodejs \
     prusa-slicer \
     kate kdegraphics-thumbnailers kdeplasma-addons 'kio*' kmousetool krename krdc krusader ktimer kcron kclock dolphin-plugins ksystemlog kompare \
-    '*-sound-theme' plasma-mobile-sounds '*-kde-kvantum' '*-gtk-theme' '*-kde-theme' arc-kde qtcurve materia-kde '*-icon-theme' plasma-browser-integration '*-plasma-applet' aurorae 'sddm-*' \
+    '*-sound-theme' plasma-mobile-sounds '*-kde-kvantum' '*-gtk-theme' '*-kde-theme' arc-kde qtcurve materia-kde '*-icon-theme' plasma-browser-integration 'fedora-*-*-kde' '*-plasma-applet' aurorae 'sddm-*' \
     buildah flatpak-builder skopeo \
     ansible 'ansible-collection*' gnome-boxes virt-manager virt-bootstrap nbdkit 'libguestfs*' 'podman*' podman-compose podman-docker podman-machine podman-remote podman-tui swtpm qemu-img \
     'cockpit-*' \

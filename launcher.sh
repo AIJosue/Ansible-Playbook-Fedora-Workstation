@@ -33,14 +33,72 @@
 # 15. System Cleanup & Benchmarks (Podman prune, Snap snapshots, disk I/O, Unigine Superposition with checkbox selection)
 # ==============================================================================
 
-# Formatting Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
+# ==============================================================================
+# Apple Human Interface Guidelines (HIG) Color System
+# System Colors (Dark & Light modes with 24-bit TrueColor and ANSI fallback)
+# ==============================================================================
+
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+DIM='\033[2m'
+NC='\033[0m' # Reset
+
+# Detect terminal color depth capability
+_has_truecolor() {
+    [ -n "${NO_COLOR:-}" ] && return 1
+    [ "$TERM" = "dumb" ] && return 1
+    case "${COLORTERM:-}" in
+        truecolor|24bit) return 0 ;;
+    esac
+    case "${TERM:-}" in
+        *truecolor*|*24bit*|*direct*|xterm-ghostty*|ptyxis*|foot*|kitty*|alacritty*) return 0 ;;
+    esac
+    return 0 # Standard for modern Fedora terminal emulators (Ptyxis, GNOME Terminal)
+}
+
+if _has_truecolor; then
+    # Apple HIG System Colors (Dark Mode sRGB / TrueColor)
+    BLUE='\033[38;2;10;132;255m'      # System Blue: #0A84FF
+    PURPLE='\033[38;2;191;90;242m'    # System Purple: #BF5AF2
+    PINK='\033[38;2;255;55;95m'       # System Pink: #FF375F
+    RED='\033[38;2;255;69;58m'        # System Red: #FF453A
+    ORANGE='\033[38;2;255;159;10m'    # System Orange: #FF9F0A
+    YELLOW='\033[38;2;255;214;10m'    # System Yellow: #FFD60A
+    GREEN='\033[38;2;48;209;88m'      # System Green: #30D158
+    MINT='\033[38;2;99;230;226m'      # System Mint: #63E6E2
+    TEAL='\033[38;2;64;200;224m'      # System Teal: #40C8E0
+    CYAN='\033[38;2;100;210;255m'     # System Cyan: #64D2FF
+    INDIGO='\033[38;2;94;92;230m'     # System Indigo: #5E5CE6
+
+    # Apple HIG System Grays
+    GRAY='\033[38;2;142;142;147m'     # System Gray: #8E8E93
+    GRAY2='\033[38;2;99;99;102m'      # System Gray 2: #636366
+    GRAY3='\033[38;2;72;72;74m'       # System Gray 3: #48484A
+    GRAY4='\033[38;2;58;58;60m'       # System Gray 4: #3A3A3C
+    GRAY5='\033[38;2;44;44;46m'       # System Gray 5: #2C2C2E
+    GRAY6='\033[38;2;28;28;30m'       # System Gray 6: #1C1C1E
+else
+    # Standard ANSI fallback
+    BLUE='\033[0;34m'
+    PURPLE='\033[0;35m'
+    PINK='\033[1;35m'
+    RED='\033[0;31m'
+    ORANGE='\033[0;33m'
+    YELLOW='\033[1;33m'
+    GREEN='\033[0;32m'
+    MINT='\033[0;36m'
+    TEAL='\033[0;36m'
+    CYAN='\033[0;36m'
+    INDIGO='\033[0;34m'
+    GRAY='\033[0;37m'
+    GRAY2='\033[0;37m'
+    GRAY3='\033[0;30m'
+    GRAY4='\033[0;30m'
+    GRAY5='\033[0;30m'
+    GRAY6='\033[0;30m'
+fi
+
+# Apple HIG Unified FZF Color Theme
+FZF_HIG_COLORS="border:#48484A,header:bold:#FFFFFF,prompt:#0A84FF,pointer:#64D2FF,marker:#30D158,hl:#FF9F0A,hl+:#FFD60A:bold,fg+:#FFFFFF:bold,bg+:#2C2C2E,info:#8E8E93,spinner:#0A84FF,preview-border:#48484A"
 
 # Ensure this script is run as a regular user, not root
 if [ "$(id -u)" -eq 0 ]; then
@@ -68,6 +126,116 @@ resolve_repo_root() {
 
 REPO_ROOT="$(resolve_repo_root)"
 SUDO_CMD=""
+
+ensure_work_folder_and_ansible() {
+    local default_repo_url="https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git"
+    local default_target_dir="$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation"
+    local desktop_launcher="$HOME/Desktop/launcher.sh"
+
+    local current_repo
+    current_repo="$(resolve_repo_root)"
+    local repo_valid=0
+
+    if [ -n "$current_repo" ] && [ -d "$current_repo/tasks" ] && [ -f "$current_repo/local.yml" ]; then
+        repo_valid=1
+        REPO_ROOT="$current_repo"
+    fi
+
+    local ansible_installed=0
+    if command -v ansible-playbook >/dev/null 2>&1 && command -v ansible >/dev/null 2>&1; then
+        ansible_installed=1
+    fi
+
+    # If both playbook folder and ansible are present, ensure Desktop launcher is up to date and return
+    if [ "$repo_valid" -eq 1 ] && [ "$ansible_installed" -eq 1 ]; then
+        return 0
+    fi
+
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}     Prerequisites Verification: Playbook & Ansible   ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+
+    # 1. Check & Prompt for Playbook Repository Folder
+    if [ "$repo_valid" -eq 0 ]; then
+        echo -e "${YELLOW}• Ansible playbook workspace folder was not found.${NC}"
+        echo -e "Expected repository with ${CYAN}local.yml${NC} and ${CYAN}tasks/${NC} directory."
+        read -rp "Would you like to clone the repository now? [Y/n]: " clone_choice
+        clone_choice="${clone_choice:-Y}"
+        if [[ "$clone_choice" =~ ^[Yy]$ ]]; then
+            echo -e "Target directory: ${CYAN}${default_target_dir}${NC}"
+            read -rp "Repository URL [${default_repo_url}]: " user_repo_url
+            user_repo_url="${user_repo_url:-$default_repo_url}"
+
+            mkdir -p "$(dirname "$default_target_dir")"
+            if command -v git >/dev/null 2>&1; then
+                echo -e "${BLUE}[*] Cloning ${user_repo_url} into ${default_target_dir}...${NC}"
+                if git clone "$user_repo_url" "$default_target_dir"; then
+                    echo -e "${GREEN}✓ Successfully cloned playbook repository.${NC}"
+                    REPO_ROOT="$default_target_dir"
+                    repo_valid=1
+                else
+                    echo -e "${RED}[ERROR] git clone failed.${NC}"
+                    return 1
+                fi
+            else
+                echo -e "${YELLOW}git is not installed. Installing git via sudo dnf...${NC}"
+                sudo dnf install -y git
+                if git clone "$user_repo_url" "$default_target_dir"; then
+                    echo -e "${GREEN}✓ Successfully cloned playbook repository.${NC}"
+                    REPO_ROOT="$default_target_dir"
+                    repo_valid=1
+                else
+                    echo -e "${RED}[ERROR] git clone failed.${NC}"
+                    return 1
+                fi
+            fi
+        else
+            echo -e "${RED}[ERROR] Playbook workspace is required to continue.${NC}"
+            return 1
+        fi
+    fi
+
+    # 2. Check & Prompt for Ansible Installation
+    if [ "$ansible_installed" -eq 0 ]; then
+        echo -e "\n${YELLOW}• Ansible is not installed or not found in PATH.${NC}"
+        read -rp "Install Ansible now via sudo dnf? [Y/n]: " install_ansible_choice
+        install_ansible_choice="${install_ansible_choice:-Y}"
+        if [[ "$install_ansible_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${BLUE}[*] Installing ansible via dnf...${NC}"
+            if sudo dnf install -y ansible; then
+                echo -e "${GREEN}✓ Ansible installed successfully.${NC}"
+                ansible_installed=1
+            else
+                echo -e "${RED}[ERROR] Failed to install ansible via dnf.${NC}"
+                return 1
+            fi
+        else
+            echo -e "${RED}[ERROR] Ansible is required to proceed.${NC}"
+            return 1
+        fi
+    fi
+
+    # 3. Synchronize and execute launcher at desktop if we are not already running it
+    if [ -f "$REPO_ROOT/launcher.sh" ]; then
+        mkdir -p "$HOME/Desktop"
+        cp -f "$REPO_ROOT/launcher.sh" "$desktop_launcher"
+        chmod +x "$desktop_launcher"
+        echo -e "${GREEN}✓ Desktop launcher deployed at: ${desktop_launcher}${NC}"
+
+        # If current script was run from outside Desktop, execute the Desktop launcher
+        local running_script
+        running_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+        local canonical_desktop
+        canonical_desktop="$(cd "$HOME/Desktop" 2>/dev/null && pwd)/launcher.sh"
+
+        if [ "$running_script" != "$canonical_desktop" ]; then
+            echo -e "${CYAN}[*] Executing launcher at Desktop (${desktop_launcher})...${NC}\n"
+            exec "$desktop_launcher" "$@"
+        fi
+    fi
+}
+
+ensure_work_folder_and_ansible "$@"
 
 run_full_playbook() {
     local playbook_path="$REPO_ROOT/local.yml"
@@ -199,7 +367,7 @@ fzf_select_menu() {
     local options=("$@")
 
     if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local choice
+        local choice rc
         choice=$(printf "%s\n" "${options[@]}" | fzf \
             --prompt="$prompt ❯ " \
             --border="rounded" \
@@ -209,13 +377,23 @@ fzf_select_menu() {
             --layout=reverse \
             --height=50% \
             --cycle \
-            --color="border:#555555,header:bold:white,prompt:#00afff,pointer:#5fd7ff,marker:#5fd700")
+            +s \
+            --color="$FZF_HIG_COLORS")
+        rc=$?
+        if [ $rc -ne 0 ] || [ -z "$choice" ]; then
+            return 1
+        fi
         echo "$choice"
+        return 0
     else
         local sel
         select sel in "${options[@]}"; do
-            [ -n "$sel" ] && { echo "$sel"; break; }
+            if [ -n "$sel" ]; then
+                echo "$sel"
+                return 0
+            fi
         done
+        return 1
     fi
 }
 
@@ -227,12 +405,13 @@ fzf_action_menu() {
     local items=("$@")
 
     if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local choice
+        local choice fzf_status
         choice=$(printf "%b\n" "${items[@]}" | fzf \
             --delimiter="\t" \
-            --with-nth=2 \
+            --with-nth="{1}) {2}" \
             --accept-nth=1 \
-            --preview='echo -e "\n  \033[1;36m{2}\033[0m\n\n  \033[0;37m{3}\033[0m"' \
+            --tiebreak=begin \
+            --preview='echo -e "\n  '"${CYAN}${BOLD}"'{2}'"${NC}"'\n\n  '"${GRAY}"'{3}'"${NC}"'"' \
             --preview-window="right,45%,border-left,wrap" \
             --border="rounded" \
             --border-label=" $title " \
@@ -241,8 +420,22 @@ fzf_action_menu() {
             --marker="✓" \
             --height=65% \
             --layout=reverse \
-            --color="border:#555555,header:bold:white,prompt:#00afff,pointer:#5fd7ff,marker:#5fd700")
+            --color="$FZF_HIG_COLORS")
+        fzf_status=$?
+
+        # On tool/runtime error (not cancel/abort), signal caller to use terminal fallback
+        if [ $fzf_status -ne 0 ] && [ $fzf_status -ne 1 ] && [ $fzf_status -ne 130 ]; then
+            return 99
+        fi
+
+        # On user cancel (Esc = 1, Ctrl-C = 130) or empty selection, default to "0" (Back/Cancel)
+        if [ $fzf_status -ne 0 ] || [ -z "$choice" ]; then
+            echo "0"
+            return 0
+        fi
+
         echo "$choice"
+        return 0
     else
         return 99 # Signal caller to use terminal fallback
     fi
@@ -266,9 +459,12 @@ fzf_confirm() {
             --border-label=" Confirm " \
             --prompt="$question ❯ " \
             --pointer="❯" \
+            --marker="✓" \
             --height=20% \
             --layout=reverse \
-            --color="border:#555555,header:bold:white,prompt:#00afff,pointer:#5fd7ff")
+            --cycle \
+            +s \
+            --color="$FZF_HIG_COLORS")
         [[ "$sel" =~ ^Yes ]] && return 0
         return 1
     else
@@ -303,27 +499,47 @@ checkbox_menu_select() {
             fzf_input+="$(printf "%02d\t%s\n" "$i" "${CB_ITEMS[i]}")"
         done
 
+        local expect_keys="esc"
+        [ -n "$extra_label" ] && expect_keys="ctrl-x,esc"
+
+        # Build initial pre-selection actions for fzf
+        local start_actions=""
+        for i in "${!CB_SELECTED[@]}"; do
+            if [ "${CB_SELECTED[i]}" -eq 1 ]; then
+                local p=$((i + 1))
+                [ -n "$start_actions" ] && start_actions+="+"
+                start_actions+="pos(${p})+select"
+            fi
+        done
+        [ -n "$start_actions" ] && start_actions+="+pos(1)"
+
+        local bind_args="ctrl-a:select-all,ctrl-d:deselect-all"
+        if [ -n "$start_actions" ]; then
+            bind_args="start:${start_actions},${bind_args}"
+        fi
+        # Prevent Enter from accepting the single highlighted line when no items are selected
+        bind_args+=",enter:transform:[[ \$FZF_SELECT_COUNT -gt 0 ]] && echo accept || echo 'change-header:⚠️  NO ITEMS SELECTED! Toggle with [Tab] before pressing [Enter] (or [Esc] to cancel)'"
+
         local fzf_opts=(
             "-m"
+            "--sync"
             "--delimiter=\t"
-            "--with-nth=2"
+            "--with-nth=2.."
             "--accept-nth=1"
-            "--border"
+            "--border=rounded"
             "--border-label= ${title} "
+            "--pointer=❯"
+            "--marker=✓"
             "--header=${fzf_header}"
             "--layout=reverse"
             "--height=65%"
-            "--expect=ctrl-x,esc"
+            "--color=${FZF_HIG_COLORS}"
+            "--expect=${expect_keys}"
+            "--bind=${bind_args}"
         )
 
-        # Pre-select active items
-        local preselect=()
-        for i in "${!CB_SELECTED[@]}"; do
-            [ "${CB_SELECTED[i]}" -eq 1 ] && preselect+=("${CB_ITEMS[i]}")
-        done
-
         local out_lines
-        out_lines="$(echo -n "$fzf_input" | fzf "${fzf_opts[@]}")"
+        out_lines="$(printf "%s" "$fzf_input" | fzf "${fzf_opts[@]}")"
         local fzf_status=$?
 
         # Process key triggers from fzf --expect
@@ -334,8 +550,9 @@ checkbox_menu_select() {
 
         if [ "$key_pressed" = "esc" ] || [ $fzf_status -ne 0 ]; then
             return 1
-        elif [ "$key_pressed" = "ctrl-x" ] && [ -n "$extra_label" ]; then
-            return 2
+        elif [ "$key_pressed" = "ctrl-x" ]; then
+            [ -n "$extra_label" ] && return 2
+            return 1
         fi
 
         # Reset selection array
@@ -345,10 +562,14 @@ checkbox_menu_select() {
 
         any_selected=0
         while IFS= read -r line; do
+            # Strip potential \r, spaces, or non-digits from index string
+            line="${line//[^0-9]/}"
             [ -z "$line" ] && continue
             idx=$((10#$line))
-            CB_SELECTED[idx]=1
-            any_selected=1
+            if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#CB_ITEMS[@]}" ]; then
+                CB_SELECTED[idx]=1
+                any_selected=1
+            fi
         done <<< "$selected_indices"
 
         if [ "$any_selected" -eq 0 ]; then
@@ -794,8 +1015,8 @@ disable_pipewire_streaming() {
             fi
 
             if $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" is-active --quiet pipewire-pulse.service 2>/dev/null; then
-                $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire-pulse.service
-                echo -e "${GREEN}✓ Restarted pipewire-pulse for $USER_RECEIVER.${NC}"
+                $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire.service pipewire-pulse.service wireplumber.service
+                echo -e "${GREEN}✓ Restarted pipewire, pipewire-pulse and wireplumber for $USER_RECEIVER.${NC}"
             fi
         fi
     fi
@@ -894,8 +1115,8 @@ EOF
 
     # Restart audio service for Receiver if logged in
     if $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" is-active --quiet pipewire-pulse.service 2>/dev/null; then
-        $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire-pulse.service
-        echo -e "${GREEN}✓ pipewire-pulse restarted for $USER_RECEIVER.${NC}"
+        $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire.service pipewire-pulse.service wireplumber.service
+        echo -e "${GREEN}✓ pipewire, pipewire-pulse and wireplumber restarted for $USER_RECEIVER.${NC}"
     else
         echo -e "${YELLOW}• $USER_RECEIVER is not currently active; configuration will load on next login.${NC}"
     fi
@@ -1726,7 +1947,7 @@ fedora_waydroid_setup_wizard() {
             11)
                 waydroid_troubleshooting_menu
                 ;;
-            0|[Qq]|back)
+            ""|0|[Qq]|back)
                 break
                 ;;
             *)
@@ -2047,11 +2268,14 @@ build_virt_builder_vm() {
                             --delimiter="\t" \
                             --with-nth=2 \
                             --accept-nth=1 \
-                            --prompt="Template > " \
-                            --border \
+                            --prompt="Template ❯ " \
+                            --pointer="❯" \
+                            --marker="✓" \
+                            --border="rounded" \
                             --border-label=" All virt-builder Templates ($my_arch) " \
                             --layout=reverse \
-                            --height=60%)"
+                            --height=60% \
+                            --color="$FZF_HIG_COLORS")"
                         if [ -n "$sel_line" ]; then
                             os_template="$sel_line"
                             break
@@ -2784,7 +3008,7 @@ install_openclaw_deb_distrobox() {
     mkdir -p "$cache_dir"
 
     echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Install OpenClaw (.deb) into Distrobox         ${NC}"
+    echo -e "${BOLD}[Step 0] Install Latest OpenClaw (.deb) in Ubuntu Distrobox${NC}"
     echo -e "${BLUE}=====================================================${NC}"
 
     if ! command -v distrobox >/dev/null 2>&1; then
@@ -2805,9 +3029,15 @@ install_openclaw_deb_distrobox() {
         fi
     fi
 
-    echo -e "${BLUE}[*] Fetching latest OpenClaw .deb release from GitHub...${NC}"
-    local deb_info
-    deb_info=$(python3 -c "
+    local target_deb=""
+    # Check if latest deb already exists in ~/Downloads
+    if [ -f "$HOME/Downloads/OpenClaw-2026.11.2-amd64.deb" ]; then
+        target_deb="$HOME/Downloads/OpenClaw-2026.11.2-amd64.deb"
+        echo -e "${GREEN}✓ Using existing deb package:${NC} $target_deb"
+    else
+        echo -e "${BLUE}[*] Fetching latest OpenClaw .deb release from GitHub...${NC}"
+        local deb_info
+        deb_info=$(python3 -c "
 import urllib.request, json, sys
 repo = 'openclaw/openclaw'
 try:
@@ -2826,29 +3056,29 @@ except Exception:
     sys.exit(1)
 ")
 
-    local deb_name deb_url
-    if [ -n "$deb_info" ]; then
-        IFS=$'\t' read -r deb_name deb_url <<< "$deb_info"
-    else
-        echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
-        deb_url="https://github.com/openclaw/openclaw/releases/download/v2026.10.9/OpenClaw-2026.10.9-amd64.deb"
-        deb_name="OpenClaw-2026.10.9-amd64.deb"
+        local deb_name deb_url
+        if [ -n "$deb_info" ]; then
+            IFS=$'	' read -r deb_name deb_url <<< "$deb_info"
+        else
+            echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+            deb_url="https://github.com/openclaw/openclaw/releases/download/v2026.11.2/OpenClaw-2026.11.2-amd64.deb"
+            deb_name="OpenClaw-2026.11.2-amd64.deb"
+        fi
+
+        target_deb="$cache_dir/$deb_name"
+        echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+        if ! curl -fLC - --progress-bar -o "$target_deb" "$deb_url"; then
+            echo -e "${RED}[ERROR] Failed to download OpenClaw .deb from $deb_url${NC}"
+            return 1
+        fi
     fi
 
-    local target_file="$cache_dir/$deb_name"
-    echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
-    if ! curl -fLC - --progress-bar -o "$target_file" "$deb_url"; then
-        echo -e "${RED}[ERROR] Failed to download OpenClaw .deb from $deb_url${NC}"
-        return 1
-    fi
-
-    echo -e "\n${BLUE}[*] Installing ${deb_name} into '${container_name}' container via apt...${NC}"
-    if distrobox enter "${container_name}" -- sudo apt-get update && \
-       distrobox enter "${container_name}" -- sudo apt-get install -y "$target_file"; then
+    echo -e "\n${BLUE}[*] Installing $(basename "$target_deb") into '${container_name}' container via apt...${NC}"
+    if distrobox enter "${container_name}" -- sudo apt-get update &&        distrobox enter "${container_name}" -- sudo apt-get install -y "$target_deb"; then
         echo -e "\n${BLUE}[*] Exporting OpenClaw desktop app and binary to host...${NC}"
         distrobox enter "${container_name}" -- distrobox-export --app openclaw 2>/dev/null || true
         distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/openclaw --export-path "$HOME/.local/bin" 2>/dev/null || true
-        echo -e "${GREEN}✓ OpenClaw (.deb) installed and exported successfully from Distrobox!${NC}"
+        echo -e "${GREEN}✓ Step 0 complete: OpenClaw (.deb) installed and exported successfully from Distrobox!${NC}"
     else
         echo -e "${RED}[ERROR] Failed to install OpenClaw .deb inside distrobox container.${NC}"
         return 1
@@ -2939,49 +3169,86 @@ except Exception:
     fi
 }
 
-install_openclaw_cli_gateway() {
+install_openclaw_path_config() {
     echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Installing OpenClaw CLI & Gateway Service     ${NC}"
+    echo -e "${BOLD}[Step 1] Configure PATH for OpenClaw Binary          ${NC}"
     echo -e "${BLUE}=====================================================${NC}"
-    echo " Source: https://openclaw.ai/install-cli.sh"
+    echo -e "${BLUE}[*] Adding /home/admin/.openclaw/bin to PATH (it will be created by CLI installer)...${NC}"
+
+    export PATH="$HOME/.openclaw/bin:$PATH"
+    ensure_shell_rc_line '\.openclaw/bin' "OpenClaw CLI binary directory" 'export PATH="$HOME/.openclaw/bin:$PATH"'
+    echo -e "${GREEN}✓ Step 1 complete: PATH configured with $HOME/.openclaw/bin${NC}"
+}
+
+install_openclaw_cli_host() {
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}[Step 2] Run OpenClaw CLI Installer on Host         ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+    echo -e "${YELLOW}${BOLD}Notice:${NC} Run this outside of Distrobox (on regular host).${NC}"
+    echo -e "Command: ${CYAN}curl -fsSL https://openclaw.ai/install-cli.sh | bash${NC}"
     echo -e "${BLUE}-----------------------------------------------------${NC}"
 
-    echo -e "${BLUE}[*] Running OpenClaw CLI installer...${NC}"
-    curl -fsSL https://openclaw.ai/install-cli.sh | bash
+    echo -e "${BLUE}[*] Executing OpenClaw CLI installer on host...${NC}"
+    if curl -fsSL https://openclaw.ai/install-cli.sh | bash; then
+        echo -e "${GREEN}✓ Step 2 complete: OpenClaw CLI installer executed successfully.${NC}"
+    else
+        echo -e "${RED}[ERROR] OpenClaw CLI installation script returned an error.${NC}"
+        return 1
+    fi
+}
+
+install_openclaw_onboard_daemon() {
+    echo -e "\n${BLUE}=====================================================${NC}"
+    echo -e "${BOLD}[Step 3] Run OpenClaw Onboard & Install Daemon (on Host) ${NC}"
+    echo -e "${BLUE}=====================================================${NC}"
+    echo -e "${YELLOW}${BOLD}Notice:${NC} This runs outside of Distrobox directly on the host system.${NC}"
+    echo -e "${YELLOW}${BOLD}Instruction:${NC} Since openclaw is in your PATH, run on host:${NC}"
+    echo -e "  ${CYAN}${BOLD}openclaw onboard --install-daemon${NC}"
+    echo -e "${BLUE}-----------------------------------------------------${NC}"
 
     export PATH="$HOME/.openclaw/bin:$PATH"
 
-    if [ -x "$HOME/.openclaw/bin/openclaw" ]; then
-        echo -e "\n${BLUE}[*] Installing OpenClaw Gateway service...${NC}"
-        "$HOME/.openclaw/bin/openclaw" gateway install || true
-
-        echo -e "\n${BLUE}[*] Checking OpenClaw Gateway status...${NC}"
-        "$HOME/.openclaw/bin/openclaw" gateway status || true
-
-        echo -e "${GREEN}✓ OpenClaw CLI and Gateway service setup complete.${NC}"
+    if command -v openclaw >/dev/null 2>&1; then
+        echo -e "${BLUE}[*] Found 'openclaw' in PATH at: $(command -v openclaw)${NC}"
+        read -rp "Run 'openclaw onboard --install-daemon' now? [Y/n]: " run_daemon
+        run_daemon="${run_daemon:-Y}"
+        if [[ "$run_daemon" =~ ^[Yy]$ ]]; then
+            echo -e "${BLUE}[*] Running: openclaw onboard --install-daemon ...${NC}"
+            openclaw onboard --install-daemon || true
+            echo -e "${GREEN}✓ Step 3 executed: OpenClaw onboard finished.${NC}"
+        else
+            echo -e "${YELLOW}Skipped automatic execution. Run it directly anytime:${NC}"
+            echo -e "  ${CYAN}openclaw onboard --install-daemon${NC}"
+        fi
     else
-        echo -e "${YELLOW}Notice: $HOME/.openclaw/bin/openclaw not found or not executable.${NC}"
+        echo -e "${YELLOW}Notice: 'openclaw' not found yet in PATH.${NC}"
+        echo -e "Once installed or in a refreshed shell, run:${NC}"
+        echo -e "  ${CYAN}openclaw onboard --install-daemon${NC}"
     fi
 }
 
 install_openclaw() {
     CB_ITEMS=(
-        "Install OpenClaw CLI & Gateway Service on Host (https://openclaw.ai/install-cli.sh)"
-        "Install Latest OpenClaw (.deb) into Ubuntu Distrobox & Export to Host"
+        "[Step 0] Install OpenClaw .deb (/home/admin/Downloads/OpenClaw-2026.11.2-amd64.deb) into ubuntu-toolbox distrobox"
+        "[Step 1] Add /home/admin/.openclaw/bin/openclaw to PATH"
+        "[Step 2] Run curl -fsSL https://openclaw.ai/install-cli.sh | bash on Host"
+        "[Step 3] Run openclaw onboard --install-daemon on Host"
     )
-    CB_SELECTED=(1 1)
+    CB_SELECTED=(1 1 1 1)
 
     checkbox_menu_select \
-        "Install OpenClaw (CLI, Service & Distrobox Deb)" \
-        " Source: https://github.com/openclaw/openclaw/releases" \
+        "Install OpenClaw Sequence (Steps 0 - 3)" \
+        " Source: https://github.com/openclaw/openclaw & https://openclaw.ai" \
         "RUN selected installation steps" \
         "Back to Main Menu" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Executing OpenClaw Installation ===${NC}"
-    [ "${CB_SELECTED[0]}" -eq 1 ] && install_openclaw_cli_gateway
-    [ "${CB_SELECTED[1]}" -eq 1 ] && install_openclaw_deb_distrobox
+    echo -e "\n${BOLD}${BLUE}=== Executing OpenClaw Installation Sequence ===${NC}"
+    [ "${CB_SELECTED[0]}" -eq 1 ] && install_openclaw_deb_distrobox
+    [ "${CB_SELECTED[1]}" -eq 1 ] && install_openclaw_path_config
+    [ "${CB_SELECTED[2]}" -eq 1 ] && install_openclaw_cli_host
+    [ "${CB_SELECTED[3]}" -eq 1 ] && install_openclaw_onboard_daemon
 
-    echo -e "\n${GREEN}✓ OpenClaw tasks finished.${NC}"
+    echo -e "\n${GREEN}✓ OpenClaw sequence finished.${NC}"
     read -rp "Press Enter to continue..." _
 }
 
@@ -3699,9 +3966,10 @@ while true; do
 
         choice=$(printf "%b\n" "${local_menu_entries[@]}" | fzf \
             --delimiter="\t" \
-            --with-nth=2 \
+            --with-nth="{1}) {2}" \
             --accept-nth=1 \
-            --preview='echo -e "\n  \033[1;36m{2}\033[0m\n\n  \033[0;37m{3}\033[0m"' \
+            --tiebreak=begin \
+            --preview='echo -e "\n  '"${CYAN}${BOLD}"'{2}'"${NC}"'\n\n  '"${GRAY}"'{3}'"${NC}"'"' \
             --preview-window="right,45%,border-left,wrap" \
             --border="rounded" \
             --border-label=" Fedora Workstation Control Center " \
@@ -3711,7 +3979,7 @@ while true; do
             --marker="✓" \
             --height=75% \
             --layout=reverse \
-            --color="border:#555555,header:bold:white,prompt:#00afff,pointer:#5fd7ff,marker:#5fd700")
+            --color="$FZF_HIG_COLORS")
 
         fzf_status=$?
         if [ $fzf_status -ne 0 ] || [ -z "$choice" ]; then
