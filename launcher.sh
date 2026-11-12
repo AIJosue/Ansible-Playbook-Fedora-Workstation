@@ -58,6 +58,103 @@
 # ==============================================================================
 
 # ==============================================================================
+# 0. Early Bootstrap & Environment Verification
+# ------------------------------------------------------------------------------
+# Ensure the script is run as a regular user (not root) and verify repository
+# presence. When invoked via 'curl -SL <url> | bash' on a fresh system, the
+# repository is automatically cloned into ~/Code/Terminal/... and execution is
+# handed over to the local cloned launcher with a proper interactive TTY.
+# ==============================================================================
+
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Warning: Do NOT run this setup script as root!" >&2
+    echo "Please execute this script as your regular user (e.g. 'sandbox' or 'admin')." >&2
+    exit 1
+fi
+
+BOOTSTRAP_REPO_URL="https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation.git"
+BOOTSTRAP_TARGET_DIR="$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation"
+
+# Detect if current script is being executed from a valid local file
+_running_file=""
+if [ -n "${BASH_SOURCE[0]}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    _running_file="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/$(basename "${BASH_SOURCE[0]}")"
+fi
+
+# Locate existing repository root candidate
+_found_repo=""
+for _cand in \
+    "${_running_file:+$(dirname "$_running_file")}" \
+    "${_running_file:+$(cd "$(dirname "$_running_file")/.." 2>/dev/null && pwd)}" \
+    "$PWD" \
+    "$BOOTSTRAP_TARGET_DIR" \
+    "$HOME/Ansible-Playbook-Fedora-Workstation"; do
+    if [ -n "$_cand" ] && [ -f "$_cand/local.yml" ] && ([ -d "$_cand/tasks" ] || [ -d "$_cand/.git" ]); then
+        _found_repo="$_cand"
+        break
+    fi
+done
+
+# If repository was not found locally, clone it now (handles curl -SL ... | bash bootstrap)
+if [ -z "$_found_repo" ]; then
+    echo "==> Ansible-Playbook-Fedora-Workstation: Setup & Launch <=="
+    echo "[*] Playbook workspace not found locally. Initializing repository..."
+    echo "[*] Target directory: $BOOTSTRAP_TARGET_DIR"
+
+    if ! command -v git >/dev/null 2>&1; then
+        echo "[*] Installing git via sudo dnf..."
+        if command -v sudo >/dev/null 2>&1; then
+            sudo dnf install -y git || {
+                echo "Error: Failed to install git. Please install git manually and retry." >&2
+                exit 1
+            }
+        else
+            echo "Error: git is not installed and sudo is unavailable." >&2
+            exit 1
+        fi
+    fi
+
+    mkdir -p "$(dirname "$BOOTSTRAP_TARGET_DIR")"
+    if [ -d "$BOOTSTRAP_TARGET_DIR/.git" ]; then
+        echo "[*] Updating existing git repository at $BOOTSTRAP_TARGET_DIR..."
+        git -C "$BOOTSTRAP_TARGET_DIR" pull --rebase || true
+    else
+        echo "[*] Cloning repository from $BOOTSTRAP_REPO_URL..."
+        if ! git clone "$BOOTSTRAP_REPO_URL" "$BOOTSTRAP_TARGET_DIR"; then
+            echo "Error: Failed to clone repository." >&2
+            exit 1
+        fi
+    fi
+    _found_repo="$BOOTSTRAP_TARGET_DIR"
+
+    if ! command -v gum >/dev/null 2>&1; then
+        echo "[*] Installing gum UI utility via sudo dnf..."
+        if command -v sudo >/dev/null 2>&1; then
+            sudo dnf install -y gum 2>/dev/null || true
+        fi
+    fi
+
+    mkdir -p "$HOME/Desktop"
+    if [ -f "$_found_repo/launcher.sh" ]; then
+        cp -f "$_found_repo/launcher.sh" "$HOME/Desktop/launcher.sh"
+        chmod +x "$HOME/Desktop/launcher.sh"
+    fi
+fi
+
+# If we were invoked via pipe / curl, or from outside the repo / desktop, hand over to the local launcher
+_target_launcher="$_found_repo/launcher.sh"
+if [ "$_running_file" != "$_target_launcher" ] && [ "$_running_file" != "$HOME/Desktop/launcher.sh" ]; then
+    if [ -f "$_target_launcher" ]; then
+        chmod +x "$_target_launcher"
+        if [ ! -t 0 ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+            exec /bin/bash "$_target_launcher" "$@" < /dev/tty
+        else
+            exec /bin/bash "$_target_launcher" "$@"
+        fi
+    fi
+fi
+
+# ==============================================================================
 # Apple Human Interface Guidelines (HIG) Color System
 # Source: https://developer.apple.com/design/human-interface-guidelines/color
 # Complete 12 System Colors + 6 System Grays across all 4 HIG contexts:
@@ -228,9 +325,16 @@ export GUM_PAGER_MATCH_HIGH_BACKGROUND="$C_FIND_HIGHLIGHT"
 ensure_gum() {
     command -v gum >/dev/null 2>&1 && return 0
     echo "The 'gum' CLI (charmbracelet/gum) is required by this launcher." >&2
-    if [ -t 0 ] && command -v sudo >/dev/null 2>&1 && command -v dnf >/dev/null 2>&1; then
-        local ans
-        read -rp "Install gum now via 'sudo dnf install gum'? [Y/n]: " ans
+    if command -v sudo >/dev/null 2>&1 && command -v dnf >/dev/null 2>&1; then
+        local ans="Y"
+        if [ -t 0 ]; then
+            read -rp "Install gum now via 'sudo dnf install gum'? [Y/n]: " ans
+        elif [ -r /dev/tty ] && [ -w /dev/tty ]; then
+            read -rp "Install gum now via 'sudo dnf install gum'? [Y/n]: " ans < /dev/tty
+        else
+            echo "[*] Non-interactive environment detected. Installing gum automatically via sudo dnf..."
+            sudo dnf install -y gum && command -v gum >/dev/null 2>&1 && return 0
+        fi
         if [[ "${ans:-Y}" =~ ^[Yy]$ ]]; then
             sudo dnf install -y gum && command -v gum >/dev/null 2>&1 && return 0
         fi
@@ -410,7 +514,11 @@ ui_confirm() { # question [Y|N default] [affirmative] [negative] [selected_bg] -
             -- "$q"
         return $?
     fi
-    read -rp "$q [$d]: " ans
+    if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        read -rp "$q [$d]: " ans < /dev/tty || ans="$d"
+    else
+        read -rp "$q [$d]: " ans || ans="$d"
+    fi
     ans="${ans:-$d}"
     [[ "$ans" =~ ^[Yy]$ ]]
 }
@@ -433,8 +541,10 @@ ask_input() { # prompt variable [placeholder]
             --cursor.foreground "$C_WHITE" \
             --cursor.background "$C_ACCENT" \
             --placeholder "${ph:-Type a value and press Enter}" --width 0)" || val=""
+    elif [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        read -rp "$prompt: " val < /dev/tty || val=""
     else
-        read -rp "$prompt: " val
+        read -rp "$prompt: " val || val=""
     fi
     printf -v "$var" '%s' "$val"
 }
@@ -447,8 +557,11 @@ ask_password() { # prompt variable
             --cursor.foreground "$C_WHITE" \
             --cursor.background "$C_ACCENT" \
             --placeholder "Hidden input")" || val=""
+    elif [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        read -s -rp "$1" val < /dev/tty || val=""
+        echo ""
     else
-        read -s -rp "$1" val
+        read -s -rp "$1" val || val=""
         echo ""
     fi
     printf -v "$2" '%s' "$val"
@@ -799,7 +912,7 @@ resolve_repo_root() {
         "$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)" \
         "$HOME/Code/Terminal/Ansible-Playbook-Fedora-Workstation" \
         "$HOME/Ansible-Playbook-Fedora-Workstation"; do
-        if [ -n "$candidate" ] && [ -d "$candidate/tasks" ] && [ -f "$candidate/local.yml" ]; then
+        if [ -n "$candidate" ] && [ -f "$candidate/local.yml" ] && ([ -d "$candidate/tasks" ] || [ -d "$candidate/.git" ]); then
             echo "$candidate"
             return 0
         fi
@@ -819,7 +932,7 @@ ensure_work_folder_and_ansible() {
     current_repo="$(resolve_repo_root)"
     local repo_valid=0
 
-    if [ -n "$current_repo" ] && [ -d "$current_repo/tasks" ] && [ -f "$current_repo/local.yml" ]; then
+    if [ -n "$current_repo" ] && [ -f "$current_repo/local.yml" ] && ([ -d "$current_repo/tasks" ] || [ -d "$current_repo/.git" ]); then
         repo_valid=1
         REPO_ROOT="$current_repo"
     fi
@@ -831,6 +944,11 @@ ensure_work_folder_and_ansible() {
 
     # If both playbook folder and ansible are present, ensure Desktop launcher is up to date and return
     if [ "$repo_valid" -eq 1 ] && [ "$ansible_installed" -eq 1 ]; then
+        if [ -f "$REPO_ROOT/launcher.sh" ] && [ ! -f "$desktop_launcher" ]; then
+            mkdir -p "$HOME/Desktop"
+            cp -f "$REPO_ROOT/launcher.sh" "$desktop_launcher" 2>/dev/null || true
+            chmod +x "$desktop_launcher" 2>/dev/null || true
+        fi
         return 0
     fi
 
@@ -856,7 +974,12 @@ ensure_work_folder_and_ansible() {
             mkdir -p "$(dirname "$default_target_dir")"
             if command -v git >/dev/null 2>&1; then
                 ui_info "[*] Cloning ${user_repo_url} into ${default_target_dir}..."
-                if git clone "$user_repo_url" "$default_target_dir"; then
+                if [ -d "$default_target_dir/.git" ]; then
+                    git -C "$default_target_dir" pull --rebase
+                    ui_ok "✓ Updated existing playbook repository."
+                    REPO_ROOT="$default_target_dir"
+                    repo_valid=1
+                elif git clone "$user_repo_url" "$default_target_dir"; then
                     ui_ok "✓ Successfully cloned playbook repository."
                     REPO_ROOT="$default_target_dir"
                     repo_valid=1
@@ -867,7 +990,12 @@ ensure_work_folder_and_ansible() {
             else
                 ui_warn "git is not installed. Installing git via sudo dnf..."
                 sudo dnf install -y git
-                if git clone "$user_repo_url" "$default_target_dir"; then
+                if [ -d "$default_target_dir/.git" ]; then
+                    git -C "$default_target_dir" pull --rebase
+                    ui_ok "✓ Updated existing playbook repository."
+                    REPO_ROOT="$default_target_dir"
+                    repo_valid=1
+                elif git clone "$user_repo_url" "$default_target_dir"; then
                     ui_ok "✓ Successfully cloned playbook repository."
                     REPO_ROOT="$default_target_dir"
                     repo_valid=1
@@ -923,7 +1051,7 @@ ensure_work_folder_and_ansible() {
     fi
 }
 
-ensure_work_folder_and_ansible "$@"
+ensure_work_folder_and_ansible "$@" || exit 1
 
 run_full_playbook() {
     local playbook_path="$REPO_ROOT/local.yml"

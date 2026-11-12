@@ -161,7 +161,13 @@ gantt
 <details open>
 <summary><strong>Quickstart Instructions</strong></summary>
 
-### 1. Prerequisites
+### Quick One-Liner (Remote Bootstrap)
+Bootstrap and launch immediately on a fresh Fedora Workstation without manually cloning first:
+```bash
+curl -SL https://github.com/AIJosue/Ansible-Playbook-Fedora-Workstation/raw/refs/heads/main/launcher.sh | bash
+```
+
+### 1. Prerequisites (Manual Setup)
 Ensure Ansible and Git are available:
 ```bash
 sudo dnf install -y ansible git gum
