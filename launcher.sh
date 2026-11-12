@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Setup User Environment
+# Setup User Environment (gum edition)
 # Interactive Post-Install Utility for Fedora Workstation Users
 # ==============================================================================
 # This interactive utility allows individual users to configure developer and
@@ -34,75 +34,758 @@
 # ==============================================================================
 
 # ==============================================================================
-# Apple Human Interface Guidelines (HIG) Color System
-# System Colors (Dark & Light modes with 24-bit TrueColor and ANSI fallback)
+# gum UI layer (https://github.com/charmbracelet/gum)
+# ------------------------------------------------------------------------------
+# Every interactive element of this launcher is rendered with gum. Each gum
+# command is wrapped once here so the rest of the script stays declarative:
+#
+#   gum style   -> ui_banner / ui_hr / ui_ok / ui_dim   (banners, rules, status)
+#   gum log     -> ui_info / ui_warn / ui_err            (levelled messages)
+#   gum join    -> ui_dashboard                          (logo + info side by side)
+#   gum table   -> ui_dashboard / ui_table               (static data tables)
+#   gum format  -> ui_markdown / show_help               (markdown rendering)
+#   gum pager   -> show_help / ui_pager                  (scrollable text)
+#   gum spin    -> ui_spin / ui_spin_fn                  (progress spinners)
+#   gum confirm -> ui_confirm / ask_yn                   (yes/no questions)
+#   gum input   -> ask_input / ask_password / ui_pause   (text prompts)
+#   gum write   -> ask_write                             (multi-line text)
+#   gum file    -> ask_file                              (file / directory picker)
+#   gum choose  -> ui_choose / ask_menu / gum_action_menu / checkbox_menu_select
+#   gum filter  -> ui_filter / gum_action_menu (long lists)
+#
+# When stdin/stdout is not a terminal (pipes, CI, cron) every wrapper degrades
+# to plain text output / read so the script stays scriptable.
 # ==============================================================================
 
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m' # Reset
+# ==============================================================================
+# Apple Human Interface Guidelines (HIG) Color System
+# Source: https://developer.apple.com/design/human-interface-guidelines/color
+# Complete 12 System Colors + 6 System Grays across all 4 HIG contexts:
+# Default (Light), Default (Dark), Increased Contrast (Light), Increased Contrast (Dark)
+# Configurable via HIG_APPEARANCE={dark|light} and HIG_CONTRAST={standard|high}
+# ==============================================================================
+HIG_APPEARANCE="${HIG_APPEARANCE:-dark}"
+HIG_CONTRAST="${HIG_CONTRAST:-standard}"
 
-# Detect terminal color depth capability
-_has_truecolor() {
-    [ -n "${NO_COLOR:-}" ] && return 1
-    [ "$TERM" = "dumb" ] && return 1
-    case "${COLORTERM:-}" in
-        truecolor|24bit) return 0 ;;
+# 1. Default Light System Colors & Grays (Apple HIG Specifications)
+HIG_RED_LIGHT="#FF383C";    HIG_ORANGE_LIGHT="#FF8D28"; HIG_YELLOW_LIGHT="#FFCC00"
+HIG_GREEN_LIGHT="#34C759";  HIG_MINT_LIGHT="#00C8B3";   HIG_TEAL_LIGHT="#00C3D0"
+HIG_CYAN_LIGHT="#00C0E8";   HIG_BLUE_LIGHT="#0088FF";   HIG_INDIGO_LIGHT="#6155F5"
+HIG_PURPLE_LIGHT="#CB30E0"; HIG_PINK_LIGHT="#FF2D55";   HIG_BROWN_LIGHT="#AC7F5E"
+HIG_GRAY_LIGHT="#8E8E93";   HIG_GRAY2_LIGHT="#AEAEB2";  HIG_GRAY3_LIGHT="#C7C7CC"
+HIG_GRAY4_LIGHT="#D1D1D6";  HIG_GRAY5_LIGHT="#E5E5EA";  HIG_GRAY6_LIGHT="#F2F2F7"
+
+# 2. Default Dark System Colors & Grays (Apple HIG Specifications)
+HIG_RED_DARK="#FF4245";     HIG_ORANGE_DARK="#FF9230";  HIG_YELLOW_DARK="#FFD600"
+HIG_GREEN_DARK="#30D158";   HIG_MINT_DARK="#00DAC3";    HIG_TEAL_DARK="#00D2E0"
+HIG_CYAN_DARK="#3CD3FE";    HIG_BLUE_DARK="#0091FF";    HIG_INDIGO_DARK="#6D7CFF"
+HIG_PURPLE_DARK="#DB34F2";  HIG_PINK_DARK="#FF375F";    HIG_BROWN_DARK="#B78A66"
+HIG_GRAY_DARK="#8E8E93";    HIG_GRAY2_DARK="#636366";   HIG_GRAY3_DARK="#48484A"
+HIG_GRAY4_DARK="#3A3A3C";   HIG_GRAY5_DARK="#2C2C2E";   HIG_GRAY6_DARK="#1C1C1E"
+
+# 3. Increased Contrast Light System Colors & Grays (Apple HIG Specifications)
+HIG_RED_HC_LIGHT="#E9152D";    HIG_ORANGE_HC_LIGHT="#C55300"; HIG_YELLOW_HC_LIGHT="#A16A00"
+HIG_GREEN_HC_LIGHT="#008932";  HIG_MINT_HC_LIGHT="#008575";   HIG_TEAL_HC_LIGHT="#008198"
+HIG_CYAN_HC_LIGHT="#007EAE";   HIG_BLUE_HC_LIGHT="#1E6EF4";   HIG_INDIGO_HC_LIGHT="#564ADE"
+HIG_PURPLE_HC_LIGHT="#B02FC2"; HIG_PINK_HC_LIGHT="#E7124D";   HIG_BROWN_HC_LIGHT="#956D51"
+HIG_GRAY_HC_LIGHT="#6C6C70";   HIG_GRAY2_HC_LIGHT="#8E8E93";  HIG_GRAY3_HC_LIGHT="#AEAEB2"
+HIG_GRAY4_HC_LIGHT="#BCBCC0";  HIG_GRAY5_HC_LIGHT="#D8D8DC";  HIG_GRAY6_HC_LIGHT="#EBEBF0"
+
+# 4. Increased Contrast Dark System Colors & Grays (Apple HIG Specifications)
+HIG_RED_HC_DARK="#FF6165";     HIG_ORANGE_HC_DARK="#FFA056";  HIG_YELLOW_HC_DARK="#FEDF43"
+HIG_GREEN_HC_DARK="#4AD968";   HIG_MINT_HC_DARK="#54DFCB";    HIG_TEAL_HC_DARK="#3BDDEC"
+HIG_CYAN_HC_DARK="#6DD9FF";    HIG_BLUE_HC_DARK="#5CB8FF";    HIG_INDIGO_HC_DARK="#A7AAFF"
+HIG_PURPLE_HC_DARK="#EA8DFF";  HIG_PINK_HC_DARK="#FF8AC4";    HIG_BROWN_HC_DARK="#DBA679"
+HIG_GRAY_HC_DARK="#AEAEB2";    HIG_GRAY2_HC_DARK="#7C7C80";   HIG_GRAY3_HC_DARK="#545456"
+HIG_GRAY4_HC_DARK="#444446";   HIG_GRAY5_HC_DARK="#363638";   HIG_GRAY6_HC_DARK="#242426"
+
+# Resolve active Apple HIG palette based on HIG_APPEARANCE and HIG_CONTRAST
+if [[ "$HIG_APPEARANCE" == "light" && "$HIG_CONTRAST" == "high" ]]; then
+    C_RED="$HIG_RED_HC_LIGHT";       C_ORANGE="$HIG_ORANGE_HC_LIGHT"; C_YELLOW="$HIG_YELLOW_HC_LIGHT"
+    C_GREEN="$HIG_GREEN_HC_LIGHT";   C_MINT="$HIG_MINT_HC_LIGHT";     C_TEAL="$HIG_TEAL_HC_LIGHT"
+    C_CYAN="$HIG_CYAN_HC_LIGHT";     C_BLUE="$HIG_BLUE_HC_LIGHT";     C_INDIGO="$HIG_INDIGO_HC_LIGHT"
+    C_PURPLE="$HIG_PURPLE_HC_LIGHT"; C_PINK="$HIG_PINK_HC_LIGHT";     C_BROWN="$HIG_BROWN_HC_LIGHT"
+    C_GRAY="$HIG_GRAY_HC_LIGHT";     C_GRAY2="$HIG_GRAY2_HC_LIGHT";   C_GRAY3="$HIG_GRAY3_HC_LIGHT"
+    C_GRAY4="$HIG_GRAY4_HC_LIGHT";   C_GRAY5="$HIG_GRAY5_HC_LIGHT";   C_GRAY6="$HIG_GRAY6_HC_LIGHT"
+elif [[ "$HIG_APPEARANCE" == "light" ]]; then
+    C_RED="$HIG_RED_LIGHT";          C_ORANGE="$HIG_ORANGE_LIGHT";    C_YELLOW="$HIG_YELLOW_LIGHT"
+    C_GREEN="$HIG_GREEN_LIGHT";      C_MINT="$HIG_MINT_LIGHT";        C_TEAL="$HIG_TEAL_LIGHT"
+    C_CYAN="$HIG_CYAN_LIGHT";        C_BLUE="$HIG_BLUE_LIGHT";        C_INDIGO="$HIG_INDIGO_LIGHT"
+    C_PURPLE="$HIG_PURPLE_LIGHT";    C_PINK="$HIG_PINK_LIGHT";        C_BROWN="$HIG_BROWN_LIGHT"
+    C_GRAY="$HIG_GRAY_LIGHT";        C_GRAY2="$HIG_GRAY2_LIGHT";      C_GRAY3="$HIG_GRAY3_LIGHT"
+    C_GRAY4="$HIG_GRAY4_LIGHT";      C_GRAY5="$HIG_GRAY5_LIGHT";      C_GRAY6="$HIG_GRAY6_LIGHT"
+elif [[ "$HIG_CONTRAST" == "high" ]]; then
+    C_RED="$HIG_RED_HC_DARK";        C_ORANGE="$HIG_ORANGE_HC_DARK";  C_YELLOW="$HIG_YELLOW_HC_DARK"
+    C_GREEN="$HIG_GREEN_HC_DARK";    C_MINT="$HIG_MINT_HC_DARK";      C_TEAL="$HIG_TEAL_HC_DARK"
+    C_CYAN="$HIG_CYAN_HC_DARK";      C_BLUE="$HIG_BLUE_HC_DARK";      C_INDIGO="$HIG_INDIGO_HC_DARK"
+    C_PURPLE="$HIG_PURPLE_HC_DARK";  C_PINK="$HIG_PINK_HC_DARK";      C_BROWN="$HIG_BROWN_HC_DARK"
+    C_GRAY="$HIG_GRAY_HC_DARK";      C_GRAY2="$HIG_GRAY2_HC_DARK";    C_GRAY3="$HIG_GRAY3_HC_DARK"
+    C_GRAY4="$HIG_GRAY4_HC_DARK";    C_GRAY5="$HIG_GRAY5_HC_DARK";    C_GRAY6="$HIG_GRAY6_HC_DARK"
+else
+    C_RED="$HIG_RED_DARK";           C_ORANGE="$HIG_ORANGE_DARK";     C_YELLOW="$HIG_YELLOW_DARK"
+    C_GREEN="$HIG_GREEN_DARK";       C_MINT="$HIG_MINT_DARK";         C_TEAL="$HIG_TEAL_DARK"
+    C_CYAN="$HIG_CYAN_DARK";         C_BLUE="$HIG_BLUE_DARK";         C_INDIGO="$HIG_INDIGO_DARK"
+    C_PURPLE="$HIG_PURPLE_DARK";     C_PINK="$HIG_PINK_DARK";         C_BROWN="$HIG_BROWN_DARK"
+    C_GRAY="$HIG_GRAY_DARK";         C_GRAY2="$HIG_GRAY2_DARK";       C_GRAY3="$HIG_GRAY3_DARK"
+    C_GRAY4="$HIG_GRAY4_DARK";       C_GRAY5="$HIG_GRAY5_DARK";       C_GRAY6="$HIG_GRAY6_DARK"
+fi
+C_WHITE="#FFFFFF"; C_BLACK="#000000"
+
+# Semantic Apple HIG Tokens (iOS / iPadOS / macOS Dynamic System Colors)
+C_LABEL="$C_WHITE"                         # Primary Label / Control Text Color
+C_SECONDARY_LABEL="$C_GRAY"                # Secondary Label Color
+C_TERTIARY_LABEL="$C_GRAY2"                # Tertiary Label / Placeholder Text
+C_QUATERNARY_LABEL="$C_GRAY3"              # Quaternary Label / Disabled Control Text
+C_SEPARATOR="$C_GRAY4"                     # Separator / Grid Color
+C_BG_PRIMARY="$C_GRAY6"                    # Primary System Background
+C_BG_SECONDARY="$C_GRAY5"                  # Secondary System Grouped Background / Control Background
+C_BG_TERTIARY="$C_GRAY4"                   # Tertiary System Background
+C_ACCENT="$C_BLUE"                         # Control Accent Color / Selected Content Background
+C_FIND_HIGHLIGHT="$C_YELLOW"               # Find Highlight Color
+C_LINK="$C_CYAN"                           # Link Color
+
+# gum theming through documented $GUM_<COMMAND>_<FLAG> environment variables
+# Selections have explicit background colors per Apple HIG (selectedContentBackgroundColor)
+export GUM_CHOOSE_CURSOR_FOREGROUND="$C_WHITE"
+export GUM_CHOOSE_CURSOR_BACKGROUND="$C_ACCENT"
+export GUM_CHOOSE_HEADER_FOREGROUND="$C_CYAN"
+export GUM_CHOOSE_HEADER_BACKGROUND="$C_BG_SECONDARY"
+export GUM_CHOOSE_ITEM_FOREGROUND="$C_LABEL"
+export GUM_CHOOSE_SELECTED_FOREGROUND="$C_WHITE"
+export GUM_CHOOSE_SELECTED_BACKGROUND="$C_INDIGO"
+export GUM_CHOOSE_SELECTED_PREFIX=" ✓ "
+export GUM_CHOOSE_UNSELECTED_PREFIX=" ○ "
+export GUM_CHOOSE_CURSOR_PREFIX=" ❯ "
+export GUM_CHOOSE_PADDING="0 1"
+
+export GUM_FILTER_INDICATOR=" ❯ "
+export GUM_FILTER_INDICATOR_FOREGROUND="$C_WHITE"
+export GUM_FILTER_INDICATOR_BACKGROUND="$C_ACCENT"
+export GUM_FILTER_SELECTED_PREFIX=" ✓ "
+export GUM_FILTER_SELECTED_PREFIX_FOREGROUND="$C_WHITE"
+export GUM_FILTER_SELECTED_PREFIX_BACKGROUND="$C_INDIGO"
+export GUM_FILTER_UNSELECTED_PREFIX=" ○ "
+export GUM_FILTER_UNSELECTED_PREFIX_FOREGROUND="$C_SECONDARY_LABEL"
+export GUM_FILTER_HEADER_FOREGROUND="$C_CYAN"
+export GUM_FILTER_HEADER_BACKGROUND="$C_BG_SECONDARY"
+export GUM_FILTER_TEXT_FOREGROUND="$C_LABEL"
+export GUM_FILTER_CURSOR_TEXT_FOREGROUND="$C_WHITE"
+export GUM_FILTER_CURSOR_TEXT_BACKGROUND="$C_ACCENT"
+export GUM_FILTER_MATCH_FOREGROUND="$C_BLACK"
+export GUM_FILTER_MATCH_BACKGROUND="$C_FIND_HIGHLIGHT"
+export GUM_FILTER_PROMPT="🔍 "
+export GUM_FILTER_PROMPT_FOREGROUND="$C_CYAN"
+export GUM_FILTER_PLACEHOLDER_FOREGROUND="$C_TERTIARY_LABEL"
+export GUM_FILTER_PADDING="0 1"
+
+export GUM_INPUT_PROMPT_FOREGROUND="$C_BLUE"
+export GUM_INPUT_CURSOR_FOREGROUND="$C_WHITE"
+export GUM_INPUT_CURSOR_BACKGROUND="$C_ACCENT"
+export GUM_INPUT_HEADER_FOREGROUND="$C_CYAN"
+export GUM_INPUT_PLACEHOLDER_FOREGROUND="$C_TERTIARY_LABEL"
+
+export GUM_WRITE_HEADER_FOREGROUND="$C_CYAN"
+export GUM_WRITE_CURSOR_FOREGROUND="$C_WHITE"
+export GUM_WRITE_CURSOR_BACKGROUND="$C_ACCENT"
+export GUM_WRITE_CURSOR_LINE_BACKGROUND="$C_BG_SECONDARY"
+export GUM_WRITE_PLACEHOLDER_FOREGROUND="$C_TERTIARY_LABEL"
+
+# Confirm dialog with explicit background colors on selections
+export GUM_CONFIRM_PROMPT_FOREGROUND="$C_CYAN"
+export GUM_CONFIRM_PROMPT_BACKGROUND="$C_BG_SECONDARY"
+export GUM_CONFIRM_SELECTED_BACKGROUND="$C_ACCENT"
+export GUM_CONFIRM_SELECTED_FOREGROUND="$C_WHITE"
+export GUM_CONFIRM_UNSELECTED_BACKGROUND="$C_BG_TERTIARY"
+export GUM_CONFIRM_UNSELECTED_FOREGROUND="$C_LABEL"
+export GUM_CONFIRM_PADDING="0 1"
+
+export GUM_SPIN_SPINNER_FOREGROUND="$C_MINT"
+export GUM_SPIN_TITLE_FOREGROUND="$C_CYAN"
+
+export GUM_FILE_CURSOR_FOREGROUND="$C_WHITE"
+export GUM_FILE_CURSOR_BACKGROUND="$C_ACCENT"
+export GUM_FILE_DIRECTORY_FOREGROUND="$C_BLUE"
+export GUM_FILE_SELECTED_FOREGROUND="$C_WHITE"
+export GUM_FILE_SELECTED_BACKGROUND="$C_INDIGO"
+export GUM_FILE_SYMLINK_FOREGROUND="$C_TEAL"
+export GUM_FILE_PERMISSIONS_FOREGROUND="$C_SECONDARY_LABEL"
+export GUM_FILE_FILE_SIZE_FOREGROUND="$C_BROWN"
+
+export GUM_TABLE_HEADER_FOREGROUND="$C_CYAN"
+export GUM_TABLE_HEADER_BACKGROUND="$C_BG_SECONDARY"
+export GUM_TABLE_CELL_FOREGROUND="$C_LABEL"
+export GUM_TABLE_BORDER_FOREGROUND="$C_SEPARATOR"
+export GUM_TABLE_SELECTED_FOREGROUND="$C_WHITE"
+export GUM_TABLE_SELECTED_BACKGROUND="$C_ACCENT"
+
+export GUM_PAGER_HELP_FOREGROUND="$C_SECONDARY_LABEL"
+export GUM_PAGER_LINE_NUMBER_FOREGROUND="$C_TERTIARY_LABEL"
+export GUM_PAGER_MATCH_FOREGROUND="$C_CYAN"
+export GUM_PAGER_MATCH_HIGH_FOREGROUND="$C_BLACK"
+export GUM_PAGER_MATCH_HIGH_BACKGROUND="$C_FIND_HIGHLIGHT"
+
+# gum is a hard requirement; offer to install it from the Fedora repositories.
+ensure_gum() {
+    command -v gum >/dev/null 2>&1 && return 0
+    echo "The 'gum' CLI (charmbracelet/gum) is required by this launcher." >&2
+    if [ -t 0 ] && command -v sudo >/dev/null 2>&1 && command -v dnf >/dev/null 2>&1; then
+        local ans
+        read -rp "Install gum now via 'sudo dnf install gum'? [Y/n]: " ans
+        if [[ "${ans:-Y}" =~ ^[Yy]$ ]]; then
+            sudo dnf install -y gum && command -v gum >/dev/null 2>&1 && return 0
+        fi
+    fi
+    echo "Install it with: sudo dnf install gum" >&2
+    exit 1
+}
+ensure_gum
+
+# True when stdin and stderr are terminals. gum draws its TUIs on stderr, so this
+# also holds inside $(...) command substitutions where stdout is captured.
+ui_tty() { [ -t 0 ] && [ -t 2 ]; }
+
+# Inline coloured fragment for use inside messages: $(ui_c [bold:]fg[:bg] "text")
+# Supports all 12 Apple HIG system colors + 6 system grays + semantic tokens.
+ui_c() { # [bold:]color[:bg] text
+    local spec="$1" txt="$2" fg="" bg="" flags=()
+    case "$spec" in
+        bold) flags+=(--bold); spec="" ;;
+        bold:*) flags+=(--bold); spec="${spec#bold:}" ;;
     esac
-    case "${TERM:-}" in
-        *truecolor*|*24bit*|*direct*|xterm-ghostty*|ptyxis*|foot*|kitty*|alacritty*) return 0 ;;
+    local fg_name="$spec" bg_name=""
+    if [[ "$spec" == *:* ]]; then
+        fg_name="${spec%%:*}"
+        bg_name="${spec#*:}"
+    fi
+    case "$fg_name" in
+        red)          fg="$C_RED" ;;
+        orange)       fg="$C_ORANGE" ;;
+        yellow)       fg="$C_YELLOW" ;;
+        green)        fg="$C_GREEN" ;;
+        mint)         fg="$C_MINT" ;;
+        teal)         fg="$C_TEAL" ;;
+        cyan)         fg="$C_CYAN" ;;
+        blue)         fg="$C_BLUE" ;;
+        indigo)       fg="$C_INDIGO" ;;
+        purple)       fg="$C_PURPLE" ;;
+        pink)         fg="$C_PINK" ;;
+        brown)        fg="$C_BROWN" ;;
+        gray|gray1)   fg="$C_GRAY" ;;
+        gray2)        fg="$C_GRAY2" ;;
+        gray3)        fg="$C_GRAY3" ;;
+        gray4)        fg="$C_GRAY4" ;;
+        gray5)        fg="$C_GRAY5" ;;
+        gray6)        fg="$C_GRAY6" ;;
+        white|label)  fg="$C_WHITE" ;;
+        black)        fg="$C_BLACK" ;;
     esac
-    return 0 # Standard for modern Fedora terminal emulators (Ptyxis, GNOME Terminal)
+    case "$bg_name" in
+        red)          bg="$C_RED" ;;
+        orange)       bg="$C_ORANGE" ;;
+        yellow)       bg="$C_YELLOW" ;;
+        green)        bg="$C_GREEN" ;;
+        mint)         bg="$C_MINT" ;;
+        teal)         bg="$C_TEAL" ;;
+        cyan)         bg="$C_CYAN" ;;
+        blue|accent)  bg="$C_BLUE" ;;
+        indigo)       bg="$C_INDIGO" ;;
+        purple)       bg="$C_PURPLE" ;;
+        pink)         bg="$C_PINK" ;;
+        brown)        bg="$C_BROWN" ;;
+        gray|gray1)   bg="$C_GRAY" ;;
+        gray2)        bg="$C_GRAY2" ;;
+        gray3)        bg="$C_GRAY3" ;;
+        gray4)        bg="$C_GRAY4" ;;
+        gray5|surface) bg="$C_GRAY5" ;;
+        gray6|bg)     bg="$C_GRAY6" ;;
+    esac
+    [ -n "$fg" ] && flags+=(--foreground "$fg")
+    [ -n "$bg" ] && flags+=(--background "$bg")
+    if [ "${#flags[@]}" -eq 0 ]; then printf '%s' "$txt"; else gum style "${flags[@]}" -- "$txt"; fi
 }
 
-if _has_truecolor; then
-    # Apple HIG System Colors (Dark Mode sRGB / TrueColor)
-    BLUE='\033[38;2;10;132;255m'      # System Blue: #0A84FF
-    PURPLE='\033[38;2;191;90;242m'    # System Purple: #BF5AF2
-    PINK='\033[38;2;255;55;95m'       # System Pink: #FF375F
-    RED='\033[38;2;255;69;58m'        # System Red: #FF453A
-    ORANGE='\033[38;2;255;159;10m'    # System Orange: #FF9F0A
-    YELLOW='\033[38;2;255;214;10m'    # System Yellow: #FFD60A
-    GREEN='\033[38;2;48;209;88m'      # System Green: #30D158
-    MINT='\033[38;2;99;230;226m'      # System Mint: #63E6E2
-    TEAL='\033[38;2;64;200;224m'      # System Teal: #40C8E0
-    CYAN='\033[38;2;100;210;255m'     # System Cyan: #64D2FF
-    INDIGO='\033[38;2;94;92;230m'     # System Indigo: #5E5CE6
+# --- gum style / gum log -------------------------------------------------------
+ui_banner() { # title [hex-color]
+    local color="${2:-$C_BLUE}"
+    if ui_tty; then
+        gum style --border rounded --border-foreground "$color" --background "$C_BG_SECONDARY" \
+            --padding "0 2" --margin "1 0 0 0" --bold --foreground "$C_WHITE" -- "$1"
+    else
+        printf '\n== %s ==\n' "$1"
+    fi
+}
+ui_hr() { gum style --foreground "$C_SEPARATOR" -- "$(printf '─%.0s' {1..60})"; }
+ui_ok()   { gum style --foreground "$C_GREEN" --bold -- "$*"; }
+ui_dim()  { gum style --foreground "$C_SECONDARY_LABEL" -- "$*"; }
+ui_info() { GUM_LOG_LEVEL_FOREGROUND="$C_CYAN" GUM_LOG_MESSAGE_FOREGROUND="$C_LABEL" gum log --level info -- "$*"; }
+ui_warn() { GUM_LOG_LEVEL_FOREGROUND="$C_ORANGE" GUM_LOG_MESSAGE_FOREGROUND="$C_YELLOW" gum log --level warn -- "$*"; }
+ui_err()  { GUM_LOG_LEVEL_FOREGROUND="$C_RED" GUM_LOG_MESSAGE_FOREGROUND="$C_PINK" gum log --level error -- "$*" >&2; }
 
-    # Apple HIG System Grays
-    GRAY='\033[38;2;142;142;147m'     # System Gray: #8E8E93
-    GRAY2='\033[38;2;99;99;102m'      # System Gray 2: #636366
-    GRAY3='\033[38;2;72;72;74m'       # System Gray 3: #48484A
-    GRAY4='\033[38;2;58;58;60m'       # System Gray 4: #3A3A3C
-    GRAY5='\033[38;2;44;44;46m'       # System Gray 5: #2C2C2E
-    GRAY6='\033[38;2;28;28;30m'       # System Gray 6: #1C1C1E
-else
-    # Standard ANSI fallback
-    BLUE='\033[0;34m'
-    PURPLE='\033[0;35m'
-    PINK='\033[1;35m'
-    RED='\033[0;31m'
-    ORANGE='\033[0;33m'
-    YELLOW='\033[1;33m'
-    GREEN='\033[0;32m'
-    MINT='\033[0;36m'
-    TEAL='\033[0;36m'
-    CYAN='\033[0;36m'
-    INDIGO='\033[0;34m'
-    GRAY='\033[0;37m'
-    GRAY2='\033[0;37m'
-    GRAY3='\033[0;30m'
-    GRAY4='\033[0;30m'
-    GRAY5='\033[0;30m'
-    GRAY6='\033[0;30m'
-fi
+# --- gum format / gum pager ------------------------------------------------------
+ui_markdown() { # markdown text as args or stdin
+    if [ $# -gt 0 ]; then gum format --type markdown -- "$@"; else gum format --type markdown; fi
+}
+ui_pager() { # text on stdin
+    if ui_tty; then gum pager --soft-wrap; else cat; fi
+}
 
-# Apple HIG Unified FZF Color Theme
-FZF_HIG_COLORS="border:#48484A,header:bold:#FFFFFF,prompt:#0A84FF,pointer:#64D2FF,marker:#30D158,hl:#FF9F0A,hl+:#FFD60A:bold,fg+:#FFFFFF:bold,bg+:#2C2C2E,info:#8E8E93,spinner:#0A84FF,preview-border:#48484A"
+# --- gum table ---------------------------------------------------------------------
+ui_table() { # "Col1,Col2" then CSV rows on stdin
+    local columns="${1:-Property,Value}"
+    if ui_tty; then
+        gum table --print --separator "," --columns "$columns" --border rounded \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY" \
+            --border.foreground "$C_SEPARATOR" --cell.foreground "$C_LABEL" \
+            --selected.foreground "$C_WHITE" --selected.background "$C_ACCENT" 2>/dev/null
+    else
+        printf '%s\n' "$columns"
+        cat
+    fi
+}
+
+# Render a structured top-of-section information table ("Property,Details" by default)
+# Usage: ui_info_table ["Col1,Col2"] "Key1,Val1" "Key2,Val2" ...
+ui_info_table() {
+    local cols="Property,Details"
+    if [[ "${1:-}" == *,* ]] && [ $# -gt 1 ] && [[ "$1" =~ ^[A-Za-z0-9_[:space:]]+,[A-Za-z0-9_[:space:]]+$ ]] && [[ "$1" != *":"* ]] && [[ "$1" != *"/"* ]]; then
+        cols="$1"
+        shift
+    fi
+    if ui_tty; then
+        printf '%s\n' "$@" | ui_table "$cols"
+    else
+        local row
+        for row in "$@"; do
+            printf '  %-20s %s\n' "${row%%,*}:" "${row#*,}"
+        done
+    fi
+}
+
+# --- gum spin -----------------------------------------------------------------------
+# Run an external command behind a spinner (falls back to a plain run).
+ui_spin() { # title cmd args...
+    local title="$1"; shift
+    if ui_tty; then
+        gum spin --spinner dot --title "$title" --show-error -- "$@"
+    else
+        "$@"
+    fi
+}
+# Run a shell function behind a spinner and print its stdout; keeps its exit code.
+ui_spin_fn() { # title function args...
+    local title="$1" fn="$2" f tmp rc
+    shift 2
+    if ! ui_tty; then "$fn" "$@"; return $?; fi
+    for f in $(declare -F | awk '{print $3}' | grep -E '^(fetch_|ui_)'); do
+        export -f "$f"
+    done
+    tmp="$(mktemp)"
+    gum spin --spinner dot --title "$title" -- bash -c '"$@" > "$0"' "$tmp" "$fn" "$@"
+    rc=$?
+    cat "$tmp"
+    rm -f "$tmp"
+    return $rc
+}
+
+# --- gum confirm / gum input / gum write / gum file -------------------------------
+ui_confirm() { # question [Y|N default] [affirmative] [negative] [selected_bg] -> exit 0 = yes
+    local q="$1" d="${2:-Y}" aff="${3:-Confirm}" neg="${4:-Cancel}" sel_bg="${5:-$C_ACCENT}" ans
+    # Automatically apply Apple HIG destructive red highlight on destructive prompts
+    if [[ "$q" =~ ([Dd]estroy|[Ww]ipe|[Rr]emove|[Dd]elete|[Rr]eplace|[Ff]orce|[Pp]rune) ]] && [ -z "${5:-}" ]; then
+        sel_bg="$C_RED"
+    fi
+    if ui_tty; then
+        local def_flag="--default=true"
+        [[ "$d" =~ ^[Nn] ]] && def_flag="--default=false"
+        gum confirm "$def_flag" \
+            --affirmative " $aff " \
+            --negative " $neg " \
+            --prompt.foreground "$C_CYAN" \
+            --prompt.background "$C_BG_SECONDARY" \
+            --selected.background "$sel_bg" \
+            --selected.foreground "$C_WHITE" \
+            --unselected.background "$C_BG_TERTIARY" \
+            --unselected.foreground "$C_LABEL" \
+            --padding "0 1" \
+            -- "$q"
+        return $?
+    fi
+    read -rp "$q [$d]: " ans
+    ans="${ans:-$d}"
+    [[ "$ans" =~ ^[Yy]$ ]]
+}
+ask_yn() { # question default(Y|N) variable -> stores Y or N
+    local v=N
+    ui_confirm "$1" "$2" && v=Y
+    printf -v "$3" '%s' "$v"
+}
+ask_input() { # prompt variable [placeholder]
+    local prompt="$1" var="$2" ph="${3:-}" val=""
+    prompt="${prompt%: }"
+    if [ -z "$ph" ] && [[ "$prompt" =~ \[(default:\ )?([^]]+)\]$ ]]; then
+        ph="${BASH_REMATCH[2]}"
+        prompt="${prompt% \[*}"
+    fi
+    if ui_tty; then
+        val="$(gum input --header "$prompt" --prompt "❯ " \
+            --prompt.foreground "$C_BLUE" \
+            --header.foreground "$C_CYAN" \
+            --cursor.foreground "$C_WHITE" \
+            --cursor.background "$C_ACCENT" \
+            --placeholder "${ph:-Type a value and press Enter}" --width 0)" || val=""
+    else
+        read -rp "$prompt: " val
+    fi
+    printf -v "$var" '%s' "$val"
+}
+ask_password() { # prompt variable
+    local val=""
+    if ui_tty; then
+        val="$(gum input --password --header "${1%: }" --prompt "🔒 " \
+            --prompt.foreground "$C_ORANGE" \
+            --header.foreground "$C_CYAN" \
+            --cursor.foreground "$C_WHITE" \
+            --cursor.background "$C_ACCENT" \
+            --placeholder "Hidden input")" || val=""
+    else
+        read -s -rp "$1" val
+        echo ""
+    fi
+    printf -v "$2" '%s' "$val"
+}
+ask_write() { # prompt variable (multi-line; Ctrl+D submits, Esc cancels; newlines are flattened)
+    local val=""
+    if ui_tty; then
+        val="$(gum write --header "${1%: }  (Ctrl+D to submit, Esc to cancel)" \
+            --header.foreground "$C_CYAN" \
+            --cursor.foreground "$C_WHITE" \
+            --cursor.background "$C_ACCENT" \
+            --cursor-line.background "$C_BG_SECONDARY" \
+            --placeholder "Paste text here..." --height 6 --width 0)" || val=""
+    else
+        read -rp "$1" val
+    fi
+    val="${val//$'\n'/}"
+    printf -v "$2" '%s' "$val"
+}
+ask_file() { # prompt variable start-dir [--directory]
+    local prompt="$1" var="$2" start="${3:-$HOME}" opt="${4:-}" val=""
+    if ui_tty; then
+        ui_dim "$prompt (arrows to browse, Enter to pick, Esc to cancel)"
+        if [ -n "$opt" ]; then
+            val="$(gum file --all --height 12 \
+                --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT" \
+                --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO" \
+                "$opt" "$start")" || val=""
+        else
+            val="$(gum file --all --height 12 \
+                --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT" \
+                --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO" \
+                "$start")" || val=""
+        fi
+    else
+        read -rp "$prompt: " val
+    fi
+    printf -v "$var" '%s' "$val"
+}
+ui_pause() { # [message]
+    local msg="${1:-Press Enter to continue...}"
+    if ui_tty; then
+        gum input --prompt "" --placeholder "$msg" --no-show-help >/dev/null || true
+    else
+        read -rp "$msg" _
+    fi
+}
+
+# --- gum choose / gum filter ------------------------------------------------------
+# Single item selector with Apple HIG selection background highlight.
+ui_choose() { # header options...
+    local header="$1" choice
+    shift
+    if ui_tty; then
+        choice="$(gum choose --header "$header" --height 15 \
+            --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT" \
+            --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO" \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY" \
+            -- "$@")" || return 1
+        [ -n "$choice" ] || return 1
+        echo "$choice"
+        return 0
+    fi
+    local sel
+    select sel in "$@"; do
+        [ -n "$sel" ] && { echo "$sel"; return 0; }
+    done
+    return 1
+}
+# Fuzzy finder over arguments with Apple HIG selection background highlight.
+ui_filter() { # header options...
+    local header="$1" choice
+    shift
+    if ui_tty; then
+        choice="$(printf '%s\n' "$@" | gum filter --header "$header" \
+            --placeholder "Type to filter · Enter to select · Esc to cancel" --height 15 \
+            --indicator.foreground "$C_WHITE" --indicator.background "$C_ACCENT" \
+            --cursor-text.foreground "$C_WHITE" --cursor-text.background "$C_ACCENT" \
+            --selected-indicator.foreground "$C_WHITE" --selected-indicator.background "$C_INDIGO" \
+            --match.foreground "$C_BLACK" --match.background "$C_FIND_HIGHLIGHT" \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY")" || return 1
+        [ -n "$choice" ] || return 1
+        echo "$choice"
+        return 0
+    fi
+    ui_choose "$header" "$@"
+}
+# Numbered menu returning the chosen key (the text before ')') in a variable.
+# Cancel / Esc yields "0" when a "0" entry exists, otherwise "".
+ask_menu() { # variable header "key|label"...
+    local var="$1" header="$2" entry key label choice="" cancel=""
+    shift 2
+    header="${header%% \[*}"
+    local labels=()
+    for entry in "$@"; do
+        key="${entry%%|*}"; label="${entry#*|}"
+        labels+=("$key) $label")
+        [ "$key" = "0" ] && cancel="0"
+    done
+    if ui_tty; then
+        choice="$(gum choose --header "$header" --height 15 \
+            --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT" \
+            --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO" \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY" \
+            -- "${labels[@]}")" || choice=""
+        choice="${choice%%)*}"
+    else
+        for entry in "${labels[@]}"; do echo "  $entry"; done
+        read -rp "$header: " choice
+    fi
+    printf -v "$var" '%s' "${choice:-$cancel}"
+}
+# Rich submenu following Apple HIG Menu anatomy:
+# Items are "KEY\tTITLE\tDESCRIPTION". Prints the chosen KEY ("0" on cancel).
+gum_action_menu() { # title prompt items...
+    local title="$1" prompt="${2:-Action}" line key ttl desc choice
+    shift 2
+    local lines=()
+    for line in "$@"; do
+        IFS=$'\t' read -r key ttl desc <<<"$(printf '%b' "$line")"
+        lines+=("$key) $ttl — $desc")
+    done
+    local rc cols="${COLUMNS:-$(tput cols 2>/dev/null || echo 120)}" n
+    for n in "${!lines[@]}"; do
+        # keep every entry on one row so the list never wraps
+        [ "${#lines[n]}" -gt $((cols - 8)) ] && lines[n]="${lines[n]:0:$((cols - 9))}…"
+    done
+    if ! ui_tty; then
+        # Non-interactive fallback: plain numbered list on stderr, answer from stdin
+        printf '== %s ==\n' "$title" >&2
+        printf '  %s\n' "${lines[@]}" >&2
+        read -rp "$prompt: " choice || choice=0
+        echo "${choice:-0}"
+        return 0
+    fi
+    if [ "${#lines[@]}" -gt 8 ]; then
+        choice="$(printf '%s\n' "${lines[@]}" | gum filter \
+            --header " $title " \
+            --placeholder "$prompt · Type to filter · Enter to select · Esc to go back" \
+            --height 20 \
+            --indicator.foreground "$C_WHITE" --indicator.background "$C_ACCENT" \
+            --cursor-text.foreground "$C_WHITE" --cursor-text.background "$C_ACCENT" \
+            --selected-indicator.foreground "$C_WHITE" --selected-indicator.background "$C_INDIGO" \
+            --match.foreground "$C_BLACK" --match.background "$C_FIND_HIGHLIGHT" \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY")"
+        rc=$?
+    else
+        choice="$(gum choose \
+            --header " $title " \
+            --height 14 \
+            --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT" \
+            --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO" \
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY" \
+            -- "${lines[@]}")"
+        rc=$?
+    fi
+    if [ $rc -ne 0 ] || [ -z "$choice" ]; then
+        echo "0"   # Esc / Ctrl+C / empty selection means "Back"
+        return 0
+    fi
+    echo "${choice%%)*}"
+}
+
+# Shared interactive checkbox menu built on `gum choose --no-limit` with Apple HIG
+# selection background highlighting and top context table.
+# Reads CB_ITEMS=() and CB_SELECTED=() (0/1 per item) and updates CB_SELECTED.
+# Returns: 0 = Run selected, 1 = Cancel/Back, 2 = Extra action
+checkbox_menu_select() {
+    local title="$1"
+    local subtitle="$2"
+    local run_label="${3:-Run Selected Tasks}"
+    local cancel_label="${4:-Back to Main Menu}"
+    local color="${5:-$C_BLUE}"
+    local extra_label="${6:-}"
+    local i token idx all_set new_state any_selected valid choice mark
+
+    if ui_tty; then
+        local labels=() preselected=() out line extra_picked=0 any=0
+        for i in "${!CB_ITEMS[@]}"; do
+            labels+=("$(printf '%02d  %s' "$((i + 1))" "${CB_ITEMS[i]//,/;}")")
+            [ "${CB_SELECTED[i]:-0}" -eq 1 ] && preselected+=("${labels[i]}")
+        done
+        local extra_item=""
+        if [ -n "$extra_label" ]; then
+            extra_item="⚙  ${extra_label//,/;}"
+            labels+=("$extra_item")
+        fi
+
+        ui_banner "$title" "$color"
+        if [ -n "$subtitle" ]; then
+            local sub_rows=() sub_line k v
+            while IFS= read -r sub_line; do
+                sub_line="${sub_line#"${sub_line%%[![:space:]]*}"}"
+                [ -z "$sub_line" ] && continue
+                if [[ "$sub_line" == *:* ]]; then
+                    k="${sub_line%%:*}"
+                    v="${sub_line#*: }"
+                    sub_rows+=("${k//,/;},${v//,/;}")
+                else
+                    sub_rows+=("Context,${sub_line//,/;}")
+                fi
+            done <<< "$(printf '%b' "$subtitle")"
+            sub_rows+=("Selection,${#preselected[@]} of ${#CB_ITEMS[@]} preselected")
+            ui_info_table "Attribute,Details" "${sub_rows[@]}"
+        else
+            ui_info_table "Attribute,Details" \
+                "Menu,${title//,/;}" \
+                "Items,${#CB_ITEMS[@]} available (${#preselected[@]} preselected)" \
+                "Action,${run_label//,/;}"
+        fi
+
+        local selected_csv="" p
+        for p in "${preselected[@]}"; do selected_csv+="${selected_csv:+,}$p"; done
+        local args=(--no-limit --height 20 --ordered
+            --cursor.foreground "$C_WHITE" --cursor.background "$C_ACCENT"
+            --selected.foreground "$C_WHITE" --selected.background "$C_INDIGO"
+            --header.foreground "$C_CYAN" --header.background "$C_BG_SECONDARY"
+            --header " [Space/x] Toggle · [Ctrl+A] Toggle All · [Enter] ${run_label} · [Esc] ${cancel_label} ")
+        [ -n "$selected_csv" ] && args+=(--selected "$selected_csv")
+
+        out="$(gum choose "${args[@]}" -- "${labels[@]}")" || return 1
+
+        for i in "${!CB_ITEMS[@]}"; do CB_SELECTED[i]=0; done
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            if [ -n "$extra_item" ] && [ "$line" = "$extra_item" ]; then
+                extra_picked=1
+            elif [[ "$line" =~ ^([0-9]+)\  ]]; then
+                idx=$((10#${BASH_REMATCH[1]} - 1))
+                if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#CB_ITEMS[@]}" ]; then
+                    CB_SELECTED[idx]=1
+                    any=1
+                fi
+            fi
+        done <<<"$out"
+
+        # The extra action only wins when no regular item is ticked (Ctrl+A ticks it too)
+        if [ "$extra_picked" -eq 1 ] && [ "$any" -eq 0 ]; then return 2; fi
+        if [ "$any" -eq 0 ]; then
+            ui_warn "No items selected."
+            sleep 1
+            return 1
+        fi
+        return 0
+    fi
+
+    # Non-interactive fallback: numbered text menu
+    while true; do
+        echo "== ${title} =="
+        [ -n "$subtitle" ] && printf '%b\n' "$subtitle"
+        echo " Toggle items with numbers [1-${#CB_ITEMS[@]}] (e.g. 1 or 1,3)."
+        for i in "${!CB_ITEMS[@]}"; do
+            mark=" "
+            [ "${CB_SELECTED[i]}" -eq 1 ] && mark="X"
+            printf "  %2d) [%s] %s\n" "$((i + 1))" "$mark" "${CB_ITEMS[i]}"
+        done
+        echo "   A) Toggle Select ALL / NONE"
+        echo "   R) ${run_label}"
+        [ -n "$extra_label" ] && echo "   C) ${extra_label}"
+        echo "   0) ${cancel_label}"
+
+        read -rp "Enter choice: " choice || return 1
+        case "$choice" in
+            0|[Qq]|back) return 1 ;;
+            [Cc])
+                [ -n "$extra_label" ] && return 2
+                echo "Invalid selection."
+                ;;
+            [Aa])
+                all_set=1
+                for i in "${!CB_ITEMS[@]}"; do
+                    if [ "${CB_SELECTED[i]}" -eq 0 ]; then all_set=0; break; fi
+                done
+                new_state=$((1 - all_set))
+                for i in "${!CB_ITEMS[@]}"; do CB_SELECTED[i]=$new_state; done
+                ;;
+            [Rr])
+                any_selected=0
+                for i in "${!CB_ITEMS[@]}"; do
+                    [ "${CB_SELECTED[i]}" -eq 1 ] && { any_selected=1; break; }
+                done
+                if [ "$any_selected" -eq 0 ]; then
+                    echo "No items selected. Mark at least one with its number."
+                    continue
+                fi
+                return 0
+                ;;
+            *)
+                valid=0
+                for token in $(echo "$choice" | tr ',' ' '); do
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#CB_ITEMS[@]}" ]; then
+                        idx=$((token - 1))
+                        CB_SELECTED[idx]=$((1 - CB_SELECTED[idx]))
+                        valid=1
+                    fi
+                done
+                [ "$valid" -eq 0 ] && echo "Invalid selection."
+                ;;
+        esac
+    done
+}
+
+# Main-menu dashboard: gum join (logo + side-by-side gum tables) rendered at top.
+ui_dashboard() {
+    ui_tty || return 0
+    local logo sys_table env_table os_name kernel_v ansible_v brew_v pixi_v dbox_v waydroid_v gum_v
+    os_name="$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-Fedora Linux}")"
+    os_name="${os_name//,/;}"
+    kernel_v="$(uname -r 2>/dev/null || echo 'unknown')"
+    gum_v="$(gum --version 2>/dev/null | awk '{print $NF}')"
+    ansible_v="$(command -v ansible >/dev/null 2>&1 && ansible --version 2>/dev/null | head -n1 | awk '{print $NF}' | tr -d ']' || echo 'Missing')"
+    brew_v="$([ -x /home/linuxbrew/.linuxbrew/bin/brew ] || command -v brew >/dev/null 2>&1 && echo 'Ready' || echo 'Not Set')"
+    pixi_v="$([ -x "$HOME/.pixi/bin/pixi" ] || command -v pixi >/dev/null 2>&1 && echo 'Ready' || echo 'Not Set')"
+    dbox_v="$(command -v distrobox >/dev/null 2>&1 && echo 'Installed' || echo 'Missing')"
+    waydroid_v="$(command -v waydroid >/dev/null 2>&1 && echo 'Installed' || echo 'Missing')"
+
+    logo="$(gum style --border double --border-foreground "$C_BLUE" --background "$C_BG_SECONDARY" --padding "1 2" \
+        --foreground "$C_CYAN" --bold --align center \
+        "Fedora Workstation" \
+        "Control Center" \
+        "$(ui_c "mint" "HIG ${HIG_APPEARANCE^} · ${HIG_CONTRAST^}")" \
+        "$(ui_c "gray" "gum ${gum_v}")")"
+
+    sys_table="$(printf 'User,%s\nHost,%s\nOS,%s\nKernel,%s\nShell,%s\n' \
+        "$(whoami)" "$(hostname)" "$os_name" "$kernel_v" "$(basename "${SHELL:-bash}")" \
+        | ui_table "System,Information")"
+
+    env_table="$(printf 'Ansible,%s\nHomebrew,%s\nPixi,%s\nDistrobox,%s\nWaydroid,%s\n' \
+        "$ansible_v" "$brew_v" "$pixi_v" "$dbox_v" "$waydroid_v" \
+        | ui_table "Subsystem,Status")"
+
+    gum join --horizontal --align center "$logo" "  " "$sys_table" "  " "$env_table"
+}
 
 # Ensure this script is run as a regular user, not root
 if [ "$(id -u)" -eq 0 ]; then
-    echo -e "${RED}Warning: Do NOT run this setup script as root!${NC}"
+    ui_err "Warning: Do NOT run this setup script as root!"
     echo -e "Please execute this script as your regular user (e.g. 'sandbox' or 'admin')."
     exit 1
 fi
@@ -151,66 +834,71 @@ ensure_work_folder_and_ansible() {
         return 0
     fi
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}     Prerequisites Verification: Playbook & Ansible   ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Prerequisites Verification: Playbook & Ansible" "$C_INDIGO"
+    ui_info_table "Component,Status" \
+        "Playbook Workspace,$([ "$repo_valid" -eq 1 ] && echo "Found ($REPO_ROOT)" || echo "Missing ($default_target_dir)")" \
+        "Ansible Engine,$([ "$ansible_installed" -eq 1 ] && echo "Installed" || echo "Not Installed")" \
+        "Desktop Launcher,$desktop_launcher"
 
     # 1. Check & Prompt for Playbook Repository Folder
     if [ "$repo_valid" -eq 0 ]; then
-        echo -e "${YELLOW}• Ansible playbook workspace folder was not found.${NC}"
-        echo -e "Expected repository with ${CYAN}local.yml${NC} and ${CYAN}tasks/${NC} directory."
-        read -rp "Would you like to clone the repository now? [Y/n]: " clone_choice
+        ui_warn "• Ansible playbook workspace folder was not found."
+        ui_info_table "Requirement,Expected Value" \
+            "Repository URL,$default_repo_url" \
+            "Target Directory,$default_target_dir" \
+            "Required Files,local.yml and tasks/"
+        ask_yn "Would you like to clone the repository now?" "Y" clone_choice
         clone_choice="${clone_choice:-Y}"
         if [[ "$clone_choice" =~ ^[Yy]$ ]]; then
-            echo -e "Target directory: ${CYAN}${default_target_dir}${NC}"
-            read -rp "Repository URL [${default_repo_url}]: " user_repo_url
+            ask_input "Repository URL [${default_repo_url}]: " user_repo_url
             user_repo_url="${user_repo_url:-$default_repo_url}"
 
             mkdir -p "$(dirname "$default_target_dir")"
             if command -v git >/dev/null 2>&1; then
-                echo -e "${BLUE}[*] Cloning ${user_repo_url} into ${default_target_dir}...${NC}"
+                ui_info "[*] Cloning ${user_repo_url} into ${default_target_dir}..."
                 if git clone "$user_repo_url" "$default_target_dir"; then
-                    echo -e "${GREEN}✓ Successfully cloned playbook repository.${NC}"
+                    ui_ok "✓ Successfully cloned playbook repository."
                     REPO_ROOT="$default_target_dir"
                     repo_valid=1
                 else
-                    echo -e "${RED}[ERROR] git clone failed.${NC}"
+                    ui_err "git clone failed."
                     return 1
                 fi
             else
-                echo -e "${YELLOW}git is not installed. Installing git via sudo dnf...${NC}"
+                ui_warn "git is not installed. Installing git via sudo dnf..."
                 sudo dnf install -y git
                 if git clone "$user_repo_url" "$default_target_dir"; then
-                    echo -e "${GREEN}✓ Successfully cloned playbook repository.${NC}"
+                    ui_ok "✓ Successfully cloned playbook repository."
                     REPO_ROOT="$default_target_dir"
                     repo_valid=1
                 else
-                    echo -e "${RED}[ERROR] git clone failed.${NC}"
+                    ui_err "git clone failed."
                     return 1
                 fi
             fi
         else
-            echo -e "${RED}[ERROR] Playbook workspace is required to continue.${NC}"
+            ui_err "Playbook workspace is required to continue."
             return 1
         fi
     fi
 
     # 2. Check & Prompt for Ansible Installation
     if [ "$ansible_installed" -eq 0 ]; then
-        echo -e "\n${YELLOW}• Ansible is not installed or not found in PATH.${NC}"
-        read -rp "Install Ansible now via sudo dnf? [Y/n]: " install_ansible_choice
+        echo
+        ui_warn "• Ansible is not installed or not found in PATH."
+        ask_yn "Install Ansible now via sudo dnf?" "Y" install_ansible_choice
         install_ansible_choice="${install_ansible_choice:-Y}"
         if [[ "$install_ansible_choice" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}[*] Installing ansible via dnf...${NC}"
+            ui_info "[*] Installing ansible via dnf..."
             if sudo dnf install -y ansible; then
-                echo -e "${GREEN}✓ Ansible installed successfully.${NC}"
+                ui_ok "✓ Ansible installed successfully."
                 ansible_installed=1
             else
-                echo -e "${RED}[ERROR] Failed to install ansible via dnf.${NC}"
+                ui_err "Failed to install ansible via dnf."
                 return 1
             fi
         else
-            echo -e "${RED}[ERROR] Ansible is required to proceed.${NC}"
+            ui_err "Ansible is required to proceed."
             return 1
         fi
     fi
@@ -220,7 +908,7 @@ ensure_work_folder_and_ansible() {
         mkdir -p "$HOME/Desktop"
         cp -f "$REPO_ROOT/launcher.sh" "$desktop_launcher"
         chmod +x "$desktop_launcher"
-        echo -e "${GREEN}✓ Desktop launcher deployed at: ${desktop_launcher}${NC}"
+        ui_ok "✓ Desktop launcher deployed at: ${desktop_launcher}"
 
         # If current script was run from outside Desktop, execute the Desktop launcher
         local running_script
@@ -229,7 +917,7 @@ ensure_work_folder_and_ansible() {
         canonical_desktop="$(cd "$HOME/Desktop" 2>/dev/null && pwd)/launcher.sh"
 
         if [ "$running_script" != "$canonical_desktop" ]; then
-            echo -e "${CYAN}[*] Executing launcher at Desktop (${desktop_launcher})...${NC}\n"
+            echo -e "$(ui_c "cyan" "[*] Executing launcher at Desktop (${desktop_launcher})...")\n"
             exec "$desktop_launcher" "$@"
         fi
     fi
@@ -240,18 +928,16 @@ ensure_work_folder_and_ansible "$@"
 run_full_playbook() {
     local playbook_path="$REPO_ROOT/local.yml"
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Run Full Fedora Workstation Playbook          ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Run Full Fedora Workstation Playbook" "$C_INDIGO"
 
     if [ ! -f "$playbook_path" ]; then
-        echo -e "${RED}[ERROR] Playbook not found at: $playbook_path${NC}"
+        ui_err "Playbook not found at: $playbook_path"
         return 1
     fi
 
     if ! command -v ansible-playbook >/dev/null 2>&1; then
-        echo -e "${RED}[ERROR] 'ansible-playbook' is not installed or not in PATH.${NC}"
-        echo -e "${YELLOW}Install it with: sudo dnf install ansible${NC}"
+        ui_err "'ansible-playbook' is not installed or not in PATH."
+        ui_warn "Install it with: sudo dnf install ansible"
         return 1
     fi
 
@@ -260,14 +946,20 @@ run_full_playbook() {
         become_flag=""
     fi
 
-    echo -e "${CYAN}Executing: ansible-playbook $playbook_path $become_flag${NC}\n"
+    ui_info_table "Parameter,Value" \
+        "Playbook File,$playbook_path" \
+        "Privilege Escalation,${become_flag:-root}" \
+        "Command,ansible-playbook $playbook_path $become_flag"
+    echo ""
     ansible-playbook "$playbook_path" $become_flag
     local status=$?
 
     if [ $status -eq 0 ]; then
-        echo -e "\n${GREEN}✓ Full Ansible playbook completed successfully!${NC}"
+        echo
+        ui_ok "✓ Full Ansible playbook completed successfully!"
     else
-        echo -e "\n${RED}[ERROR] Playbook execution finished with exit code ${status}.${NC}"
+        echo
+        ui_err "Playbook execution finished with exit code ${status}."
     fi
     return $status
 }
@@ -277,13 +969,13 @@ run_playbook_subtask() {
     local playbook_path="$REPO_ROOT/local.yml"
 
     if [ ! -f "$playbook_path" ]; then
-        echo -e "${RED}[ERROR] Playbook not found at: $playbook_path${NC}"
+        ui_err "Playbook not found at: $playbook_path"
         return 1
     fi
 
     if ! command -v ansible-playbook >/dev/null 2>&1; then
-        echo -e "${RED}[ERROR] 'ansible-playbook' is not installed or not in PATH.${NC}"
-        echo -e "${YELLOW}Install it with: sudo dnf install ansible${NC}"
+        ui_err "'ansible-playbook' is not installed or not in PATH."
+        ui_warn "Install it with: sudo dnf install ansible"
         return 1
     fi
 
@@ -292,8 +984,11 @@ run_playbook_subtask() {
         become_flag=""
     fi
 
-    echo -e "\n${BLUE}[*] Preparing to run Ansible subtask tag: ${BOLD}${subtask_tag}${NC}..."
-    echo -e "${CYAN}Executing: ansible-playbook $playbook_path --tags $subtask_tag $become_flag${NC}"
+    echo
+    ui_info_table "Subtask Parameter,Value" \
+        "Ansible Tag,--tags ${subtask_tag}" \
+        "Playbook,$playbook_path" \
+        "Flags,${become_flag:-none}"
     ansible-playbook "$playbook_path" --tags "$subtask_tag" $become_flag
 }
 
@@ -302,9 +997,13 @@ prompt_run_playbook_subtask() {
     local subtask_tag="$2"
     local desc="$3"
 
-    echo -e "\n${YELLOW}[!] Required dependency or provisioned file for '${feature_name}' is missing.${NC}"
-    echo -e "    Ansible Tag: ${CYAN}--tags ${subtask_tag}${NC} (${desc})"
-    read -rp "Would you like to run the Ansible playbook for this subtask now? [Y/n]: " run_choice
+    echo
+    ui_warn "[!] Required dependency or provisioned file for '${feature_name}' is missing."
+    ui_info_table "Missing Dependency,Details" \
+        "Feature,${feature_name}" \
+        "Ansible Tag,--tags ${subtask_tag}" \
+        "Description,${desc}"
+    ask_yn "Would you like to run the Ansible playbook for this subtask now?" "Y" run_choice
     run_choice="${run_choice:-Y}"
     if [[ "$run_choice" =~ ^[Yy]$ ]]; then
         run_playbook_subtask "$subtask_tag"
@@ -318,11 +1017,11 @@ require_sudo() {
     SUDO_CMD=""
     if [ "$EUID" -ne 0 ]; then
         if ! command -v sudo >/dev/null 2>&1; then
-            echo -e "${RED}Error: sudo is required to ${reason}.${NC}"
+            ui_err "sudo is required to ${reason}."
             return 1
         fi
         if ! sudo -v; then
-            echo -e "${RED}Error: sudo authentication failed.${NC}"
+            ui_err "sudo authentication failed."
             return 1
         fi
         SUDO_CMD="sudo"
@@ -341,9 +1040,9 @@ ensure_shell_rc_line() {
             echo "# $comment"
             echo "$line"
         } >> "$HOME/.bashrc"
-        echo -e "${GREEN}✓ Added $comment hook to ~/.bashrc${NC}"
+        ui_ok "✓ Added $comment hook to ~/.bashrc"
     else
-        echo -e "${YELLOW}• $comment already configured in ~/.bashrc${NC}"
+        ui_warn "• $comment already configured in ~/.bashrc"
     fi
 
     if [ -f "$HOME/.zshrc" ] || command -v zsh >/dev/null 2>&1; then
@@ -354,317 +1053,13 @@ ensure_shell_rc_line() {
                 echo "# $comment"
                 echo "$line"
             } >> "$HOME/.zshrc"
-            echo -e "${GREEN}✓ Added $comment hook to ~/.zshrc${NC}"
+            ui_ok "✓ Added $comment hook to ~/.zshrc"
         fi
     fi
-}
-
-# FZF-enabled single item selector with fallback to basic select
-fzf_select_menu() {
-    local prompt="$1"
-    local title="${2:-Selection}"
-    shift 2
-    local options=("$@")
-
-    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local choice rc
-        choice=$(printf "%s\n" "${options[@]}" | fzf \
-            --prompt="$prompt ❯ " \
-            --border="rounded" \
-            --border-label=" $title " \
-            --pointer="❯" \
-            --marker="✓" \
-            --layout=reverse \
-            --height=50% \
-            --cycle \
-            +s \
-            --color="$FZF_HIG_COLORS")
-        rc=$?
-        if [ $rc -ne 0 ] || [ -z "$choice" ]; then
-            return 1
-        fi
-        echo "$choice"
-        return 0
-    else
-        local sel
-        select sel in "${options[@]}"; do
-            if [ -n "$sel" ]; then
-                echo "$sel"
-                return 0
-            fi
-        done
-        return 1
-    fi
-}
-
-# FZF-driven action menu for rich submenus with descriptions and live preview pane
-fzf_action_menu() {
-    local title="$1"
-    local prompt="${2:-Action}"
-    shift 2
-    local items=("$@")
-
-    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local choice fzf_status
-        choice=$(printf "%b\n" "${items[@]}" | fzf \
-            --delimiter="\t" \
-            --with-nth="{1}) {2}" \
-            --accept-nth=1 \
-            --tiebreak=begin \
-            --preview='echo -e "\n  '"${CYAN}${BOLD}"'{2}'"${NC}"'\n\n  '"${GRAY}"'{3}'"${NC}"'"' \
-            --preview-window="right,45%,border-left,wrap" \
-            --border="rounded" \
-            --border-label=" $title " \
-            --prompt="$prompt ❯ " \
-            --pointer="❯" \
-            --marker="✓" \
-            --height=65% \
-            --layout=reverse \
-            --color="$FZF_HIG_COLORS")
-        fzf_status=$?
-
-        # On tool/runtime error (not cancel/abort), signal caller to use terminal fallback
-        if [ $fzf_status -ne 0 ] && [ $fzf_status -ne 1 ] && [ $fzf_status -ne 130 ]; then
-            return 99
-        fi
-
-        # On user cancel (Esc = 1, Ctrl-C = 130) or empty selection, default to "0" (Back/Cancel)
-        if [ $fzf_status -ne 0 ] || [ -z "$choice" ]; then
-            echo "0"
-            return 0
-        fi
-
-        echo "$choice"
-        return 0
-    else
-        return 99 # Signal caller to use terminal fallback
-    fi
-}
-
-# FZF-driven confirmation prompt (Yes/No dialog)
-fzf_confirm() {
-    local question="$1"
-    local default_ans="${2:-Y}" # Y or N
-
-    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local options
-        if [ "$default_ans" = "Y" ] || [ "$default_ans" = "y" ]; then
-            options=("Yes (proceed)" "No (cancel)")
-        else
-            options=("No (cancel)" "Yes (proceed)")
-        fi
-        local sel
-        sel=$(printf "%s\n" "${options[@]}" | fzf \
-            --border="rounded" \
-            --border-label=" Confirm " \
-            --prompt="$question ❯ " \
-            --pointer="❯" \
-            --marker="✓" \
-            --height=20% \
-            --layout=reverse \
-            --cycle \
-            +s \
-            --color="$FZF_HIG_COLORS")
-        [[ "$sel" =~ ^Yes ]] && return 0
-        return 1
-    else
-        read -rp "$question [$default_ans]: " ans
-        ans="${ans:-$default_ans}"
-        [[ "$ans" =~ ^[Yy]$ ]] && return 0
-        return 1
-    fi
-}
-
-# Shared interactive checkbox menu selector.
-# Leverages fzf with multi-selection if available; falls back to standard terminal prompt.
-# Populates/updates global CB_SELECTED=() array for CB_ITEMS=().
-# Returns: 0 = Run selected, 1 = Cancel/Back, 2 = Extra action (C)
-checkbox_menu_select() {
-    local title="$1"
-    local subtitle="$2"
-    local run_label="${3:-RUN selected tasks}"
-    local cancel_label="${4:-Back to Main Menu}"
-    local color="${5:-$BLUE}"
-    local extra_label="${6:-}"
-    local i token idx all_set new_state any_selected valid choice mark
-
-    # If fzf is installed and running in an interactive terminal, use fzf multi-select UI
-    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local fzf_header="[Tab]: Toggle | [Ctrl-A]: Select All | [Ctrl-D]: Deselect All | [Enter]: ${run_label}"
-        [ -n "$extra_label" ] && fzf_header+=" | [Ctrl-X]: ${extra_label}"
-        fzf_header+=" | [Esc]: ${cancel_label}"
-
-        local fzf_input=""
-        for i in "${!CB_ITEMS[@]}"; do
-            fzf_input+="$(printf "%02d\t%s\n" "$i" "${CB_ITEMS[i]}")"
-        done
-
-        local expect_keys="esc"
-        [ -n "$extra_label" ] && expect_keys="ctrl-x,esc"
-
-        # Build initial pre-selection actions for fzf
-        local start_actions=""
-        for i in "${!CB_SELECTED[@]}"; do
-            if [ "${CB_SELECTED[i]}" -eq 1 ]; then
-                local p=$((i + 1))
-                [ -n "$start_actions" ] && start_actions+="+"
-                start_actions+="pos(${p})+select"
-            fi
-        done
-        [ -n "$start_actions" ] && start_actions+="+pos(1)"
-
-        local bind_args="ctrl-a:select-all,ctrl-d:deselect-all"
-        if [ -n "$start_actions" ]; then
-            bind_args="start:${start_actions},${bind_args}"
-        fi
-        # Prevent Enter from accepting the single highlighted line when no items are selected
-        bind_args+=",enter:transform:[[ \$FZF_SELECT_COUNT -gt 0 ]] && echo accept || echo 'change-header:⚠️  NO ITEMS SELECTED! Toggle with [Tab] before pressing [Enter] (or [Esc] to cancel)'"
-
-        local fzf_opts=(
-            "-m"
-            "--sync"
-            "--delimiter=\t"
-            "--with-nth=2.."
-            "--accept-nth=1"
-            "--border=rounded"
-            "--border-label= ${title} "
-            "--pointer=❯"
-            "--marker=✓"
-            "--header=${fzf_header}"
-            "--layout=reverse"
-            "--height=65%"
-            "--color=${FZF_HIG_COLORS}"
-            "--expect=${expect_keys}"
-            "--bind=${bind_args}"
-        )
-
-        local out_lines
-        out_lines="$(printf "%s" "$fzf_input" | fzf "${fzf_opts[@]}")"
-        local fzf_status=$?
-
-        # Process key triggers from fzf --expect
-        local key_pressed
-        key_pressed="$(echo "$out_lines" | head -n 1)"
-        local selected_indices
-        selected_indices="$(echo "$out_lines" | tail -n +2)"
-
-        if [ "$key_pressed" = "esc" ] || [ $fzf_status -ne 0 ]; then
-            return 1
-        elif [ "$key_pressed" = "ctrl-x" ]; then
-            [ -n "$extra_label" ] && return 2
-            return 1
-        fi
-
-        # Reset selection array
-        for i in "${!CB_ITEMS[@]}"; do
-            CB_SELECTED[i]=0
-        done
-
-        any_selected=0
-        while IFS= read -r line; do
-            # Strip potential \r, spaces, or non-digits from index string
-            line="${line//[^0-9]/}"
-            [ -z "$line" ] && continue
-            idx=$((10#$line))
-            if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#CB_ITEMS[@]}" ]; then
-                CB_SELECTED[idx]=1
-                any_selected=1
-            fi
-        done <<< "$selected_indices"
-
-        if [ "$any_selected" -eq 0 ]; then
-            echo -e "\n${YELLOW}No items selected.${NC}"
-            sleep 1
-            return 1
-        fi
-        return 0
-    fi
-
-    # Fallback to standard numbered menu if fzf is not present
-    while true; do
-        clear
-        echo -e "${color}=====================================================${NC}"
-        echo -e "${BOLD}       ${title}${NC}"
-        echo -e "${color}=====================================================${NC}"
-        [ -n "$subtitle" ] && echo -e "$subtitle"
-        echo " Toggle items with numbers [1-${#CB_ITEMS[@]}] (e.g. 1 or 1,3)."
-        echo -e "${color}-----------------------------------------------------${NC}"
-
-        for i in "${!CB_ITEMS[@]}"; do
-            mark=" "
-            [ "${CB_SELECTED[i]}" -eq 1 ] && mark="X"
-            printf "  %2d) [${GREEN}%s${NC}] %s\n" "$((i + 1))" "$mark" "${CB_ITEMS[i]}"
-        done
-
-        echo -e "${color}-----------------------------------------------------${NC}"
-        echo "   A) Toggle Select ALL / NONE"
-        echo "   R) ${run_label}"
-        [ -n "$extra_label" ] && echo "   C) ${extra_label}"
-        echo "   0) ${cancel_label}"
-        echo -e "${color}=====================================================${NC}"
-
-        read -rp "Enter choice: " choice
-        case "$choice" in
-            0|[Qq]|back)
-                return 1
-                ;;
-            [Cc])
-                if [ -n "$extra_label" ]; then
-                    return 2
-                fi
-                echo -e "${RED}Invalid selection.${NC}"
-                sleep 1
-                ;;
-            [Aa])
-                all_set=1
-                for i in "${!CB_ITEMS[@]}"; do
-                    if [ "${CB_SELECTED[i]}" -eq 0 ]; then
-                        all_set=0
-                        break
-                    fi
-                done
-                new_state=$((1 - all_set))
-                for i in "${!CB_ITEMS[@]}"; do
-                    CB_SELECTED[i]=$new_state
-                done
-                ;;
-            [Rr])
-                any_selected=0
-                for i in "${!CB_ITEMS[@]}"; do
-                    if [ "${CB_SELECTED[i]}" -eq 1 ]; then
-                        any_selected=1
-                        break
-                    fi
-                done
-                if [ "$any_selected" -eq 0 ]; then
-                    echo -e "\n${YELLOW}No items selected. Mark at least one with its number.${NC}"
-                    sleep 1.5
-                    continue
-                fi
-                return 0
-                ;;
-            *)
-                valid=0
-                for token in $(echo "$choice" | tr ',' ' '); do
-                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le "${#CB_ITEMS[@]}" ]; then
-                        idx=$((token - 1))
-                        CB_SELECTED[idx]=$((1 - CB_SELECTED[idx]))
-                        valid=1
-                    fi
-                done
-                if [ "$valid" -eq 0 ]; then
-                    echo -e "${RED}Invalid selection.${NC}"
-                    sleep 1
-                fi
-                ;;
-        esac
-    done
 }
 
 configure_homebrew() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[1/8] Configuring Homebrew for user: $(whoami)${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[1/8] Configure Homebrew Environment & PATH" "$C_ORANGE"
 
     local BREW_PATH="/home/linuxbrew/.linuxbrew/bin/brew"
     if [ ! -x "$BREW_PATH" ] && command -v brew >/dev/null 2>&1; then
@@ -672,44 +1067,56 @@ configure_homebrew() {
     fi
 
     local SHELLENV_LINE='eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+    ui_info_table "Setting,Value" \
+        "Target User,$(whoami)" \
+        "Binary Path,$BREW_PATH" \
+        "Shell Profiles,~/.bashrc & ~/.zshrc" \
+        "Status,$([ -x "$BREW_PATH" ] && echo "Installed" || echo "Not Installed")"
 
     if [ -x "$BREW_PATH" ]; then
-        echo -e "${GREEN}Found Homebrew at: ${BREW_PATH}${NC}"
+        ui_ok "Found Homebrew at: ${BREW_PATH}"
         ensure_shell_rc_line "linuxbrew.*shellenv" "Homebrew environment" "$SHELLENV_LINE"
         eval "$($BREW_PATH shellenv)"
-        echo -e "${GREEN}✓ Homebrew active:${NC} $(brew --version | head -n 1)"
+        echo -e "$(ui_c "bold:green" "✓ Homebrew active:") $(brew --version | head -n 1)"
     else
-        echo -e "${YELLOW}Homebrew is not detected at /home/linuxbrew/.linuxbrew/bin/brew.${NC}"
-        read -rp "Would you like to install Homebrew now? [y/N]: " choice
+        ui_warn "Homebrew is not detected at /home/linuxbrew/.linuxbrew/bin/brew."
+        ask_yn "Would you like to install Homebrew now?" "N" choice
         if [[ "$choice" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}Running Homebrew installer...${NC}"
+            ui_info "Running Homebrew installer..."
             NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
                 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
                 ensure_shell_rc_line "linuxbrew.*shellenv" "Homebrew environment" "$SHELLENV_LINE"
-                echo -e "${GREEN}✓ Homebrew installed and configured!${NC}"
+                ui_ok "✓ Homebrew installed and configured!"
             fi
         else
-            echo -e "${YELLOW}Skipping Homebrew configuration.${NC}"
+            ui_warn "Skipping Homebrew configuration."
         fi
     fi
 }
 
 install_pixi() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[2/8] Installing Pixi Package Manager${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[2/8] Install Pixi Package Manager" "$C_MINT"
 
     local PIXI_BIN="$HOME/.pixi/bin/pixi"
+    local pixi_ver="Not Installed"
     if [ -x "$PIXI_BIN" ] || command -v pixi >/dev/null 2>&1; then
-        echo -e "${GREEN}Pixi is already installed:${NC} $(pixi --version 2>/dev/null || "$PIXI_BIN" --version)"
-        read -rp "Do you want to reinstall/update Pixi? [y/N]: " reinstall_choice
+        pixi_ver="$(pixi --version 2>/dev/null || "$PIXI_BIN" --version)"
+    fi
+    ui_info_table "Setting,Value" \
+        "Package Manager,Pixi (https://pixi.sh)" \
+        "Install Prefix,$HOME/.pixi/bin" \
+        "Detected Version,$pixi_ver"
+
+    if [ -x "$PIXI_BIN" ] || command -v pixi >/dev/null 2>&1; then
+        echo -e "$(ui_c "bold:green" "Pixi is already installed:") $pixi_ver"
+        ask_yn "Do you want to reinstall/update Pixi?" "N" reinstall_choice
         if [[ ! "$reinstall_choice" =~ ^[Yy]$ ]]; then
             return 0
         fi
     fi
 
-    echo -e "${BLUE}Downloading and running Pixi official installer (https://pixi.sh)...${NC}"
+    ui_info "Downloading and running Pixi official installer (https://pixi.sh)..."
     curl -fsSL https://pixi.sh/install.sh | bash
 
     # Configure PATH in shell files
@@ -717,111 +1124,114 @@ install_pixi() {
     if [ -d "$PIXI_DIR" ]; then
         export PATH="$PIXI_DIR:$PATH"
         ensure_shell_rc_line '\.pixi/bin' "Pixi package manager" 'export PATH="$HOME/.pixi/bin:$PATH"'
-        echo -e "${GREEN}✓ Pixi successfully installed:${NC} $("$PIXI_DIR/pixi" --version)"
+        echo -e "$(ui_c "green" "✓ Pixi successfully installed:") $("$PIXI_DIR/pixi" --version)"
     else
-        echo -e "${RED}Error: Pixi directory $PIXI_DIR was not found after install.${NC}"
+        ui_err "Pixi directory $PIXI_DIR was not found after install."
     fi
 }
 
 update_terminal_utilities() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[3/8] Updating TLDR & Terminal Utilities Cache${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[3/8] Refresh TLDR & Terminal Utilities Cache" "$C_TEAL"
+    ui_info_table "Utility,Operation" \
+        "tldr,Update community command examples cache" \
+        "bat,Rebuild syntax highlighting & theme binary cache" \
+        "git-lfs,Configure user-level Git Large File Storage hooks" \
+        "fc-cache,Force refresh user and system font caches" \
+        "mandb,Update manual page index database"
 
     # 1. Update TLDR pages cache
     if command -v tldr >/dev/null 2>&1; then
-        echo -e "${BLUE}Updating TLDR pages cache (tldr --update)...${NC}"
-        tldr --update 2>/dev/null || tldr -u 2>/dev/null || echo -e "${YELLOW}TLDR update completed with notices.${NC}"
-        echo -e "${GREEN}✓ TLDR documentation cache updated.${NC}"
+        if ui_spin "Updating TLDR pages cache..." bash -c 'tldr --update || tldr -u' >/dev/null 2>&1; then
+            ui_ok "✓ TLDR documentation cache updated."
+        else
+            ui_warn "TLDR update completed with notices."
+        fi
     else
-        echo -e "${YELLOW}• 'tldr' command not found, skipping.${NC}"
+        ui_warn "• 'tldr' command not found, skipping."
     fi
 
     # 2. Update Bat syntax & theme cache
     if command -v bat >/dev/null 2>&1; then
-        echo -e "${BLUE}Updating Bat syntax & theme cache...${NC}"
-        bat cache --build 2>/dev/null || true
-        echo -e "${GREEN}✓ Bat cache built.${NC}"
+        ui_spin "Updating Bat syntax & theme cache..." bash -c 'bat cache --build' >/dev/null 2>&1 || true
+        ui_ok "✓ Bat cache built."
     fi
 
     # 3. Configure Git LFS for user
     if command -v git-lfs >/dev/null 2>&1; then
-        echo -e "${BLUE}Configuring Git LFS hooks for user profile...${NC}"
-        git lfs install --skip-repo 2>/dev/null || true
-        echo -e "${GREEN}✓ Git LFS configured.${NC}"
+        ui_spin "Configuring Git LFS hooks for user profile..." bash -c 'git lfs install --skip-repo' >/dev/null 2>&1 || true
+        ui_ok "✓ Git LFS configured."
     fi
 
     # 4. Refresh font caches
     if command -v fc-cache >/dev/null 2>&1; then
-        echo -e "${BLUE}Refreshing font caches (fc-cache)...${NC}"
-        fc-cache -f 2>/dev/null || true
-        echo -e "${GREEN}✓ Font cache refreshed.${NC}"
+        ui_spin "Refreshing font caches (fc-cache)..." fc-cache -f >/dev/null 2>&1 || true
+        ui_ok "✓ Font cache refreshed."
     fi
 
     # 5. Refresh Man database if available
     if command -v mandb >/dev/null 2>&1; then
-        echo -e "${BLUE}Updating man database cache...${NC}"
-        mandb -q 2>/dev/null || true
-        echo -e "${GREEN}✓ Man database refreshed.${NC}"
+        ui_spin "Updating man database cache..." mandb -q >/dev/null 2>&1 || true
+        ui_ok "✓ Man database refreshed."
     fi
 
-    echo -e "${GREEN}✓ All terminal utilities updated successfully!${NC}"
+    ui_ok "✓ All terminal utilities updated successfully!"
 }
 
-
 setup_distrobox() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[4/8] Setting Up Ubuntu Distrobox Container${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[4/8] Set Up Ubuntu Distrobox Container" "$C_ORANGE"
 
     local CONTAINER_NAME="ubuntu-toolbox"
     local CONTAINER_IMAGE="quay.io/toolbx/ubuntu-toolbox:latest"
+    ui_info_table "Container Property,Value" \
+        "Container Name,$CONTAINER_NAME" \
+        "OCI Image,$CONTAINER_IMAGE" \
+        "Default Add-on,UniGetUI (.deb) auto-export"
 
     # Verify distrobox is available
     if ! command -v distrobox >/dev/null 2>&1; then
         prompt_run_playbook_subtask "Distrobox" "packages_dnf" "Install base DNF packages including distrobox" || return 1
         if ! command -v distrobox >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'distrobox' is still not installed or not in PATH.${NC}"
+            ui_err "'distrobox' is still not installed or not in PATH."
             return 1
         fi
     fi
 
     # Check if a container with this name already exists
     if distrobox list 2>/dev/null | grep -q "^${CONTAINER_NAME}\b\|[[:space:]]${CONTAINER_NAME}[[:space:]]"; then
-        echo -e "${YELLOW}• Distrobox container '${CONTAINER_NAME}' already exists.${NC}"
-        read -rp "Do you want to replace it? This will stop and remove the existing container. [y/N]: " replace_choice
+        ui_warn "• Distrobox container '${CONTAINER_NAME}' already exists."
+        ask_yn "Do you want to replace it? This will stop and remove the existing container." "N" replace_choice
         if [[ "$replace_choice" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}Stopping and removing existing container '${CONTAINER_NAME}'...${NC}"
+            ui_info "Stopping and removing existing container '${CONTAINER_NAME}'..."
             distrobox stop --yes "${CONTAINER_NAME}" 2>/dev/null || true
             distrobox rm --yes "${CONTAINER_NAME}" 2>/dev/null || true
         else
-            echo -e "${YELLOW}Skipping distrobox setup.${NC}"
+            ui_warn "Skipping distrobox setup."
             return 0
         fi
     fi
 
-    echo -e "${BLUE}Creating distrobox container '${CONTAINER_NAME}' from ${CONTAINER_IMAGE}...${NC}"
-    echo -e "${YELLOW}Note: The image will be pulled on first run — this may take a moment.${NC}"
+    ui_info "Creating distrobox container '${CONTAINER_NAME}' from ${CONTAINER_IMAGE}..."
+    ui_warn "Note: The image will be pulled on first run — this may take a moment."
 
     if distrobox create \
         --name "${CONTAINER_NAME}" \
         --image "${CONTAINER_IMAGE}" \
         --yes; then
-        echo -e "${GREEN}✓ Distrobox container '${CONTAINER_NAME}' created successfully.${NC}"
-        echo -e "${BLUE}Initializing container (first-run setup)...${NC}"
+        ui_ok "✓ Distrobox container '${CONTAINER_NAME}' created successfully."
+        ui_info "Initializing container (first-run setup)..."
         distrobox enter "${CONTAINER_NAME}" -- true 2>/dev/null \
-            && echo -e "${GREEN}✓ Container initialized and ready.${NC}" \
-            || echo -e "${YELLOW}• Container created — it will finish initializing on first 'distrobox enter ${CONTAINER_NAME}'.${NC}"
+            && echo -e "$(ui_c "green" "✓ Container initialized and ready.")" \
+            || echo -e "$(ui_c "yellow" "• Container created — it will finish initializing on first 'distrobox enter ${CONTAINER_NAME}'.")"
 
         # Option to default install UniGetUI (deb) inside the container
         local install_unigetui_choice
-        read -rp "Install UniGetUI.linux-x64.deb inside '${CONTAINER_NAME}' by default? [Y/n]: " install_unigetui_choice
+        ask_yn "Install UniGetUI.linux-x64.deb inside '${CONTAINER_NAME}' by default?" "Y" install_unigetui_choice
         install_unigetui_choice="${install_unigetui_choice:-Y}"
         if [[ "$install_unigetui_choice" =~ ^[Yy]$ ]]; then
             install_unigetui_deb_distrobox "${CONTAINER_NAME}"
         fi
     else
-        echo -e "${RED}Error: Failed to create distrobox container '${CONTAINER_NAME}'.${NC}"
+        ui_err "Failed to create distrobox container '${CONTAINER_NAME}'."
         return 1
     fi
 }
@@ -831,16 +1241,18 @@ install_unigetui_deb_distrobox() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/unigetui_downloads"
     mkdir -p "$cache_dir"
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Install UniGetUI (.deb) into Distrobox         ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Install UniGetUI (.deb) into Distrobox" "$C_CYAN"
+    ui_info_table "Property,Value" \
+        "Upstream Repository,Devolutions/UniGetUI" \
+        "Target Container,$container_name" \
+        "Download Cache,$cache_dir"
 
     if ! command -v distrobox >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'distrobox' is not installed.${NC}"
+        ui_err "'distrobox' is not installed."
         return 1
     fi
 
-    echo -e "${BLUE}[*] Fetching latest UniGetUI .deb release from GitHub...${NC}"
+    ui_info "[*] Fetching latest UniGetUI .deb release from GitHub..."
     local deb_info
     deb_info=$(python3 -c "
 import urllib.request, json, sys
@@ -865,71 +1277,77 @@ except Exception:
     if [ -n "$deb_info" ]; then
         IFS=$'\t' read -r deb_name deb_url <<< "$deb_info"
     else
-        echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+        ui_warn "Could not resolve latest .deb from GitHub API. Using fallback URL..."
         deb_url="https://github.com/Devolutions/UniGetUI/releases/download/v2026.3.3/UniGetUI.linux-x64.deb"
         deb_name="UniGetUI.linux-x64.deb"
     fi
 
     local target_file="$cache_dir/$deb_name"
-    echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+    ui_info "[*] Downloading ${deb_name}..."
     if ! curl -fLC - --progress-bar -o "$target_file" "$deb_url"; then
-        echo -e "${RED}[ERROR] Failed to download UniGetUI .deb from $deb_url${NC}"
+        ui_err "Failed to download UniGetUI .deb from $deb_url"
         return 1
     fi
 
-    echo -e "\n${BLUE}[*] Installing ${deb_name} into '${container_name}' container via apt...${NC}"
+    echo
+    ui_info "[*] Installing ${deb_name} into '${container_name}' container via apt..."
     if distrobox enter "${container_name}" -- sudo apt-get update && \
        distrobox enter "${container_name}" -- sudo apt-get install -y "$target_file"; then
-        echo -e "\n${BLUE}[*] Exporting UniGetUI desktop app and binary to host...${NC}"
+        echo
+        ui_info "[*] Exporting UniGetUI desktop app and binary to host..."
         distrobox enter "${container_name}" -- distrobox-export --app unigetui 2>/dev/null || true
         distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/unigetui --export-path "$HOME/.local/bin" 2>/dev/null || true
-        echo -e "${GREEN}✓ UniGetUI (.deb) installed and exported successfully from Distrobox!${NC}"
+        ui_ok "✓ UniGetUI (.deb) installed and exported successfully from Distrobox!"
     else
-        echo -e "${RED}[ERROR] Failed to install UniGetUI .deb inside distrobox container.${NC}"
+        ui_err "Failed to install UniGetUI .deb inside distrobox container."
         return 1
     fi
 }
 
 configure_flathub_user() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[5/8] Adding Flathub Remote (User)${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[5/8] Add Flathub Remote (User)" "$C_TEAL"
+    ui_info_table "Remote Property,Value" \
+        "Remote Name,flathub (user scope)" \
+        "Repository URL,https://dl.flathub.org/repo/flathub.flatpakrepo" \
+        "Target User,$(whoami)"
 
     if ! command -v flatpak >/dev/null 2>&1; then
         prompt_run_playbook_subtask "Flatpak" "flatpak_cli" "Install flatpak package manager only" || return 1
         if ! command -v flatpak >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'flatpak' is still not installed or not in PATH.${NC}"
+            ui_err "'flatpak' is still not installed or not in PATH."
             return 1
         fi
     fi
 
-    echo -e "${BLUE}Adding Flathub repository for user: $(whoami)...${NC}"
+    ui_info "Adding Flathub repository for user: $(whoami)..."
     if flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; then
-        echo -e "${GREEN}✓ Flathub remote added successfully for user.${NC}"
+        ui_ok "✓ Flathub remote added successfully for user."
     else
-        echo -e "${RED}Error: Failed to add Flathub user remote.${NC}"
+        ui_err "Failed to add Flathub user remote."
         return 1
     fi
 }
 
 configure_fedora_flatpak_user() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[6/8] Adding Fedora Flatpak Remote (User)${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[6/8] Add Fedora Flatpak Remote (User)" "$C_TEAL"
+    ui_info_table "Remote Property,Value" \
+        "Remote Name,fedora (user scope)" \
+        "Registry URI,oci+https://registry.fedoraproject.org" \
+        "Target User,$(whoami)"
 
     if ! command -v flatpak >/dev/null 2>&1; then
         prompt_run_playbook_subtask "Flatpak" "flatpak_cli" "Install flatpak package manager only" || return 1
         if ! command -v flatpak >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'flatpak' is still not installed or not in PATH.${NC}"
+            ui_err "'flatpak' is still not installed or not in PATH."
             return 1
         fi
     fi
 
-    echo -e "${BLUE}Adding Fedora Flatpak repository for user: $(whoami)...${NC}"
+    ui_info "Adding Fedora Flatpak repository for user: $(whoami)..."
     if flatpak remote-add --user --if-not-exists fedora oci+https://registry.fedoraproject.org; then
-        echo -e "${GREEN}✓ Fedora Flatpak remote added successfully for user.${NC}"
+        ui_ok "✓ Fedora Flatpak remote added successfully for user."
     else
-        echo -e "${RED}Error: Failed to add Fedora Flatpak user remote.${NC}"
+        ui_err "Failed to add Fedora Flatpak user remote."
         return 1
     fi
 }
@@ -943,44 +1361,49 @@ configure_flatpak_remotes_user() {
 
     checkbox_menu_select \
         "Configure User Flatpak Remotes" \
-        " User: $(whoami)" \
-        "RUN remote configuration" \
-        "Back to Main Menu" || return 0
+        "Target User: $(whoami)\nScope: --user (unprivileged)" \
+        "Apply Selected Remotes" \
+        "Back to Main Menu" \
+        "$C_TEAL" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Configuring Selected User Flatpak Remotes ===${NC}"
+    echo
+    ui_info "=== Configuring Selected User Flatpak Remotes ==="
     [ "${CB_SELECTED[0]}" -eq 1 ] && configure_flathub_user
     [ "${CB_SELECTED[1]}" -eq 1 ] && configure_fedora_flatpak_user
 
-    echo -e "\n${GREEN}✓ Flatpak remotes configuration complete!${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ Flatpak remotes configuration complete!"
+    ui_pause "Press Enter to continue..."
 }
 
 disable_pipewire_streaming() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Disable PipeWire Audio Redirection           ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Disable PipeWire Audio Redirection" "$C_PINK"
+    ui_info_table "Cleanup Target,Path" \
+        "Sender Profiles,~/.bashrc and ~/.profile" \
+        "Desktop Environment,~/.config/environment.d/pipewire-share.conf" \
+        "Receiver TCP Config,~/.config/pipewire/pipewire-pulse.conf.d/tcp-share.conf"
 
     require_sudo "disable audio redirection" || return 1
 
     # 1. Ask for Sender (to remove redirection configs)
-    echo -e "${BOLD}[Step 1: The Sound Source / Sender (Transmitter)]${NC}"
-    read -rp "Enter username of the SENDER (whose redirection you want to remove) [default: $(whoami)]: " USER_SENDER
+    echo -e "$(ui_c "bold" "[Step 1: The Sound Source / Sender (Transmitter)]")"
+    ask_input "Enter username of the SENDER (whose redirection you want to remove) [default: $(whoami)]: " USER_SENDER
     USER_SENDER=${USER_SENDER:-$(whoami)}
     if ! id "$USER_SENDER" &>/dev/null; then
-        echo -e "${RED}Error: User '$USER_SENDER' does not exist.${NC}"
+        ui_err "User '$USER_SENDER' does not exist."
         return 1
     fi
     local SENDER_HOME
     SENDER_HOME=$(getent passwd "$USER_SENDER" | cut -d: -f6)
 
-    echo -e "${BLUE}[*] Removing audio redirection from SENDER ($USER_SENDER)...${NC}"
+    ui_info "[*] Removing audio redirection from SENDER ($USER_SENDER)..."
 
     # Remove from ~/.bashrc
     local BASHRC_FILE="$SENDER_HOME/.bashrc"
     if [[ -f "$BASHRC_FILE" ]]; then
         $SUDO_CMD sed -i '/# Route audio output to/d' "$BASHRC_FILE"
         $SUDO_CMD sed -i '/export PULSE_SERVER=tcp:/d' "$BASHRC_FILE"
-        echo -e "${GREEN}✓ Cleaned $USER_SENDER's ~/.bashrc${NC}"
+        ui_ok "✓ Cleaned $USER_SENDER's ~/.bashrc"
     fi
 
     # Remove from ~/.profile
@@ -988,82 +1411,69 @@ disable_pipewire_streaming() {
     if [[ -f "$PROFILE_FILE" ]]; then
         $SUDO_CMD sed -i '/# Route audio output to/d' "$PROFILE_FILE"
         $SUDO_CMD sed -i '/export PULSE_SERVER=tcp:/d' "$PROFILE_FILE"
-        echo -e "${GREEN}✓ Cleaned $USER_SENDER's ~/.profile${NC}"
+        ui_ok "✓ Cleaned $USER_SENDER's ~/.profile"
     fi
 
     # Remove environment.d config
     local ENV_CONF="$SENDER_HOME/.config/environment.d/pipewire-share.conf"
     if [[ -f "$ENV_CONF" ]]; then
         $SUDO_CMD rm -f "$ENV_CONF"
-        echo -e "${GREEN}✓ Removed $ENV_CONF${NC}"
+        ui_ok "✓ Removed $ENV_CONF"
     fi
 
     # 2. Ask for Receiver (to remove TCP listener config)
     echo ""
-    echo -e "${BOLD}[Step 2: The Sound Output / Receiver (Speaker Owner)]${NC}"
-    read -rp "Enter username of the RECEIVER (optional, press Enter to skip): " USER_RECEIVER
+    echo -e "$(ui_c "bold" "[Step 2: The Sound Output / Receiver (Speaker Owner)]")"
+    ask_input "Enter username of the RECEIVER (optional, press Enter to skip): " USER_RECEIVER
     if [[ -n "$USER_RECEIVER" ]]; then
         if ! id "$USER_RECEIVER" &>/dev/null; then
-            echo -e "${YELLOW}Warning: User '$USER_RECEIVER' not found. Skipping receiver cleanup.${NC}"
+            ui_warn "Warning: User '$USER_RECEIVER' not found. Skipping receiver cleanup."
         else
             local RECEIVER_HOME
             RECEIVER_HOME=$(getent passwd "$USER_RECEIVER" | cut -d: -f6)
             local TCP_CONF="$RECEIVER_HOME/.config/pipewire/pipewire-pulse.conf.d/tcp-share.conf"
             if [[ -f "$TCP_CONF" ]]; then
                 $SUDO_CMD rm -f "$TCP_CONF"
-                echo -e "${GREEN}✓ Removed $TCP_CONF${NC}"
+                ui_ok "✓ Removed $TCP_CONF"
             fi
 
             if $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" is-active --quiet pipewire-pulse.service 2>/dev/null; then
                 $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire.service pipewire-pulse.service wireplumber.service
-                echo -e "${GREEN}✓ Restarted pipewire, pipewire-pulse and wireplumber for $USER_RECEIVER.${NC}"
+                ui_ok "✓ Restarted pipewire, pipewire-pulse and wireplumber for $USER_RECEIVER."
             fi
         fi
     fi
 
     echo ""
-    echo -e "${GREEN}===================================================================${NC}"
-    echo -e "${BOLD} PipeWire Audio Redirection Disabled!${NC}"
-    echo -e "${GREEN}===================================================================${NC}"
+    ui_banner "PipeWire Audio Redirection Disabled!" "$C_GREEN"
     echo "Note: If $USER_SENDER is currently logged in, please log out and"
     echo "      back in for desktop environment changes to fully reset."
-    echo -e "${GREEN}===================================================================${NC}"
+    ui_hr
 }
 
 enable_pipewire_streaming() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Enable PipeWire Audio Redirection             ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Enable PipeWire Audio Redirection" "$C_PINK"
 
     if [ ! -t 0 ] && [ -z "${USER_RECEIVER:-}" ]; then
-        echo -e "${YELLOW}Non-interactive session detected; skipping PipeWire setup (requires user input).${NC}"
+        ui_warn "Non-interactive session detected; skipping PipeWire setup (requires user input)."
         return 0
     fi
 
-    echo -e "${YELLOW}Note: PipeWire multi-user audio setup requires administrative privileges.${NC}"
-    require_sudo "configure PipeWire audio redirection" || return 1
-
-    cat <<'EOF'
-===================================================================
-                   PipeWire Audio Redirection
-===================================================================
-• THE SENDER:
-  The user running apps (Firefox, games, mpv, Spotify) who wants
-  their sound sent somewhere else.
-
-• THE RECEIVER (SPEAKERS):
-  The user who has physical access to the speakers/headphones and
-  will actually play the sound out loud.
-===================================================================
-EOF
+    ui_info_table "Audio Role,Description" \
+        "The Sender (Source),User running apps (Firefox; games; mpv) whose audio is routed out" \
+        "The Receiver (Speakers),User with physical access to speakers/headphones playing the audio" \
+        "Transport Protocol,PipeWire-Pulse native TCP stream (default port 4713)"
     echo ""
 
+    ui_warn "Note: PipeWire multi-user audio setup requires administrative privileges."
+    require_sudo "configure PipeWire audio redirection" || return 1""
+
     # 1. Receiver (Speaker owner)
-    echo -e "${BOLD}[Step 1: The Sound Output / Receiver]${NC}"
-    read -rp "Enter username of the user with the WORKING SPEAKERS [default: $(whoami)]: " USER_RECEIVER
+    echo -e "$(ui_c "bold" "[Step 1: The Sound Output / Receiver]")"
+    ask_input "Enter username of the user with the WORKING SPEAKERS [default: $(whoami)]: " USER_RECEIVER
     USER_RECEIVER=${USER_RECEIVER:-$(whoami)}
     if ! id "$USER_RECEIVER" &>/dev/null; then
-        echo -e "${RED}Error: User '$USER_RECEIVER' does not exist.${NC}"
+        ui_err "User '$USER_RECEIVER' does not exist."
         return 1
     fi
     local RECEIVER_HOME
@@ -1071,10 +1481,10 @@ EOF
 
     # 2. Sender (Music/App owner)
     echo ""
-    echo -e "${BOLD}[Step 2: The Sound Source / Sender]${NC}"
-    read -rp "Enter username of the user who wants to TRANSMIT/SEND audio: " USER_SENDER
+    echo -e "$(ui_c "bold" "[Step 2: The Sound Source / Sender]")"
+    ask_input "Enter username of the user who wants to TRANSMIT/SEND audio: " USER_SENDER
     if ! id "$USER_SENDER" &>/dev/null; then
-        echo -e "${RED}Error: User '$USER_SENDER' does not exist.${NC}"
+        ui_err "User '$USER_SENDER' does not exist."
         return 1
     fi
     local SENDER_HOME
@@ -1082,17 +1492,17 @@ EOF
 
     # 3. Connection details
     echo ""
-    echo -e "${BOLD}[Step 3: Network Connection]${NC}"
+    echo -e "$(ui_c "bold" "[Step 3: Network Connection]")"
     echo "  - Same PC: use 127.0.0.1"
     echo "  - Over LAN: enter the Receiver's IP address on the local network"
-    read -rp "Enter IP address [default: 127.0.0.1]: " BIND_IP
+    ask_input "Enter IP address [default: 127.0.0.1]: " BIND_IP
     BIND_IP=${BIND_IP:-127.0.0.1}
 
-    read -rp "Enter port to use [default: 4713]: " BIND_PORT
+    ask_input "Enter port to use [default: 4713]: " BIND_PORT
     BIND_PORT=${BIND_PORT:-4713}
 
     echo ""
-    echo -e "${BLUE}[*] Configuring the RECEIVER ($USER_RECEIVER) to accept incoming audio...${NC}"
+    ui_info "[*] Configuring the RECEIVER ($USER_RECEIVER) to accept incoming audio..."
 
     # Configure Receiver PipeWire-Pulse TCP listener
     local CONF_DIR="$RECEIVER_HOME/.config/pipewire/pipewire-pulse.conf.d"
@@ -1116,39 +1526,39 @@ EOF
     # Restart audio service for Receiver if logged in
     if $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" is-active --quiet pipewire-pulse.service 2>/dev/null; then
         $SUDO_CMD systemctl --user -M "${USER_RECEIVER}@" restart pipewire.service pipewire-pulse.service wireplumber.service
-        echo -e "${GREEN}✓ pipewire, pipewire-pulse and wireplumber restarted for $USER_RECEIVER.${NC}"
+        ui_ok "✓ pipewire, pipewire-pulse and wireplumber restarted for $USER_RECEIVER."
     else
-        echo -e "${YELLOW}• $USER_RECEIVER is not currently active; configuration will load on next login.${NC}"
+        ui_warn "• $USER_RECEIVER is not currently active; configuration will load on next login."
     fi
 
     # Configure Sender environment
     echo ""
-    echo -e "${BLUE}[*] Configuring the SENDER ($USER_SENDER) to route audio to $USER_RECEIVER...${NC}"
+    ui_info "[*] Configuring the SENDER ($USER_SENDER) to route audio to $USER_RECEIVER..."
 
     local ENV_LINE="export PULSE_SERVER=tcp:${BIND_IP}:${BIND_PORT}"
 
     # Terminal apps (~/.bashrc)
     local BASHRC_FILE="$SENDER_HOME/.bashrc"
     if $SUDO_CMD grep -Fxq "$ENV_LINE" "$BASHRC_FILE" 2>/dev/null; then
-        echo -e "${YELLOW}• Route already set in $USER_SENDER's .bashrc.${NC}"
+        ui_warn "• Route already set in $USER_SENDER's .bashrc."
     else
         echo "" | $SUDO_CMD tee -a "$BASHRC_FILE" >/dev/null
         echo "# Route audio output to $USER_RECEIVER" | $SUDO_CMD tee -a "$BASHRC_FILE" >/dev/null
         echo "$ENV_LINE" | $SUDO_CMD tee -a "$BASHRC_FILE" >/dev/null
         $SUDO_CMD chown "$USER_SENDER":"$USER_SENDER" "$BASHRC_FILE"
-        echo -e "${GREEN}✓ Configured $USER_SENDER's ~/.bashrc (Terminal apps)${NC}"
+        ui_ok "✓ Configured $USER_SENDER's ~/.bashrc (Terminal apps)"
     fi
 
     # Desktop sessions (~/.profile)
     local PROFILE_FILE="$SENDER_HOME/.profile"
     if $SUDO_CMD grep -Fxq "$ENV_LINE" "$PROFILE_FILE" 2>/dev/null; then
-        echo -e "${YELLOW}• Route already set in $USER_SENDER's .profile.${NC}"
+        ui_warn "• Route already set in $USER_SENDER's .profile."
     else
         echo "" | $SUDO_CMD tee -a "$PROFILE_FILE" >/dev/null
         echo "# Route audio output to $USER_RECEIVER" | $SUDO_CMD tee -a "$PROFILE_FILE" >/dev/null
         echo "$ENV_LINE" | $SUDO_CMD tee -a "$PROFILE_FILE" >/dev/null
         $SUDO_CMD chown "$USER_SENDER":"$USER_SENDER" "$PROFILE_FILE"
-        echo -e "${GREEN}✓ Configured $USER_SENDER's ~/.profile (Login sessions)${NC}"
+        ui_ok "✓ Configured $USER_SENDER's ~/.profile (Login sessions)"
     fi
 
     # GUI Desktop Launcher icons (~/.config/environment.d/)
@@ -1162,18 +1572,15 @@ PULSE_SERVER=tcp:${BIND_IP}:${BIND_PORT}
 EOF
 
     $SUDO_CMD chown -R "$USER_SENDER":"$USER_SENDER" "$SENDER_HOME/.config/environment.d"
-    echo -e "${GREEN}✓ Configured $USER_SENDER's environment.d (Desktop GUI icons and launchers)${NC}"
+    ui_ok "✓ Configured $USER_SENDER's environment.d (Desktop GUI icons and launchers)"
 
     echo ""
-    echo -e "${GREEN}===================================================================${NC}"
-    echo -e "${BOLD} Setup Complete & Fully Persistent!${NC}"
-    echo -e "${GREEN}===================================================================${NC}"
-    echo "• RECEIVER ($USER_RECEIVER): Configured to play incoming audio on speakers."
-    echo "• SENDER ($USER_SENDER): Configured to direct all sound to $USER_RECEIVER."
-    echo ""
-    echo "Note: If $USER_SENDER is currently logged in, please log out and"
-    echo "      back in once for desktop launcher changes to apply."
-    echo -e "${GREEN}===================================================================${NC}"
+    ui_banner "Setup Complete & Fully Persistent!" "$C_GREEN"
+    ui_info_table "Configured Role,Status" \
+        "Receiver ($USER_RECEIVER),Listening on tcp:${BIND_IP}:${BIND_PORT} and playing to speakers" \
+        "Sender ($USER_SENDER),Routing PULSE_SERVER to tcp:${BIND_IP}:${BIND_PORT}" \
+        "Session Notice,Log out and back in once for desktop launcher changes to apply"
+    ui_hr
 }
 
 configure_pipewire_streaming() {
@@ -1182,26 +1589,20 @@ configure_pipewire_streaming() {
         return 0
     fi
 
+    ui_banner "PipeWire Multi-User Audio Redirection" "$C_PINK"
+    ui_info_table "Property,Details" \
+        "Subsystem,PipeWire / PulseAudio TCP Bridge" \
+        "Default Endpoint,127.0.0.1:4713 (Local or LAN IP)" \
+        "Persistence,~/.bashrc; ~/.profile; ~/.config/environment.d"
+
     local pw_items=(
-        "1\t🔊 Enable / Configure PipeWire Redirection\tRoute audio output across local users or machines via TCP"
-        "2\t🔇 Disable / Remove PipeWire Redirection\tRemove audio routes, clean up environment files, and restore defaults"
+        "1\t🔊 Enable PipeWire Redirection…\tRoute audio output across local users or machines via TCP"
+        "2\t🔇 Disable PipeWire Redirection…\tRemove audio routes, clean up environment files, and restore defaults"
         "0\t🚪 Back to Main Menu\tReturn to previous menu"
     )
 
     local pw_choice
-    pw_choice=$(fzf_action_menu "PipeWire Audio Redirection" "Option" "${pw_items[@]}")
-    local fzf_status=$?
-
-    if [ $fzf_status -eq 99 ]; then
-        echo -e "\n${BLUE}=====================================================${NC}"
-        echo -e "${BOLD}       PipeWire Audio Redirection Menu               ${NC}"
-        echo -e "${BLUE}=====================================================${NC}"
-        echo "  1) Enable / Configure PipeWire Redirection"
-        echo "  2) Disable / Remove PipeWire Redirection"
-        echo "  0) Back to Main Menu"
-        echo -e "${BLUE}-----------------------------------------------------${NC}"
-        read -rp "Select an option [0-2]: " pw_choice
-    fi
+    pw_choice=$(gum_action_menu "PipeWire Audio Redirection" "Option" "${pw_items[@]}")
 
     case "$pw_choice" in
         1) enable_pipewire_streaming ;;
@@ -1211,78 +1612,66 @@ configure_pipewire_streaming() {
 }
 
 run_waydroid_init_wizard() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Waydroid Initialization Wizard                ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Waydroid Initialization Wizard" "$C_GREEN"
 
     if [ ! -t 0 ]; then
-        echo -e "${YELLOW}Non-interactive session detected; skipping Waydroid setup (requires user input).${NC}"
+        ui_warn "Non-interactive session detected; skipping Waydroid setup (requires user input)."
         return 0
     fi
 
-    echo -e "${YELLOW}Note: Waydroid initialization requires administrative privileges.${NC}"
-    require_sudo "configure Waydroid" || return 1
-
     local SYSTEM_OTA="https://ota.waydro.id/system"
     local VENDOR_OTA="https://ota.waydro.id/vendor"
+    ui_info_table "OTA Endpoint,Channel URL" \
+        "System OTA,$SYSTEM_OTA" \
+        "Vendor OTA,$VENDOR_OTA" \
+        "Image Directory,/var/lib/waydroid/images"
+
+    ui_warn "Note: Waydroid initialization requires administrative privileges."
+    require_sudo "configure Waydroid" || return 1
 
     # 1. Official Fedora Repository Check & Install
-    echo -e "${BLUE}[*] Checking Waydroid package...${NC}"
+    ui_info "[*] Checking Waydroid package..."
     if ! rpm -q waydroid &>/dev/null; then
-        echo -e "${YELLOW}[!] Waydroid is not installed.${NC}"
+        ui_warn "[!] Waydroid is not installed."
         prompt_run_playbook_subtask "Waydroid" "packages_dnf,waydroid" "Install Waydroid package and configure integration"
         if ! rpm -q waydroid &>/dev/null; then
-            read -rp "Install waydroid from Fedora's official repos now via dnf? [Y/n]: " INSTALL_CONFIRM
+            ask_yn "Install waydroid from Fedora's official repos now via dnf?" "Y" INSTALL_CONFIRM
             INSTALL_CONFIRM="${INSTALL_CONFIRM:-Y}"
 
             if [[ "$INSTALL_CONFIRM" =~ ^[Yy]$ ]]; then
-                echo -e "${BLUE}[*] Installing waydroid and sqlite via dnf...${NC}"
+                ui_info "[*] Installing waydroid and sqlite via dnf..."
                 $SUDO_CMD dnf install -y waydroid sqlite
             else
-                echo -e "${RED}[-] Cannot proceed without installing waydroid.${NC}"
+                ui_err "[-] Cannot proceed without installing waydroid."
                 return 1
             fi
         fi
     else
-        echo -e "${GREEN}[+] Waydroid is already installed from official repos.${NC}"
+        ui_ok "[+] Waydroid is already installed from official repos."
     fi
 
     echo ""
 
-    # 2. Interactive Selection: Google Play vs Vanilla
-    echo -e "${BOLD}Choose Android system image:${NC}"
-    echo "  1) GAPPS   - Includes Google Play Store & Google Mobile Services"
-    echo "  2) VANILLA - Clean open-source LineageOS (No Google services)"
-    echo ""
-
+    # 2. Interactive Selection: Google Play vs Vanilla (using HIG menu with background selection)
+    ui_info_table "Image Variant,Included Components" \
+        "GAPPS (Default),Includes Google Play Store & Google Mobile Services (GMS)" \
+        "VANILLA,Clean open-source LineageOS without Google services"
+    local img_choice=""
+    ask_menu img_choice "Select Android System Image" \
+        "1|GAPPS — Google Play Store & Google Mobile Services" \
+        "2|VANILLA — Clean Open-Source LineageOS"
     local SYSTEM_TYPE="GAPPS"
-    while true; do
-        read -rp "Select an option [1-2] (default: 1): " CHOICE
-        CHOICE="${CHOICE:-1}"
-        case "$CHOICE" in
-            1)
-                SYSTEM_TYPE="GAPPS"
-                break
-                ;;
-            2)
-                SYSTEM_TYPE="VANILLA"
-                break
-                ;;
-            *)
-                echo -e "${RED}Invalid choice. Please enter 1 or 2.${NC}"
-                ;;
-        esac
-    done
+    [ "${img_choice:-1}" = "2" ] && SYSTEM_TYPE="VANILLA"
 
     echo ""
-    echo -e "${GREEN}[*] Selected build: ${SYSTEM_TYPE}${NC}"
+    ui_ok "[*] Selected build: ${SYSTEM_TYPE}"
 
     # 3. Interactive Force/Wipe Option
     local FORCE_FLAG=""
     if [[ -d "/var/lib/waydroid/images" && "$($SUDO_CMD ls -A /var/lib/waydroid/images 2>/dev/null)" ]]; then
         echo ""
-        echo -e "${YELLOW}[!] Existing Waydroid images detected in /var/lib/waydroid/images.${NC}"
-        read -rp "Do you want to force wipe and re-download images? [y/N]: " FORCE_CHOICE
+        ui_warn "[!] Existing Waydroid images detected in /var/lib/waydroid/images."
+        ask_yn "Do you want to force wipe and re-download images?" "N" FORCE_CHOICE
         FORCE_CHOICE="${FORCE_CHOICE:-N}"
         if [[ "$FORCE_CHOICE" =~ ^[Yy]$ ]]; then
             FORCE_FLAG="-f"
@@ -1291,14 +1680,14 @@ run_waydroid_init_wizard() {
 
     # 4. Stop service if active
     if systemctl is-active --quiet waydroid-container 2>/dev/null; then
-        echo -e "${BLUE}[*] Stopping running container daemon...${NC}"
+        ui_info "[*] Stopping running container daemon..."
         $SUDO_CMD systemctl stop waydroid-container
     fi
 
     # 5. Initialize Waydroid
     echo ""
-    echo -e "${BLUE}[*] Initializing Waydroid (${SYSTEM_TYPE})...${NC}"
-    echo -e "${BLUE}[*] Pulling from official OTA endpoints...${NC}"
+    ui_info "[*] Initializing Waydroid (${SYSTEM_TYPE})..."
+    ui_info "[*] Pulling from official OTA endpoints..."
 
     $SUDO_CMD waydroid init \
         -s "${SYSTEM_TYPE}" \
@@ -1308,13 +1697,11 @@ run_waydroid_init_wizard() {
 
     # 6. Service Management
     echo ""
-    echo -e "${BLUE}[*] Enabling and starting waydroid-container.service...${NC}"
+    ui_info "[*] Enabling and starting waydroid-container.service..."
     $SUDO_CMD systemctl enable --now waydroid-container
 
     echo ""
-    echo -e "${GREEN}==================================================${NC}"
-    echo -e "${BOLD}          Waydroid Initialized Successfully!      ${NC}"
-    echo -e "${GREEN}==================================================${NC}"
+    ui_banner "Waydroid Initialized Successfully!" "$C_GREEN"
 
     # 7. Post-install guidance for GAPPS
     if [[ "${SYSTEM_TYPE}" == "GAPPS" ]]; then
@@ -1350,18 +1737,16 @@ manage_libndk() {
     local NDK_SCRIPT="$REPO_ROOT/Scripts/install-libndk.sh"
 
     if [[ ! -f "$NDK_SCRIPT" ]]; then
-        echo -e "${RED}[ERROR] libndk script not found at: $NDK_SCRIPT${NC}"
+        ui_err "libndk script not found at: $NDK_SCRIPT"
         return 1
     fi
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Waydroid libndk ARM Translation Setup         ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo "  1) Install libndk Translation"
-    echo "  2) Uninstall libndk Translation"
-    echo "  0) Return to Waydroid Menu"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
-    read -rp "Select an option [0-2]: " ndk_choice
+    ui_banner "Waydroid libndk ARM Translation Setup" "$C_GREEN"
+    ui_info_table "Property,Details" \
+        "Component,libndk ARM/ARM64 Translation Layer" \
+        "Helper Script,$NDK_SCRIPT" \
+        "Target CPU,AMD / Intel x86_64 Host"
+    ask_menu ndk_choice "Select libndk Action" "1|Install libndk ARM Translation" "2|Remove libndk ARM Translation" "0|Back to Waydroid Menu"
     case "$ndk_choice" in
         1)
             sudo "$NDK_SCRIPT" install
@@ -1373,7 +1758,7 @@ manage_libndk() {
             return 0
             ;;
         *)
-            echo -e "${RED}Invalid option: '$ndk_choice'.${NC}"
+            ui_err "Invalid option: '$ndk_choice'."
             ;;
     esac
 }
@@ -1382,18 +1767,16 @@ manage_widevine() {
     local WIDEVINE_SCRIPT="$REPO_ROOT/Scripts/install-widevine.sh"
 
     if [[ ! -f "$WIDEVINE_SCRIPT" ]]; then
-        echo -e "${RED}[ERROR] Widevine script not found at: $WIDEVINE_SCRIPT${NC}"
+        ui_err "Widevine script not found at: $WIDEVINE_SCRIPT"
         return 1
     fi
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}          Waydroid Widevine DRM Setup                ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo "  1) Install Widevine DRM"
-    echo "  2) Uninstall Widevine DRM"
-    echo "  0) Return to Waydroid Menu"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
-    read -rp "Select an option [0-2]: " wv_choice
+    ui_banner "Waydroid Widevine DRM Setup" "$C_GREEN"
+    ui_info_table "Property,Details" \
+        "Component,Google Widevine L3 DRM" \
+        "Helper Script,$WIDEVINE_SCRIPT" \
+        "Target Subsystem,Waydroid Android Container"
+    ask_menu wv_choice "Select Widevine Action" "1|Install Widevine DRM" "2|Remove Widevine DRM" "0|Back to Waydroid Menu"
     case "$wv_choice" in
         1)
             sudo "$WIDEVINE_SCRIPT" install
@@ -1405,7 +1788,7 @@ manage_widevine() {
             return 0
             ;;
         *)
-            echo -e "${RED}Invalid option: '$wv_choice'.${NC}"
+            ui_err "Invalid option: '$wv_choice'."
             ;;
     esac
 }
@@ -1460,29 +1843,33 @@ download_and_install_apk() {
     mkdir -p "$cache_dir"
     local target_apk="$cache_dir/$dest_filename"
 
-    echo -e "\n${BLUE}[*] Resolving & downloading latest ${app_name}...${NC}"
-    echo -e "    URL: ${download_url}"
+    echo
+    ui_info "[*] Resolving & downloading latest ${app_name}..."
+    ui_info_table "APK Package,Details" \
+        "Application,${app_name}" \
+        "Source URL,${download_url}" \
+        "Local Cache,${target_apk}"
 
     if ! curl -fLC - --progress-bar -o "$target_apk" "$download_url"; then
-        echo -e "${RED}[ERROR] Failed to download ${app_name} from ${download_url}${NC}"
+        ui_err "Failed to download ${app_name} from ${download_url}"
         return 1
     fi
 
-    echo -e "${GREEN}[+] Successfully downloaded ${app_name}.${NC}"
+    ui_ok "[+] Successfully downloaded ${app_name}."
 
     # Verify if waydroid container is available to install
     if command -v waydroid &>/dev/null; then
-        echo -e "${BLUE}[*] Installing ${dest_filename} into Waydroid container...${NC}"
+        ui_info "[*] Installing ${dest_filename} into Waydroid container..."
         if waydroid app install "$target_apk"; then
-            echo -e "${GREEN}[+] ${app_name} installed into Waydroid successfully!${NC}"
+            ui_ok "[+] ${app_name} installed into Waydroid successfully!"
         else
-            echo -e "${YELLOW}[!] 'waydroid app install' returned non-zero.${NC}"
+            ui_warn "[!] 'waydroid app install' returned non-zero."
             echo -e "    The APK is saved at: ${target_apk}"
             echo -e "    You can install it manually inside Waydroid session using:"
             echo -e "    waydroid app install \"${target_apk}\""
         fi
     else
-        echo -e "${YELLOW}[!] waydroid command not found. APK saved at: ${target_apk}${NC}"
+        ui_warn "[!] waydroid command not found. APK saved at: ${target_apk}"
     fi
 }
 
@@ -1492,7 +1879,7 @@ install_fdroid_official() {
 
 install_aurora_store() {
     local url
-    url=$(fetch_latest_fdroid_apk_url "com.aurora.store" 2>/dev/null || true)
+    url=$(ui_spin_fn "Resolving latest fdroid apk..." fetch_latest_fdroid_apk_url "com.aurora.store" 2>/dev/null || true)
     if [[ -z "$url" ]]; then
         url="https://f-droid.org/repo/com.aurora.store_76.apk"
     fi
@@ -1501,7 +1888,7 @@ install_aurora_store() {
 
 install_neostore_fdroid() {
     local url
-    url=$(fetch_latest_fdroid_apk_url "com.machiav3lli.fdroid" 2>/dev/null || true)
+    url=$(ui_spin_fn "Resolving latest fdroid apk..." fetch_latest_fdroid_apk_url "com.machiav3lli.fdroid" 2>/dev/null || true)
     if [[ -z "$url" ]]; then
         url="https://f-droid.org/repo/com.machiav3lli.fdroid_1303.apk"
     fi
@@ -1510,7 +1897,7 @@ install_neostore_fdroid() {
 
 install_smartdock() {
     local url
-    url=$(fetch_latest_fdroid_apk_url "cu.axel.smartdock" 2>/dev/null || true)
+    url=$(ui_spin_fn "Resolving latest fdroid apk..." fetch_latest_fdroid_apk_url "cu.axel.smartdock" 2>/dev/null || true)
     if [[ -z "$url" ]]; then
         url="https://f-droid.org/repo/cu.axel.smartdock_1150.apk"
     fi
@@ -1518,17 +1905,19 @@ install_smartdock() {
 }
 
 install_mobilerun() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}          MobileRun Setup (via uv)                   ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "MobileRun Setup (via uv)" "$C_GREEN"
+    ui_info_table "Property,Details" \
+        "Tool,MobileRun Android Automation Harness" \
+        "Installer,uv tool install mobilerun" \
+        "Binary Path,$HOME/.local/bin/mobilerun"
 
     if ! command -v uv >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'uv' is not installed or not in PATH.${NC}"
-        echo -e "${YELLOW}Install uv with: sudo dnf install uv   or   curl -LsSf https://astral.sh/uv/install.sh | sh${NC}"
+        ui_err "'uv' is not installed or not in PATH."
+        ui_warn "Install uv with: sudo dnf install uv   or   curl -LsSf https://astral.sh/uv/install.sh | sh"
         return 1
     fi
 
-    echo -e "${BLUE}[*] Installing mobilerun tool using uv...${NC}"
+    ui_info "[*] Installing mobilerun tool using uv..."
     uv tool install mobilerun
 
     # Ensure ~/.local/bin is in PATH for current subshell
@@ -1539,31 +1928,32 @@ install_mobilerun() {
     if command -v mobilerun >/dev/null 2>&1 || [ -x "$HOME/.local/bin/mobilerun" ]; then
         local MR_BIN
         MR_BIN="$(command -v mobilerun 2>/dev/null || echo "$HOME/.local/bin/mobilerun")"
-        echo -e "${GREEN}✓ mobilerun is installed.${NC}"
+        ui_ok "✓ mobilerun is installed."
 
         if command -v adb >/dev/null 2>&1; then
-            echo -e "\n${BLUE}[*] Checking connected ADB devices...${NC}"
+            echo
+            ui_info "[*] Checking connected ADB devices..."
             adb devices -l
         fi
 
         echo ""
-        echo -e "${YELLOW}Note: 'mobilerun setup' installs its helper components to one of your connected ADB devices.${NC}"
-        read -rp "Run 'mobilerun setup' now? [Y/n]: " run_mr_setup
+        ui_warn "Note: 'mobilerun setup' installs its helper components to one of your connected ADB devices."
+        ask_yn "Run 'mobilerun setup' now?" "Y" run_mr_setup
         run_mr_setup="${run_mr_setup:-Y}"
         if [[ "$run_mr_setup" =~ ^[Yy]$ ]]; then
             "$MR_BIN" setup
         else
-            echo -e "${YELLOW}Skipped running setup. Run '$MR_BIN setup' when your ADB target is connected.${NC}"
+            ui_warn "Skipped running setup. Run '$MR_BIN setup' when your ADB target is connected."
         fi
     else
-        echo -e "${RED}Error: mobilerun binary not found after installation.${NC}"
+        ui_err "mobilerun binary not found after installation."
         return 1
     fi
 }
 
 install_xtmapper() {
     local url
-    url=$(fetch_latest_github_apk_url "Xtr126/XtMapper" 2>/dev/null || true)
+    url=$(ui_spin_fn "Resolving latest github apk..." fetch_latest_github_apk_url "Xtr126/XtMapper" 2>/dev/null || true)
     if [[ -z "$url" ]]; then
         url="https://github.com/Xtr126/XtMapper/releases/download/v2.5.0/app-release.apk"
     fi
@@ -1587,12 +1977,14 @@ install_all_waydroid_apps() {
     CB_SELECTED=(1 1 1 1 1 1 0) # default first 6 checked
 
     checkbox_menu_select \
-        "Select Waydroid APKs / Add-ons to Install" \
-        "" \
-        "RUN installation on selected apps" \
-        "Cancel / Back" || return 0
+        "Select Waydroid APKs & Add-ons to Install" \
+        "Cache Directory: ${XDG_CACHE_HOME:-$HOME/.cache}/waydroid_downloads\nTarget: Active Waydroid Container & ADB" \
+        "Install Selected Apps" \
+        "Back to Waydroid Menu" \
+        "$C_GREEN" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Installing Selected Waydroid Add-ons ===${NC}"
+    echo
+    ui_info "=== Installing Selected Waydroid Add-ons ==="
     [ "${CB_SELECTED[0]}" -eq 1 ] && install_fdroid_official
     [ "${CB_SELECTED[1]}" -eq 1 ] && install_aurora_store
     [ "${CB_SELECTED[2]}" -eq 1 ] && install_neostore_fdroid
@@ -1600,22 +1992,26 @@ install_all_waydroid_apps() {
     [ "${CB_SELECTED[4]}" -eq 1 ] && install_xtmapper
     [ "${CB_SELECTED[5]}" -eq 1 ] && install_3dmark
     [ "${CB_SELECTED[6]}" -eq 1 ] && install_mobilerun
-    echo -e "\n${GREEN}${BOLD}[+] Completed installation of selected apps!${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "[+] Completed installation of selected apps!"
+    ui_pause "Press Enter to continue..."
 }
 
 apply_bazzite_waydroid_config() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Install Bazzite Custom Waydroid Files         ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Install Bazzite Custom Waydroid Files" "$C_GREEN"
     local SOURCE_DIR="$REPO_ROOT/files/waydroid"
+    ui_info_table "Asset Category,Destination" \
+        "Source Directory,$SOURCE_DIR" \
+        "Control Scripts,/usr/libexec/waydroid-container-* & /usr/bin/waydroid-*" \
+        "Launcher Defaults,/etc/default/waydroid-launcher" \
+        "Polkit Policy,/usr/share/polkit-1/actions & rules.d"
 
     if [ ! -d "$SOURCE_DIR" ]; then
-        echo -e "${RED}[ERROR] Source directory not found: $SOURCE_DIR${NC}"
+        ui_err "Source directory not found: $SOURCE_DIR"
         return 1
     fi
 
-    echo -e "${BLUE}[*] Copying container control scripts to /usr/libexec and /usr/bin...${NC}"
+    ui_info "[*] Copying container control scripts to /usr/libexec and /usr/bin..."
     sudo install -m 0755 "$SOURCE_DIR/waydroid-container-start" /usr/libexec/waydroid-container-start
     sudo install -m 0755 "$SOURCE_DIR/waydroid-container-stop" /usr/libexec/waydroid-container-stop
     sudo install -m 0755 "$SOURCE_DIR/waydroid-container-restart" /usr/libexec/waydroid-container-restart
@@ -1623,132 +2019,127 @@ apply_bazzite_waydroid_config() {
     sudo install -m 0755 "$SOURCE_DIR/waydroid-choose-gpu" /usr/bin/waydroid-choose-gpu
     sudo install -m 0755 "$SOURCE_DIR/waydroid-launcher" /usr/bin/waydroid-launcher
 
-    echo -e "${BLUE}[*] Copying launcher defaults to /etc/default/waydroid-launcher...${NC}"
+    ui_info "[*] Copying launcher defaults to /etc/default/waydroid-launcher..."
     sudo install -m 0644 "$SOURCE_DIR/waydroid-launcher.default" /etc/default/waydroid-launcher
 
-    echo -e "${BLUE}[*] Installing Polkit policy and rules for unprivileged container control...${NC}"
+    ui_info "[*] Installing Polkit policy and rules for unprivileged container control..."
     sudo mkdir -p /usr/share/polkit-1/actions /usr/share/polkit-1/rules.d
     sudo install -m 0644 "$SOURCE_DIR/org.bazzite.waydroid.policy" /usr/share/polkit-1/actions/org.bazzite.waydroid.policy
     sudo install -m 0644 "$SOURCE_DIR/30-waydroid.rules" /usr/share/polkit-1/rules.d/30-waydroid.rules
 
-    echo -e "${GREEN}[+] Successfully applied Bazzite Waydroid custom files and policies!${NC}"
+    ui_ok "[+] Successfully applied Bazzite Waydroid custom files and policies!"
 }
 
 waydroid_troubleshooting_menu() {
     local ts_items=(
-        "1\t🚀 Manual Start: Start Container\tsudo waydroid container start"
-        "2\t🚀 Manual Start: Start Session\twaydroid session start"
-        "3\t🖥️ Launch UI: Full-Screen Mode\twaydroid show-full-ui"
-        "4\t🪟 Window Mode: Enable Multi-Window\twaydroid prop set persist.waydroid.multi_windows true"
-        "5\t🪟 Window Mode: Disable Multi-Window\twaydroid prop set persist.waydroid.multi_windows false"
+        "1\t🚀 Start Container Service\tsudo waydroid container start"
+        "2\t▶️  Start User Session\twaydroid session start"
+        "3\t🖥️  Show Full-Screen UI\twaydroid show-full-ui"
+        "4\t🪟 Enable Multi-Window Mode\twaydroid prop set persist.waydroid.multi_windows true"
+        "5\t🪟 Disable Multi-Window Mode\twaydroid prop set persist.waydroid.multi_windows false"
         "6\t🛑 Stop Session & Container\tCleanly stop waydroid session and LXC container"
-        "7\t🧹 Reinstall / Full Cleanup\tCompletely reset and wipe Waydroid images and data"
-        "8\t📖 View Manual Startup & Reinstall Guide\tDisplay troubleshooting information and manual commands"
+        "8\t📖 View Startup & Reset Guide…\tDisplay troubleshooting information and manual commands"
+        "7\t🗑️  Wipe & Reset Waydroid Data…\tDestructive: completely reset and remove Waydroid images and state"
         "0\t🚪 Back to Waydroid Menu\tReturn to previous menu"
     )
 
     while true; do
-        local ts_choice
-        ts_choice=$(fzf_action_menu "Waydroid Troubleshooting & Maintenance" "Troubleshoot" "${ts_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            clear
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Waydroid Troubleshooting & Maintenance        ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "  ${BOLD}1)${NC} Manual Start: Start Container (sudo waydroid container start)"
-            echo -e "  ${BOLD}2)${NC} Manual Start: Start Session (waydroid session start)"
-            echo -e "  ${BOLD}3)${NC} Launch UI: Full-Screen Mode (waydroid show-full-ui)"
-            echo -e "  ${BOLD}4)${NC} Window Mode: Enable Multi-Window Mode"
-            echo -e "  ${BOLD}5)${NC} Window Mode: Disable Multi-Window (Full-Screen Default)"
-            echo -e "  ${BOLD}6)${NC} Stop Session & Container (Clean Shutdown)"
-            echo -e "  ${BOLD}7)${NC} Reinstall / Full Cleanup (Wipe and Reset Waydroid Data)"
-            echo -e "  ${BOLD}8)${NC} View Manual Startup & Reinstall Guide (Troubleshooting Info)"
-            echo -e "  ${BOLD}0)${NC} Back to Waydroid Menu"
-            echo -e "${BLUE}=====================================================${NC}"
-            read -rp "Select an option [0-8]: " ts_choice
+        if ui_tty; then
+            local wd_srv="Inactive"
+            systemctl is-active --quiet waydroid-container 2>/dev/null && wd_srv="Active (Running)"
+            ui_banner "Waydroid Troubleshooting & Maintenance" "$C_ORANGE"
+            ui_info_table "Component,Current State" \
+                "Container Daemon (waydroid-container),$wd_srv" \
+                "Image Path,/var/lib/waydroid/images" \
+                "User Data,$HOME/.local/share/waydroid"
         fi
+        local ts_choice
+        ts_choice=$(gum_action_menu "Waydroid Troubleshooting & Maintenance" "Troubleshoot" "${ts_items[@]}")
 
         case "$ts_choice" in
             1)
-                echo -e "\n${BLUE}[*] Starting Waydroid container (root)...${NC}"
+                echo
+                ui_info "[*] Starting Waydroid container (root)..."
                 sudo waydroid container start
                 ;;
             2)
-                echo -e "\n${BLUE}[*] Starting Waydroid user session...${NC}"
-                echo -e "${YELLOW}[i] Note: Keep this running. When 'Android with user 0 is ready' appears, launch apps from menu or show UI.${NC}"
+                echo
+                ui_info "[*] Starting Waydroid user session..."
+                ui_warn "[i] Note: Keep this running. When 'Android with user 0 is ready' appears, launch apps from menu or show UI."
                 waydroid session start
                 ;;
             3)
-                echo -e "\n${BLUE}[*] Launching Waydroid in full-screen mode...${NC}"
+                echo
+                ui_info "[*] Launching Waydroid in full-screen mode..."
                 waydroid show-full-ui
                 ;;
             4)
-                echo -e "\n${BLUE}[*] Enabling Waydroid multi-window mode...${NC}"
+                echo
+                ui_info "[*] Enabling Waydroid multi-window mode..."
                 waydroid prop set persist.waydroid.multi_windows true
-                echo -e "${GREEN}[+] persist.waydroid.multi_windows set to true.${NC}"
-                if fzf_confirm "Restart session now to apply?" "N"; then
-                    echo -e "${BLUE}[*] Stopping session...${NC}"
+                ui_ok "[+] persist.waydroid.multi_windows set to true."
+                if ui_confirm "Restart session now to apply?" "N"; then
+                    ui_info "[*] Stopping session..."
                     waydroid session stop 2>/dev/null || true
-                    echo -e "${GREEN}[+] Session stopped. Launch an app from the applications menu to start in multi-window mode.${NC}"
+                    ui_ok "[+] Session stopped. Launch an app from the applications menu to start in multi-window mode."
                 fi
                 ;;
             5)
-                echo -e "\n${BLUE}[*] Disabling multi-window mode...${NC}"
+                echo
+                ui_info "[*] Disabling multi-window mode..."
                 waydroid prop set persist.waydroid.multi_windows false
-                echo -e "${GREEN}[+] persist.waydroid.multi_windows set to false.${NC}"
-                if fzf_confirm "Restart session now to apply?" "N"; then
-                    echo -e "${BLUE}[*] Stopping session...${NC}"
+                ui_ok "[+] persist.waydroid.multi_windows set to false."
+                if ui_confirm "Restart session now to apply?" "N"; then
+                    ui_info "[*] Stopping session..."
                     waydroid session stop 2>/dev/null || true
-                    echo -e "${GREEN}[+] Session stopped.${NC}"
+                    ui_ok "[+] Session stopped."
                 fi
                 ;;
             6)
-                echo -e "\n${BLUE}[*] Stopping Waydroid session and container...${NC}"
+                echo
+                ui_info "[*] Stopping Waydroid session and container..."
                 waydroid session stop 2>/dev/null || true
                 sudo waydroid container stop 2>/dev/null || true
-                echo -e "${GREEN}[+] Waydroid session and container stopped.${NC}"
+                ui_ok "[+] Waydroid session and container stopped."
                 ;;
             7)
-                echo -e "\n${RED}=====================================================${NC}"
-                echo -e "${RED}${BOLD}  WARNING: REINSTALL & WIPE WAYDROID DATA            ${NC}"
-                echo -e "${RED}=====================================================${NC}"
+                ui_hr
+                ui_err "  WARNING: REINSTALL & WIPE WAYDROID DATA            "
+                ui_hr
                 echo "This will:"
                 echo "  1. Stop Waydroid session and container"
                 echo "  2. Optionally remove waydroid package via dnf"
                 echo "  3. Remove data dirs: /var/lib/waydroid, /home/.waydroid,"
                 echo "     ~/waydroid, ~/.share/waydroid, ~/.local/share/applications/*aydroid*,"
                 echo "     and ~/.local/share/waydroid"
-                echo -e "${RED}-----------------------------------------------------${NC}"
-                if ! fzf_confirm "Are you sure you want to proceed?" "N"; then
-                    echo -e "${YELLOW}Aborted.${NC}"
-                    read -rp "Press Enter to continue..." _
+                ui_hr
+                if ! ui_confirm "Are you sure you want to proceed?" "N"; then
+                    ui_warn "Aborted."
+                    ui_pause "Press Enter to continue..."
                     continue
                 fi
 
-                echo -e "\n${BLUE}[*] Step 1: Stopping session and container...${NC}"
+                echo
+                ui_info "[*] Step 1: Stopping session and container..."
                 waydroid session stop 2>/dev/null || true
                 sudo waydroid container stop 2>/dev/null || true
 
-                if fzf_confirm "Remove waydroid package via dnf?" "N"; then
-                    echo -e "${BLUE}[*] Removing waydroid package...${NC}"
+                if ui_confirm "Remove waydroid package via dnf?" "N"; then
+                    ui_info "[*] Removing waydroid package..."
                     sudo dnf remove -y waydroid
                 fi
 
-                echo -e "${BLUE}[*] Step 2: Cleaning up Waydroid state and rootfs directories...${NC}"
+                ui_info "[*] Step 2: Cleaning up Waydroid state and rootfs directories..."
                 sudo rm -rf /var/lib/waydroid /home/.waydroid
                 rm -rf "$HOME/waydroid" "$HOME/.share/waydroid" "$HOME/.local/share/waydroid"
                 rm -f "$HOME/.local/share/applications/"*aydroid* 2>/dev/null || true
 
-                echo -e "${GREEN}[+] Cleanup complete! You can reinstall or re-initialize Waydroid now.${NC}"
-                echo -e "${YELLOW}[i] If you removed the package, a system reboot is recommended before reinstalling.${NC}"
+                ui_ok "[+] Cleanup complete! You can reinstall or re-initialize Waydroid now."
+                ui_warn "[i] If you removed the package, a system reboot is recommended before reinstalling."
                 ;;
             8)
                 clear
-                echo -e "${BLUE}=====================================================${NC}"
-                echo -e "${BOLD}       Waydroid Troubleshooting & Manual Setup Guide ${NC}"
-                echo -e "${BLUE}=====================================================${NC}"
+                ui_banner "Waydroid Troubleshooting & Manual Setup Guide" "$C_BLUE"
                 cat << 'EOF'
 Manually Starting Waydroid:
 ---------------------------
@@ -1797,53 +2188,39 @@ EOF
                 ;;
         esac
         echo ""
-        read -rp "Press Enter to continue..." _
+        ui_pause "Press Enter to continue..."
     done
 }
 
 fedora_waydroid_setup_wizard() {
     local w_items=(
-        "1\t📦 Select & Install APKs / Add-ons\tCheckbox multi-selector for F-Droid, Aurora, SmartDock, 3DMark, etc."
-        "2\t🚀 Run Full Waydroid Setup\tAutomated pipeline: Initialize images, install libndk, and install Widevine"
-        "3\t📱 Initialize Waydroid Container\tRun waydroid init (GAPPS or Vanilla image selection)"
-        "4\t⚙️  Manage libndk ARM Translation\tInstall or remove native ARM/ARM64 bridge for AMD/Intel"
-        "5\t🔒 Manage Widevine DRM\tInstall or remove Google Widevine L3 DRM support"
-        "6\t🛡️  Deploy Bazzite Custom Files\tInstall container control scripts, defaults, and Polkit rules"
-        "7\t🎮 GPU Selection\tConfigure primary render node and GPU switching (waydroid-choose-gpu)"
-        "8\t🕹️  Fix Controller Events\tSync Steam/controller inputs via uevents"
-        "9\t👆 Toggle Fake Touch\tToggle persist.waydroid.fake_touch for touchscreen simulation"
-        "10\t📲 Install Single APK / Add-on\tInteractive selector for individual tools and benchmarks"
-        "11\t🔧 Troubleshooting & Maintenance\tSession startup, multi-window toggles, clean reinstall"
+        "2\t🚀 Run Automated Full Waydroid Setup\tInitialize images, install libndk ARM translation, and enable Widevine DRM"
+        "1\t📦 Select & Install APKs / Add-ons…\tBatch checkbox selector for F-Droid, Aurora, SmartDock, 3DMark, and MobileRun"
+        "3\t📱 Initialize Waydroid Container…\tConfigure GAPPS or Vanilla Android image and initialize LXC container"
+        "4\t⚙️  Manage libndk ARM Translation…\tInstall or remove native ARM/ARM64 translation layer for x86_64"
+        "5\t🔒 Manage Widevine DRM…\tInstall or remove Google Widevine L3 DRM media support"
+        "6\t🛡️  Deploy Bazzite Custom Policies\tInstall container control scripts, launcher defaults, and Polkit rules"
+        "7\t🎮 Select Render GPU…\tConfigure primary GPU node for Waydroid (waydroid-choose-gpu)"
+        "8\t🕹️  Trigger Controller Input Sync\tRefresh Steam and gamepad uevents inside container"
+        "9\t👆 Toggle Fake Touch Simulation\tSwitch persist.waydroid.fake_touch on or off for mouse-as-touch"
+        "10\t📲 Install Single APK Package…\tPick and install an individual Android APK or tool"
+        "11\t🔧 Troubleshooting & Maintenance…\tManual session controls, multi-window toggles, and full data reset"
         "0\t🚪 Back to Main Menu\tReturn to primary launcher menu"
     )
 
     while true; do
-        local w_choice
-        w_choice=$(fzf_action_menu "Fedora Waydroid Setup Wizard" "Waydroid" "${w_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            clear
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Fedora Waydroid Setup Wizard                  ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "  ${BOLD}1)${NC} ${BOLD}Select & Install APKs / Add-ons (Checkbox Menu)${NC}"
-            echo -e "  ${BOLD}2)${NC} Run Full Waydroid Setup (Init + libndk + Widevine)"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            echo -e "  ${BOLD}3)${NC} Initialize Waydroid (Images, Service, GAPPS/Vanilla)"
-            echo -e "  ${BOLD}4)${NC} Install / Manage libndk ARM Translation"
-            echo -e "  ${BOLD}5)${NC} Install / Manage Widevine DRM"
-            echo -e "  ${BOLD}6)${NC} Deploy Bazzite Custom Waydroid Files (Scripts, Defaults, Polkit)"
-            echo -e "  ${BOLD}7)${NC} GPU Selection (Multi-GPU / Render Node)"
-            echo -e "  ${BOLD}8)${NC} Fix Controller Events (Steam/Gamepad Input Sync)"
-            echo -e "  ${BOLD}9)${NC} Toggle Fake Touch (waydroid prop set persist.waydroid.fake_touch)"
-            echo -e "  ${BOLD}10)${NC} Install Single APK / Add-on (F-Droid, Aurora, 3DMark, etc.)"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            echo -e "  ${BOLD}11)${NC} Troubleshooting & Maintenance (Manual Start, Multi-Window, Reinstall)"
-            echo -e "  ${BOLD}0)${NC} Back to Main Menu"
-            echo -e "${BLUE}=====================================================${NC}"
-            read -rp "Select an option [0-11]: " w_choice
+        if ui_tty; then
+            local wd_pkg="Not Installed" wd_srv="Stopped"
+            rpm -q waydroid &>/dev/null && wd_pkg="Installed ($(rpm -q --queryformat '%{VERSION}' waydroid 2>/dev/null))"
+            systemctl is-active --quiet waydroid-container 2>/dev/null && wd_srv="Running"
+            ui_banner "Fedora Waydroid Setup Wizard" "$C_GREEN"
+            ui_info_table "Waydroid Subsystem,Status" \
+                "Package Status,$wd_pkg" \
+                "Container Service,$wd_srv" \
+                "Helper Scripts,$REPO_ROOT/Scripts/install-{libndk;widevine}.sh"
         fi
+        local w_choice
+        w_choice=$(gum_action_menu "Fedora Waydroid Setup Wizard" "Waydroid" "${w_items[@]}")
 
         case "$w_choice" in
             1)
@@ -1869,40 +2246,40 @@ fedora_waydroid_setup_wizard() {
                 ;;
             6)
                 apply_bazzite_waydroid_config
-                read -rp "Press Enter to continue..." _
+                ui_pause "Press Enter to continue..."
                 ;;
             7)
                 if [ -x "/usr/bin/waydroid-choose-gpu" ]; then
                     sudo /usr/bin/waydroid-choose-gpu
                 else
-                    echo -e "${YELLOW}[!] /usr/bin/waydroid-choose-gpu not found. Deploying Bazzite custom files now...${NC}"
+                    ui_warn "[!] /usr/bin/waydroid-choose-gpu not found. Deploying Bazzite custom files now..."
                     apply_bazzite_waydroid_config
                     sudo /usr/bin/waydroid-choose-gpu
                 fi
-                read -rp "Press Enter to continue..." _
+                ui_pause "Press Enter to continue..."
                 ;;
             8)
                 if [ -x "/usr/libexec/waydroid-fix-controllers" ]; then
                     sudo /usr/libexec/waydroid-fix-controllers
-                    echo -e "${GREEN}[+] Controller uevents triggered successfully.${NC}"
+                    ui_ok "[+] Controller uevents triggered successfully."
                 else
                     echo add | sudo tee /sys/devices/virtual/input/input*/event*/uevent >/dev/null 2>&1 || true
-                    echo -e "${GREEN}[+] Fallback controller uevents triggered.${NC}"
+                    ui_ok "[+] Fallback controller uevents triggered."
                 fi
-                read -rp "Press Enter to continue..." _
+                ui_pause "Press Enter to continue..."
                 ;;
             9)
                 local cur_ft
                 cur_ft=$(waydroid prop get persist.waydroid.fake_touch 2>/dev/null || echo "not set")
-                echo -e "Current fake_touch setting: ${BOLD}$cur_ft${NC}"
+                echo -e "Current fake_touch setting: $(ui_c "bold" "$cur_ft")"
                 if [ "$cur_ft" = "1" ] || [ "$cur_ft" = "true" ]; then
                     waydroid prop set persist.waydroid.fake_touch 0
-                    echo -e "${YELLOW}[*] Set persist.waydroid.fake_touch = 0 (Disabled)${NC}"
+                    ui_warn "[*] Set persist.waydroid.fake_touch = 0 (Disabled)"
                 else
                     waydroid prop set persist.waydroid.fake_touch 1
-                    echo -e "${GREEN}[*] Set persist.waydroid.fake_touch = 1 (Enabled)${NC}"
+                    ui_ok "[*] Set persist.waydroid.fake_touch = 1 (Enabled)"
                 fi
-                read -rp "Press Enter to continue..." _
+                ui_pause "Press Enter to continue..."
                 ;;
             10)
                 local apk_items=(
@@ -1916,23 +2293,7 @@ fedora_waydroid_setup_wizard() {
                     "0\tBack\tReturn to Waydroid menu"
                 )
                 local apk_choice
-                apk_choice=$(fzf_action_menu "Install Single Waydroid APK" "APK" "${apk_items[@]}")
-                local apk_fzf_status=$?
-                if [ $apk_fzf_status -eq 99 ]; then
-                    echo -e "\n${BLUE}=====================================================${NC}"
-                    echo -e "${BOLD}       Install Single Waydroid APK / Add-on          ${NC}"
-                    echo -e "${BLUE}=====================================================${NC}"
-                    echo "  1) F-Droid (Official APK)"
-                    echo "  2) Aurora Store (Google Play Client)"
-                    echo "  3) Neo Store (Modern F-Droid Client)"
-                    echo "  4) SmartDock (Desktop UI / Dock)"
-                    echo "  5) XtMapper (Keymapper / Controller)"
-                    echo "  6) 3DMark (Android Benchmark APK)"
-                    echo "  7) MobileRun (via uv, installs to ADB device)"
-                    echo "  0) Back"
-                    echo -e "${BLUE}-----------------------------------------------------${NC}"
-                    read -rp "Select an option [0-7]: " apk_choice
-                fi
+                apk_choice=$(gum_action_menu "Install Single Waydroid APK" "APK" "${apk_items[@]}")
                 case "$apk_choice" in
                     1) install_fdroid_official ;;
                     2) install_aurora_store ;;
@@ -1951,7 +2312,8 @@ fedora_waydroid_setup_wizard() {
                 break
                 ;;
             *)
-                echo -e "\n${RED}Invalid option: '$w_choice'.${NC}"
+                echo
+                ui_err "Invalid option: '$w_choice'."
                 ;;
         esac
     done
@@ -1963,40 +2325,40 @@ setup_waydroid() {
 
 prune_podman() {
     if ! command -v podman >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'podman' is not installed.${NC}"
+        ui_err "'podman' is not installed."
         return 1
     fi
-    echo -e "${BLUE}Running podman system prune...${NC}"
+    ui_info "Running podman system prune..."
     podman system prune
 }
 
 prune_podman_all() {
     if ! command -v podman >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'podman' is not installed.${NC}"
+        ui_err "'podman' is not installed."
         return 1
     fi
-    echo -e "${YELLOW}This removes ALL unused images and volumes.${NC}"
-    read -rp "Continue? [y/N]: " confirm
+    ui_warn "This removes ALL unused images and volumes."
+    ask_yn "Continue?" "N" confirm
     [[ "$confirm" =~ ^[Yy]$ ]] || return 0
     podman system prune -a --volumes
 }
 
 forget_snap_snapshots() {
     if ! command -v snap >/dev/null 2>&1; then
-        echo -e "${YELLOW}• 'snap' not found, skipping.${NC}"
+        ui_warn "• 'snap' not found, skipping."
         return 0
     fi
-    echo -e "${BLUE}Removing saved snap snapshots...${NC}"
+    ui_info "Removing saved snap snapshots..."
     sudo snap saved | awk 'NR>1 {print $1}' | xargs -r -n 1 sudo snap forget
-    echo -e "${GREEN}✓ Snap snapshots removed.${NC}"
+    ui_ok "✓ Snap snapshots removed."
 }
 
 benchmark_folder() {
     local dir testfile
-    read -rp "Folder to benchmark [default: $HOME]: " dir
+    ask_input "Folder to benchmark [default: $HOME]: " dir
     dir="${dir:-$HOME}"
     if [ ! -d "$dir" ] || [ ! -w "$dir" ]; then
-        echo -e "${RED}Error: '$dir' is not a writable directory.${NC}"
+        ui_err "'$dir' is not a writable directory."
         return 1
     fi
     testfile="$(mktemp -p "$dir" .benchmark.XXXXXX)" || return 1
@@ -2046,35 +2408,38 @@ install_unigine_superposition() {
     local target_dir="$HOME/Benchmarks/Unigine"
     mkdir -p "$target_dir"
 
-    echo -e "\n${BLUE}[*] Resolving latest Unigine Superposition Linux release...${NC}"
+    echo
+    ui_info "[*] Resolving latest Unigine Superposition Linux release..."
     local download_url
-    download_url="$(fetch_latest_unigine_superposition_url)"
+    download_url="$(ui_spin_fn "Resolving latest unigine superposition..." fetch_latest_unigine_superposition_url)"
     local filename
     filename="$(basename "$download_url")"
     local dest_file="$target_dir/$filename"
 
-    echo -e "    Found: ${GREEN}${filename}${NC}"
-    echo -e "    URL:   ${download_url}"
-    echo -e "    Dest:  ${dest_file}"
+    ui_info_table "Benchmark Asset,Value" \
+        "Release File,${filename}" \
+        "Source URL,${download_url}" \
+        "Destination,${dest_file}"
 
     if [ -f "$dest_file" ]; then
-        read -rp "File $dest_file already exists. Re-download? [y/N]: " redownload
+        ask_yn "File $dest_file already exists. Re-download?" "N" redownload
         if [[ ! "$redownload" =~ ^[Yy]$ ]]; then
             chmod +x "$dest_file"
-            echo -e "${GREEN}[+] Installer is executable at: ${dest_file}${NC}"
+            ui_ok "[+] Installer is executable at: ${dest_file}"
             echo -e "    Run with: ${dest_file}"
             return 0
         fi
     fi
 
-    echo -e "\n${BLUE}[*] Downloading ${filename} (~1.5GB)...${NC}"
+    echo
+    ui_info "[*] Downloading ${filename} (~1.5GB)..."
     if curl -fLC - --progress-bar -o "$dest_file" "$download_url"; then
         chmod +x "$dest_file"
-        echo -e "${GREEN}[+] Successfully downloaded and set executable: ${dest_file}${NC}"
+        ui_ok "[+] Successfully downloaded and set executable: ${dest_file}"
         echo -e "    To install/run Superposition Benchmark:"
         echo -e "    ${dest_file}"
     else
-        echo -e "${RED}[ERROR] Failed to download Unigine Superposition from ${download_url}${NC}"
+        ui_err "Failed to download Unigine Superposition from ${download_url}"
         return 1
     fi
 }
@@ -2090,56 +2455,62 @@ cleanup_system() {
     CB_SELECTED=(1 0 1 0 0)
 
     checkbox_menu_select \
-        "System Cleanup & Benchmark" \
-        "" \
-        "RUN selected cleanup & benchmark tasks" \
-        "Back to Main Menu" || return 0
+        "System Cleanup & Benchmarks" \
+        "Scope: Podman containers/volumes; Snap snapshots; Direct I/O & GPU benchmarks" \
+        "Run Selected Tasks" \
+        "Back to Main Menu" \
+        "$C_YELLOW" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Executing Selected Cleanup & Benchmark Tasks ===${NC}"
+    echo
+    ui_info "=== Executing Selected Cleanup & Benchmark Tasks ==="
     [ "${CB_SELECTED[0]}" -eq 1 ] && prune_podman
     [ "${CB_SELECTED[1]}" -eq 1 ] && prune_podman_all
     [ "${CB_SELECTED[2]}" -eq 1 ] && forget_snap_snapshots
     [ "${CB_SELECTED[3]}" -eq 1 ] && benchmark_folder
     [ "${CB_SELECTED[4]}" -eq 1 ] && install_unigine_superposition
 
-    echo -e "\n${GREEN}✓ Cleanup and benchmark tasks completed!${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ Cleanup and benchmark tasks completed!"
+    ui_pause "Press Enter to continue..."
 }
 
 autostart_libvirt_vm() {
     if ! command -v virsh >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'virsh' is not installed.${NC}"
+        ui_err "'virsh' is not installed."
         return 1
     fi
     local vms vm
     mapfile -t vms < <(sudo virsh list --all --name | sed '/^$/d')
     if [ "${#vms[@]}" -eq 0 ]; then
-        echo -e "${YELLOW}• No libvirt VMs found.${NC}"
+        ui_warn "• No libvirt VMs found."
         return 0
     fi
-    vm="$(fzf_select_menu "Select VM to autostart" "Libvirt VMs" "${vms[@]}" "Cancel")"
+    vm="$(ui_choose "Select VM to autostart" "Libvirt VMs" "${vms[@]}" "Cancel")"
     [ -z "$vm" ] || [ "$vm" = "Cancel" ] && return 0
-    sudo virsh autostart "$vm" && echo -e "${GREEN}✓ '$vm' will start at boot.${NC}"
+    sudo virsh autostart "$vm" && echo -e "$(ui_c "green" "✓ '$vm' will start at boot.")"
 }
 
 forward_libvirt_ports() {
     if ! command -v firewall-cmd >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'firewall-cmd' (firewalld) is not installed.${NC}"
+        ui_err "'firewall-cmd' (firewalld) is not installed."
         return 1
     fi
-    echo -e "${BOLD}Guests live in the firewalld 'libvirt' zone (bridge virbr0).${NC}"
-    echo "Ports must be opened there for guest <-> host traffic."
-    echo "  1) Default: dynamic ports 49152-65535 (TCP + UDP)"
-    echo "  2) Custom port or range"
-    echo "  0) Cancel"
-    read -rp "Select an option [0-2]: " p_choice
+    ui_banner "Forward Ports to Libvirt VMs" "$C_PURPLE"
+    ui_info_table "Firewall Property,Details" \
+        "Firewalld Zone,libvirt (bridge virbr0)" \
+        "Default Range,49152-65535 (TCP + UDP)" \
+        "Persistence,--permanent + firewall-cmd --reload"
+    ask_menu p_choice "Select Port Forwarding Rule" \
+        "1|Open Default Dynamic Range (49152-65535 TCP & UDP)" \
+        "2|Open Custom Port or Range…" \
+        "0|Cancel"
     local ports=()
     case "$p_choice" in
         1) ports=("49152-65535/tcp" "49152-65535/udp") ;;
         2)
-            read -rp "Port or range (e.g. 8080 or 5000-5100): " port
+            ask_input "Port or range (e.g. 8080 or 5000-5100): " port
             if ! [[ "$port" =~ ^[0-9]+(-[0-9]+)?$ ]]; then
-                echo -e "${RED}Invalid port: '$port'.${NC}"
+                ui_err "Invalid port: '$port'."
                 return 1
             fi
             ports=("$port/tcp" "$port/udp")
@@ -2150,19 +2521,19 @@ forward_libvirt_ports() {
     for p in "${ports[@]}"; do
         sudo firewall-cmd --permanent --zone=libvirt --add-port="$p" || return 1
     done
-    sudo firewall-cmd --reload && echo -e "${GREEN}✓ Opened ${ports[*]} in libvirt zone.${NC}"
+    sudo firewall-cmd --reload && echo -e "$(ui_c "green" "✓ Opened ${ports[*]} in libvirt zone.")"
 }
 
 define_libvirt_vms() {
     if ! command -v virsh >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'virsh' is not installed.${NC}"
+        ui_err "'virsh' is not installed."
         return 1
     fi
     local dir="$HOME/Platforms/Virtualization/kvm-qemu"
     [ -n "$(ls "$dir"/*.xml 2>/dev/null)" ] || dir="$REPO_ROOT/VMs"
     local xmls=("$dir"/*.xml)
     if [ ! -f "${xmls[0]}" ]; then
-        echo -e "${YELLOW}• No VM XML files found in $dir.${NC}"
+        ui_warn "• No VM XML files found in $dir."
         return 0
     fi
 
@@ -2176,61 +2547,59 @@ define_libvirt_vms() {
 
     checkbox_menu_select \
         "Define Libvirt VMs from XML" \
-        " Source directory: $dir" \
-        "RUN define on selected XMLs" \
-        "Cancel / Back" || return 0
+        "Source Directory: $dir\nHypervisor: QEMU/KVM (virsh define)" \
+        "Define Selected VMs" \
+        "Back to Menu" \
+        "$C_PURPLE" || return 0
 
     local to_define=()
     for i in "${!xmls[@]}"; do
         [ "${CB_SELECTED[i]}" -eq 1 ] && to_define+=("${xmls[i]}")
     done
 
-    echo -e "\n${BLUE}Defining ${#to_define[@]} VM(s)...${NC}"
+    echo
+    ui_info "Defining ${#to_define[@]} VM(s)..."
     local f
     for f in "${to_define[@]}"; do
-        sudo virsh define "$f" && echo -e "${GREEN}✓ Defined $(basename "$f").${NC}"
+        sudo virsh define "$f" && echo -e "$(ui_c "green" "✓ Defined $(basename \"$f\").")"
     done
-    read -rp "Press Enter to return..." _
+    ui_pause "Press Enter to return..."
 }
 
 start_default_libvirt_network() {
     if ! command -v virsh >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'virsh' is not installed.${NC}"
+        ui_err "'virsh' is not installed."
         return 1
     fi
-    echo -e "${BLUE}[*] Starting and autostarting libvirt 'default' network...${NC}"
+    ui_info "[*] Starting and autostarting libvirt 'default' network..."
     sudo virsh net-start default 2>/dev/null || true
     sudo virsh net-autostart default 2>/dev/null || true
 
     if sudo virsh net-info default 2>/dev/null; then
-        echo -e "${GREEN}✓ Libvirt 'default' network configured and verified.${NC}"
+        ui_ok "✓ Libvirt 'default' network configured and verified."
     else
-        echo -e "${YELLOW}• Unable to query 'default' network info.${NC}"
+        ui_warn "• Unable to query 'default' network info."
     fi
 }
 
 list_virt_builder_templates() {
     if ! command -v virt-builder >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'virt-builder' is not installed.${NC}"
-        echo -e "${YELLOW}Install it with: sudo dnf install libguestfs-tools-c${NC}"
+        ui_err "'virt-builder' is not installed."
+        ui_warn "Install it with: sudo dnf install libguestfs-tools-c"
         return 1
     fi
-    echo -e "${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Available virt-builder OS Templates           ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Available virt-builder OS Templates" "$C_BLUE"
     virt-builder --list
 }
 
 build_virt_builder_vm() {
     if ! command -v virt-builder >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'virt-builder' is not installed.${NC}"
-        echo -e "${YELLOW}Install it with: sudo dnf install libguestfs-tools-c${NC}"
+        ui_err "'virt-builder' is not installed."
+        ui_warn "Install it with: sudo dnf install libguestfs-tools-c"
         return 1
     fi
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Build VM Image with virt-builder              ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Build VM Image with virt-builder" "$C_BLUE"
 
     local my_arch
     my_arch="$(uname -m)"
@@ -2247,110 +2616,62 @@ build_virt_builder_vm() {
         "opensuse-tumbleweed:openSUSE Tumbleweed"
     )
 
-    echo -e "${BOLD}Select an OS template:${NC}"
-    local i
-    for i in "${!popular_templates[@]}"; do
-        local t_id="${popular_templates[i]%%:*}"
-        local t_desc="${popular_templates[i]#*:}"
-        printf "  %d) %-22s (%s)\n" "$((i + 1))" "$t_id" "$t_desc"
+    local os_template="" t_pick="" entry
+    local t_menu=()
+    for entry in "${popular_templates[@]}"; do
+        t_menu+=("$(printf '%-22s %s' "${entry%%:*}" "(${entry#*:})")")
     done
-    echo "  M) Browse & select from ALL available templates ($my_arch)"
-    echo "  C) Custom template name (enter manually)"
-    echo "  0) Cancel"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
+    t_menu+=("Browse & filter ALL available templates ($my_arch)" "Custom template name (enter manually)" "Cancel")
 
-    local os_template=""
-    while true; do
-        read -rp "Select template [1-${#popular_templates[@]}, M, C, 0] (default: 1): " t_choice
-        t_choice="${t_choice:-1}"
-        case "$t_choice" in
-            0|[Qq]|back) return 0 ;;
-            [Cc])
-                read -rp "Enter exact template name: " os_template
-                [ -n "$os_template" ] && break
+    while [ -z "$os_template" ]; do
+        t_pick="$(ui_choose "Select an OS template" "${t_menu[@]}")" || return 0
+        case "$t_pick" in
+            Cancel) return 0 ;;
+            Custom*)
+                ask_input "Enter exact template name: " os_template
                 ;;
-            [Mm])
-                echo -e "${BLUE}Fetching full template list for $my_arch...${NC}"
+            Browse*)
                 local all_templates=()
-                mapfile -t all_templates < <(virt-builder --list 2>/dev/null | awk -v arch="$my_arch" '{print $1 "\t" $0}')
+                mapfile -t all_templates < <(ui_spin_fn "Fetching full template list for $my_arch..." virt-builder --list 2>/dev/null \
+                    | awk -v arch="$my_arch" '$2 == arch {print $0}')
                 if [ "${#all_templates[@]}" -eq 0 ]; then
-                    echo -e "${YELLOW}No templates found for $my_arch. Please enter manually.${NC}"
-                    read -rp "Template name: " os_template
-                    [ -n "$os_template" ] && break
+                    ui_warn "No templates found for $my_arch. Please enter manually."
+                    ask_input "Template name: " os_template
                 else
-                    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-                        local sel_line
-                        sel_line="$(printf "%s\n" "${all_templates[@]}" | fzf \
-                            --delimiter="\t" \
-                            --with-nth=2 \
-                            --accept-nth=1 \
-                            --prompt="Template ❯ " \
-                            --pointer="❯" \
-                            --marker="✓" \
-                            --border="rounded" \
-                            --border-label=" All virt-builder Templates ($my_arch) " \
-                            --layout=reverse \
-                            --height=60% \
-                            --color="$FZF_HIG_COLORS")"
-                        if [ -n "$sel_line" ]; then
-                            os_template="$sel_line"
-                            break
-                        fi
-                    else
-                        local tmpl_names=()
-                        mapfile -t tmpl_names < <(virt-builder --list 2>/dev/null | awk -v arch="$my_arch" '$2 == arch {print $1}')
-                        echo -e "${BOLD}Select a template from full list:${NC}"
-                        select sel_tmpl in "${tmpl_names[@]}" "Cancel"; do
-                            [ "$sel_tmpl" = "Cancel" ] && return 0
-                            if [ -n "$sel_tmpl" ]; then
-                                os_template="$sel_tmpl"
-                                break 2
-                            fi
-                        done
-                    fi
+                    t_pick="$(ui_filter "All virt-builder templates ($my_arch)" "${all_templates[@]}")" || continue
+                    os_template="${t_pick%% *}"
                 fi
                 ;;
-            *)
-                if [[ "$t_choice" =~ ^[0-9]+$ ]] && [ "$t_choice" -ge 1 ] && [ "$t_choice" -le "${#popular_templates[@]}" ]; then
-                    local sel_entry="${popular_templates[$((t_choice - 1))]}"
-                    os_template="${sel_entry%%:*}"
-                    break
-                else
-                    echo -e "${RED}Invalid selection.${NC}"
-                fi
-                ;;
+            *) os_template="${t_pick%% *}" ;;
         esac
     done
 
-    echo -e "${GREEN}✓ Selected template: $os_template${NC}\n"
+    ui_ok "✓ Selected template: $os_template"
 
     # Destination and sizing
     local default_img_name="${os_template}-vm.qcow2"
-    read -rp "Output image name (under /var/lib/libvirt/images) [default: $default_img_name]: " img_name
+    ask_input "Output image name (under /var/lib/libvirt/images) [default: $default_img_name]: " img_name
     img_name="${img_name:-$default_img_name}"
 
     local output_path="/var/lib/libvirt/images/$img_name"
 
-    read -rp "Disk size [default: 20G]: " disk_size
+    ask_input "Disk size [default: 20G]: " disk_size
     disk_size="${disk_size:-20G}"
 
     # Root Password options
-    echo -e "\n${BOLD}Root Password Configuration:${NC}"
-    echo "  1) Auto-generate a secure random password (printed on completion)"
-    echo "  2) Enter custom root password"
-    echo "  3) Disable root password (SSH key only)"
-    read -rp "Select password option [1-3] (default: 1): " pwd_choice
+    echo -e "\n$(ui_c "bold" "Root Password Configuration:")"
+    ask_menu pwd_choice "Select password option [1-3] (default: 1)" "1|Auto-generate a secure random password (printed on completion)" "2|Enter custom root password" "3|Disable root password (SSH key only)"
     pwd_choice="${pwd_choice:-1}"
 
     local root_pwd_arg=""
     case "$pwd_choice" in
         2)
-            read -s -rp "Enter root password: " custom_pwd
+            ask_password "Enter root password: " custom_pwd
             echo ""
-            read -s -rp "Confirm root password: " custom_pwd_confirm
+            ask_password "Confirm root password: " custom_pwd_confirm
             echo ""
             if [ "$custom_pwd" != "$custom_pwd_confirm" ]; then
-                echo -e "${RED}Error: Passwords do not match.${NC}"
+                ui_err "Passwords do not match."
                 return 1
             fi
             if [ -n "$custom_pwd" ]; then
@@ -2370,8 +2691,27 @@ build_virt_builder_vm() {
     # SSH key injection
     local default_ssh_key="$HOME/.ssh/id_rsa.pub"
     [ ! -f "$default_ssh_key" ] && [ -f "$HOME/.ssh/id_ed25519.pub" ] && default_ssh_key="$HOME/.ssh/id_ed25519.pub"
-    read -rp "SSH public key to inject into root [default: $default_ssh_key, or 'none']: " ssh_key
-    ssh_key="${ssh_key:-$default_ssh_key}"
+    local ssh_mode ssh_key="" ssh_key_tmp=""
+    ssh_mode="$(ui_choose "SSH public key to inject into root" \
+        "Use default ($default_ssh_key)" \
+        "Browse for a public key file" \
+        "Paste a public key" \
+        "None (skip SSH injection)")" || ssh_mode="None"
+    case "$ssh_mode" in
+        Browse*) ask_file "Select the SSH public key (.pub) to inject" ssh_key "$HOME/.ssh" ;;
+        Paste*)
+            local pasted_key=""
+            ask_write "Paste the SSH public key" pasted_key
+            if [ -n "$pasted_key" ]; then
+                ssh_key_tmp="$(mktemp --suffix=.pub)"
+                ssh_key="$ssh_key_tmp"
+                printf '%s\n' "$pasted_key" > "$ssh_key"
+            fi
+            ;;
+        None*) ssh_key="none" ;;
+        *) ssh_key="$default_ssh_key" ;;
+    esac
+    [ -z "$ssh_key" ] && ssh_key="none"
 
     require_sudo "write VM image to /var/lib/libvirt/images" || return 1
     sudo mkdir -p /var/lib/libvirt/images
@@ -2388,25 +2728,30 @@ build_virt_builder_vm() {
         builder_args+=("--ssh-inject" "root:file:$ssh_key")
     fi
 
-    echo -e "\n${BLUE}[*] Building VM with virt-builder...${NC}"
-    echo -e "    Template: $os_template"
-    echo -e "    Target:   $output_path"
-    echo -e "    Size:     $disk_size"
-    echo -e "    Password: $root_pwd_arg"
-    [ "$ssh_key" != "none" ] && echo -e "    SSH Key:  $ssh_key"
+    echo
+    ui_info "[*] Building VM with virt-builder..."
+    ui_info_table "Build Parameter,Configuration" \
+        "OS Template,$os_template" \
+        "Target Image,$output_path" \
+        "Disk Size,$disk_size (qcow2)" \
+        "Root Auth,$root_pwd_arg" \
+        "SSH Public Key,$ssh_key"
     echo ""
 
     sudo virt-builder "${builder_args[@]}"
+    [ -n "$ssh_key_tmp" ] && rm -f "$ssh_key_tmp"
 
     if [ -f "$output_path" ]; then
-        echo -e "\n${GREEN}=====================================================${NC}"
-        echo -e "${BOLD}       VM Image Built Successfully!                  ${NC}"
-        echo -e "${GREEN}=====================================================${NC}"
-        echo -e "Image Path: ${CYAN}$output_path${NC}"
-        echo -e "\n${BLUE}To import and run this VM immediately via virt-install:${NC}"
+        ui_banner "VM Image Built Successfully!" "$C_GREEN"
+        ui_info_table "Result,Value" \
+            "Output Image,$output_path" \
+            "Quick Import,sudo virt-install --name ${img_name%.*} --ram 2048 --vcpus 2 --disk path=$output_path --import --network network=default"
+        echo
+        ui_info "To import and run this VM immediately via virt-install:"
         echo -e "  sudo virt-install --name ${img_name%.*} --ram 2048 --vcpus 2 --disk path=$output_path --import --network network=default\n"
     else
-        echo -e "\n${RED}Error: Failed to create $output_path${NC}"
+        echo
+        ui_err "Failed to create $output_path"
         return 1
     fi
 }
@@ -2415,39 +2760,30 @@ configure_libvirt() {
     if ! command -v virsh >/dev/null 2>&1; then
         prompt_run_playbook_subtask "Libvirt/KVM" "services" "Enable virtualization stack and services" || return 1
         if ! command -v virsh >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'virsh' is still not installed.${NC}"
+            ui_err "'virsh' is still not installed."
             return 1
         fi
     fi
     local l_items=(
-        "1\t🌐 Start & Autostart Default Network\tEnsure virbr0 default network is running and autostarts on boot"
-        "2\t📋 List Available OS Templates\tView full repository of virt-builder pre-built cloud OS images"
-        "3\t🏗️  Build VM Image with virt-builder\tQuickly spin up custom Fedora, Debian, Ubuntu, CentOS QCOW2 disks"
-        "4\t🚀 Autostart a VM at boot\tConfigure virsh autostart for existing guest domains"
-        "5\t🛡️  Forward ports to VMs\tOpen guest/host ports in firewalld libvirt zone"
-        "6\t📄 Define VMs from XML\tDefine Android, Linux, Windows libvirt domains from template XMLs"
+        "1\t🌐 Start & Enable Default Network\tEnsure virbr0 default network is active and autostarts on boot"
+        "3\t🏗️  Build VM Image with virt-builder…\tCreate bootable Fedora, Debian, Ubuntu, or CentOS QCOW2 disk"
+        "6\t📄 Define VMs from XML…\tImport Android, Linux, and Windows libvirt domains from XML templates"
+        "4\t🚀 Configure VM Boot Autostart…\tSelect a guest domain to start automatically at host boot"
+        "5\t🛡️  Forward Firewall Ports to VMs…\tOpen guest/host ports in the firewalld libvirt zone"
+        "2\t📋 List Available OS Templates\tDisplay repository of virt-builder pre-built cloud OS images"
         "0\t🚪 Back to Main Menu\tReturn to previous menu"
     )
 
     while true; do
-        local l_choice
-        l_choice=$(fzf_action_menu "Libvirt VM Helpers" "Libvirt" "${l_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            echo -e "\n${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Libvirt VM Helpers                            ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo "  1) Start & Autostart Default Network (default)"
-            echo "  2) List Available OS Templates (virt-builder --list)"
-            echo "  3) Build VM Image with virt-builder"
-            echo "  4) Autostart a VM at boot"
-            echo "  5) Forward ports to VMs (libvirt firewalld zone)"
-            echo "  6) Define VMs from XML (Android, Linux, Windows)"
-            echo "  0) Back to Main Menu"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            read -rp "Select an option [0-6]: " l_choice
+        if ui_tty; then
+            ui_banner "Libvirt / KVM Hypervisor Helpers" "$C_PURPLE"
+            ui_info_table "Hypervisor Property,Details" \
+                "Management Tool,virsh / virt-builder / firewall-cmd" \
+                "Default Network,default (virbr0 NAT bridge)" \
+                "Storage Pool,/var/lib/libvirt/images"
         fi
+        local l_choice
+        l_choice=$(gum_action_menu "Libvirt VM Helpers" "Libvirt" "${l_items[@]}")
 
         case "$l_choice" in
             1) start_default_libvirt_network ;;
@@ -2467,45 +2803,37 @@ manage_vagrant_vm() {
     if ! command -v vagrant >/dev/null 2>&1; then
         prompt_run_playbook_subtask "Vagrant" "packages_dnf" "Install virtualization packages" || return 1
         if ! command -v vagrant >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'vagrant' is still not installed.${NC}"
+            ui_err "'vagrant' is still not installed."
             return 1
         fi
     fi
     if [ ! -f "$dir/Vagrantfile" ]; then
         prompt_run_playbook_subtask "Vagrant VM (${name})" "vagrant" "Provision Vagrant environments and files" || return 1
         if [ ! -f "$dir/Vagrantfile" ]; then
-            echo -e "${RED}Error: $dir/Vagrantfile not found. Run the playbook first.${NC}"
+            ui_err "$dir/Vagrantfile not found. Run the playbook first."
             return 1
         fi
     fi
 
     local vg_actions=(
-        "1\t▶️  Start VM\tvagrant up --provider libvirt"
-        "2\t⏹️  Stop VM\tvagrant halt"
-        "3\tℹ️  Status\tvagrant status"
-        "4\t🔑 SSH into VM\tvagrant ssh"
-        "5\t🗑️  Destroy VM\tvagrant destroy -f"
-        "0\t🚪 Back\tReturn to Vagrant menu"
+        "1\t▶️  Start Virtual Machine\tvagrant up --provider libvirt"
+        "4\t🔑 Connect via SSH\tvagrant ssh"
+        "3\tℹ️  Check VM Status\tvagrant status"
+        "2\t⏹️  Stop Virtual Machine\tvagrant halt"
+        "5\t🗑️  Destroy Virtual Machine…\tDestructive: vagrant destroy -f (removes VM disk)"
+        "0\t🚪 Back to Vagrant Menu\tReturn to Vagrant menu"
     )
 
     while true; do
-        local v_choice
-        v_choice=$(fzf_action_menu "Vagrant VM: $name" "Action" "${vg_actions[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            echo -e "\n${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Vagrant VM: $name${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo "  1) Start (vagrant up --provider libvirt)"
-            echo "  2) Stop (vagrant halt)"
-            echo "  3) Status"
-            echo "  4) SSH into VM"
-            echo "  5) Destroy (vagrant destroy -f)"
-            echo "  0) Back"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            read -rp "Select an option [0-5]: " v_choice
+        if ui_tty; then
+            ui_banner "Vagrant Environment: $name" "$C_PURPLE"
+            ui_info_table "Environment Property,Value" \
+                "Box Name,$name" \
+                "Working Directory,$dir" \
+                "Provider,libvirt (KVM)"
         fi
+        local v_choice
+        v_choice=$(gum_action_menu "Vagrant VM: $name" "Action" "${vg_actions[@]}")
 
         case "$v_choice" in
             1) (cd "$dir" && vagrant up --provider libvirt) ;;
@@ -2513,7 +2841,7 @@ manage_vagrant_vm() {
             3) (cd "$dir" && vagrant status) ;;
             4) (cd "$dir" && vagrant ssh) ;;
             5)
-                if fzf_confirm "Destroy '$name' VM and its disk?" "N"; then
+                if ui_confirm "Destroy '$name' VM and its disk?" "N"; then
                     (cd "$dir" && vagrant destroy -f)
                 fi
                 ;;
@@ -2524,26 +2852,21 @@ manage_vagrant_vm() {
 
 configure_vagrant() {
     local vg_items=(
-        "1\t🐧 Ubuntu 24.04 Desktop VM\tManage Noble Numbat developer workstation box"
-        "2\t🌐 YunoHost Server VM\tManage Debian self-hosting application server box"
+        "1\t🐧 Manage Ubuntu 24.04 Desktop VM…\tNoble Numbat developer workstation box"
+        "2\t🌐 Manage YunoHost Server VM…\tDebian self-hosting application server box"
         "0\t🚪 Back to Main Menu\tReturn to previous menu"
     )
 
     while true; do
-        local vg_choice
-        vg_choice=$(fzf_action_menu "Vagrant VMs" "Vagrant" "${vg_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            echo -e "\n${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Vagrant VMs                                   ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo "  1) Ubuntu"
-            echo "  2) YunoHost"
-            echo "  0) Back to Main Menu"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            read -rp "Select an option [0-2]: " vg_choice
+        if ui_tty; then
+            ui_banner "Vagrant Virtual Machines" "$C_PURPLE"
+            ui_info_table "Vagrant Property,Details" \
+                "Base Path,$HOME/Platforms/Virtualization/vagrant" \
+                "Provider,libvirt (QEMU/KVM)" \
+                "Available Boxes,ubuntu (24.04) & yunohost"
         fi
+        local vg_choice
+        vg_choice=$(gum_action_menu "Vagrant VMs" "Vagrant" "${vg_items[@]}")
 
         case "$vg_choice" in
             1) manage_vagrant_vm ubuntu ;;
@@ -2555,39 +2878,30 @@ configure_vagrant() {
 
 manage_virtualization() {
     local vm_items=(
-        "1\t🌐 Start & Autostart Default Network\tsudo virsh net-start & net-autostart default (virbr0)"
+        "1\t🌐 Start & Enable Default Network\tsudo virsh net-start & net-autostart default (virbr0)"
+        "3\t🏗️  Build VM Image with virt-builder…\tCreate bootable OS qcow2 with root password & SSH injection"
+        "4\t📄 Define Libvirt VMs from XML…\tImport VMs/*.xml for Android, Linux, and Windows"
+        "5\t🚀 Configure VM Boot Autostart…\tSelect a libvirt domain to start automatically at boot"
+        "6\t🛡️  Forward Firewall Ports to VMs…\tOpen guest/host ports in firewalld libvirt zone"
         "2\t📋 List Available OS Templates\tvirt-builder --list"
-        "3\t🏗️  Build VM Image with virt-builder\tCreate bootable OS qcow2 with root password & SSH injection"
-        "4\t📄 Define Libvirt VMs from XML\tParse VMs/*.xml for Android, Linux, and Windows"
-        "5\t🚀 Autostart Libvirt VM at boot\tConfigure domain to start with system boot"
-        "6\t🛡️  Forward Ports to Libvirt VMs\tConfigure firewalld libvirt zone"
-        "7\t🐧 Manage Vagrant Ubuntu 24.04\tControl Ubuntu developer desktop VM"
-        "8\t🌐 Manage Vagrant YunoHost Server\tControl YunoHost server VM"
+        "7\t🐧 Manage Vagrant Ubuntu 24.04…\tStart, stop, SSH, or destroy Ubuntu desktop VM"
+        "8\t🌐 Manage Vagrant YunoHost Server…\tStart, stop, SSH, or destroy YunoHost server VM"
         "0\t🚪 Back to Main Menu\tReturn to primary launcher menu"
     )
 
     while true; do
-        local vm_choice
-        vm_choice=$(fzf_action_menu "Virtualization & VM Management" "Virtualization" "${vm_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            clear
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       Virtualization & VM Management                ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "  ${BOLD}1)${NC} Start & Autostart Default Network (virsh net-start default)"
-            echo -e "  ${BOLD}2)${NC} List Available OS Templates (virt-builder --list)"
-            echo -e "  ${BOLD}3)${NC} Build VM Image with virt-builder"
-            echo -e "  ${BOLD}4)${NC} Define Libvirt VMs from XML (Android, Linux, Windows)"
-            echo -e "  ${BOLD}5)${NC} Autostart Libvirt VM at boot"
-            echo -e "  ${BOLD}6)${NC} Forward Ports to Libvirt VMs (firewalld libvirt zone)"
-            echo -e "  ${BOLD}7)${NC} Manage Vagrant Ubuntu 24.04 Desktop VM"
-            echo -e "  ${BOLD}8)${NC} Manage Vagrant YunoHost Server VM"
-            echo -e "  ${BOLD}0)${NC} Back to Main Menu"
-            echo -e "${BLUE}=====================================================${NC}"
-            read -rp "Select an option [0-8]: " vm_choice
+        if ui_tty; then
+            local virsh_st="Missing" vg_st="Missing"
+            command -v virsh >/dev/null 2>&1 && virsh_st="Installed"
+            command -v vagrant >/dev/null 2>&1 && vg_st="Installed"
+            ui_banner "Virtualization & VM Management" "$C_PURPLE"
+            ui_info_table "Stack Component,Status & Path" \
+                "Libvirt / Virsh,$virsh_st (/var/lib/libvirt/images)" \
+                "Vagrant CLI,$vg_st ($HOME/Platforms/Virtualization/vagrant)" \
+                "VM XML Templates,$REPO_ROOT/VMs"
         fi
+        local vm_choice
+        vm_choice=$(gum_action_menu "Virtualization & VM Management" "Virtualization" "${vm_items[@]}")
 
         case "$vm_choice" in
             1) start_default_libvirt_network ;;
@@ -2604,18 +2918,20 @@ manage_virtualization() {
 }
 
 setup_deepseek_harness() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Install DeepSeek Harness (dsh)                ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Install DeepSeek Harness Web (dsh)" "$C_MINT"
 
     local appimages_dir="$HOME/AppImages"
     mkdir -p "$appimages_dir"
+    ui_info_table "Property,Details" \
+        "Package,@deepseek-ai/dsh (npx)" \
+        "Environment,Pixi workspace in $appimages_dir" \
+        "Launch Mode,web --no-open"
 
     # Ensure pixi is available
     local pixi_bin
     pixi_bin="$(command -v pixi 2>/dev/null || echo "$HOME/.pixi/bin/pixi")"
     if [ ! -x "$pixi_bin" ]; then
-        echo -e "${YELLOW}Pixi not found. Running Pixi setup first...${NC}"
+        ui_warn "Pixi not found. Running Pixi setup first..."
         install_pixi
         pixi_bin="$(command -v pixi 2>/dev/null || echo "$HOME/.pixi/bin/pixi")"
     fi
@@ -2623,26 +2939,26 @@ setup_deepseek_harness() {
     # Initialize pixi environment in $HOME/AppImages if not already present
     if [ -x "$pixi_bin" ]; then
         if [ ! -f "$appimages_dir/pixi.toml" ]; then
-            echo -e "${BLUE}Initializing Pixi environment in $appimages_dir...${NC}"
+            ui_info "Initializing Pixi environment in $appimages_dir..."
             (cd "$appimages_dir" && "$pixi_bin" init --format toml . 2>/dev/null || "$pixi_bin" init .)
-            echo -e "${GREEN}✓ Pixi environment initialized in $appimages_dir.${NC}"
+            ui_ok "✓ Pixi environment initialized in $appimages_dir."
         else
-            echo -e "${GREEN}✓ Pixi environment already exists in $appimages_dir.${NC}"
+            ui_ok "✓ Pixi environment already exists in $appimages_dir."
         fi
     else
-        echo -e "${YELLOW}Warning: Pixi is not executable; proceeding with npx installation directly.${NC}"
+        ui_warn "Warning: Pixi is not executable; proceeding with npx installation directly."
     fi
 
     # Ensure npx / nodejs is available
     if ! command -v npx >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'npx' is not found. Please ensure Node.js is installed.${NC}"
+        ui_err "'npx' is not found. Please ensure Node.js is installed."
         return 1
     fi
 
-    echo -e "${BLUE}Installing DeepSeek Harness via npx in $appimages_dir...${NC}"
+    ui_info "Installing DeepSeek Harness via npx in $appimages_dir..."
     (cd "$appimages_dir" && npx -y @deepseek-ai/dsh web --no-open)
 
-    echo -e "${GREEN}✓ DeepSeek Harness installation finished in $appimages_dir.${NC}"
+    ui_ok "✓ DeepSeek Harness installation finished in $appimages_dir."
 }
 
 fetch_prism_llamacpp_release_assets() {
@@ -2685,11 +3001,12 @@ download_and_extract_prism_single_asset() {
     extract_folder="${extract_folder%.zip}"
     local sub_dir="$dest_dir/$extract_folder"
 
-    echo -e "\n${BLUE}[*] Downloading $name...${NC}"
+    echo
+    ui_info "[*] Downloading $name..."
     curl -fL --progress-bar -o "$target_archive" "$url"
 
     mkdir -p "$sub_dir"
-    echo -e "${BLUE}[*] Extracting to $sub_dir...${NC}"
+    ui_info "[*] Extracting to $sub_dir..."
     if [[ "$name" == *.tar.gz ]]; then
         tar -xzf "$target_archive" -C "$sub_dir"
     elif [[ "$name" == *.zip ]]; then
@@ -2698,7 +3015,7 @@ download_and_extract_prism_single_asset() {
 
     find "$sub_dir" -type f -exec chmod +x {} + 2>/dev/null || true
     rm -f "$target_archive"
-    echo -e "${GREEN}✓ Successfully installed: $sub_dir${NC}"
+    ui_ok "✓ Successfully installed: $sub_dir"
 }
 
 download_and_extract_prism_assets() {
@@ -2706,11 +3023,11 @@ download_and_extract_prism_assets() {
     local dest_dir="$HOME/AppImages/llama-prism"
     mkdir -p "$dest_dir"
 
-    echo -e "${BLUE}Fetching latest release assets for PrismML-Eng/llama.cpp...${NC}"
+    ui_info "Fetching latest release assets for PrismML-Eng/llama.cpp..."
     local asset_lines
-    asset_lines="$(fetch_prism_llamacpp_release_assets "$target_type")"
+    asset_lines="$(ui_spin_fn "Resolving latest prism llamacpp release assets..." fetch_prism_llamacpp_release_assets "$target_type")"
     if [ -z "$asset_lines" ]; then
-        echo -e "${RED}Error: Failed to fetch assets or none matched target '${target_type}'.${NC}"
+        ui_err "Failed to fetch assets or none matched target '${target_type}'."
         return 1
     fi
 
@@ -2726,15 +3043,16 @@ download_and_extract_prism_assets() {
     done <<< "$asset_lines"
 
     if [ "${#CB_ITEMS[@]}" -eq 0 ]; then
-        echo -e "${YELLOW}• No assets found.${NC}"
+        ui_warn "• No assets found."
         return 0
     fi
 
     checkbox_menu_select \
         "Select Prism llama.cpp Binaries to Install" \
-        " Destination: $dest_dir" \
-        "RUN download and installation on selected binaries" \
-        "Cancel / Back" || return 0
+        "Source: https://github.com/PrismML-Eng/llama.cpp\nDestination: $dest_dir" \
+        "Download & Extract Selected Binaries" \
+        "Back to Filter Menu" \
+        "$C_MINT" || return 0
 
     local to_download=()
     local i
@@ -2742,35 +3060,35 @@ download_and_extract_prism_assets() {
         [ "${CB_SELECTED[i]}" -eq 1 ] && to_download+=("$i")
     done
 
-    echo -e "\n${BLUE}Downloading and extracting ${#to_download[@]} binary asset(s)...${NC}"
+    echo
+    ui_info "Downloading and extracting ${#to_download[@]} binary asset(s)..."
     for i in "${to_download[@]}"; do
         download_and_extract_prism_single_asset "${CB_ITEMS[i]}" "${urls[i]}"
     done
 
-    echo -e "\n${GREEN}✓ Selected binaries installed in: $dest_dir${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ Selected binaries installed in: $dest_dir"
+    ui_pause "Press Enter to continue..."
 }
 
 install_prism_llamacpp() {
     while true; do
-        echo -e "\n${BLUE}=====================================================${NC}"
-        echo -e "${BOLD}       Install Prism llama.cpp Binaries (AppImages)  ${NC}"
-        echo -e "${BLUE}=====================================================${NC}"
-        echo " Source: https://github.com/PrismML-Eng/llama.cpp"
-        echo " Destination: $HOME/AppImages/llama-prism"
-        echo -e "${BLUE}-----------------------------------------------------${NC}"
-        echo "  1) Choose from ALL Linux & Android binaries"
-        echo "  2) Choose from Linux binaries only (CUDA, Vulkan, ROCm, SYCL, CPU)"
-        echo "  3) Choose from Android binaries only (ARM64)"
-        echo "  0) Back to Main Menu"
-        echo -e "${BLUE}-----------------------------------------------------${NC}"
-        read -rp "Select an option [0-3]: " prism_choice
+        ui_banner "Install Prism llama.cpp Binaries" "$C_MINT"
+        ui_info_table "Property,Details" \
+            "Upstream Repository,https://github.com/PrismML-Eng/llama.cpp" \
+            "Target Directory,$HOME/AppImages/llama-prism" \
+            "Supported Backends,CUDA; Vulkan; ROCm; SYCL; CPU; Android ARM64"
+        ask_menu prism_choice "Select Platform Filter" \
+            "1|Browse All Linux & Android Binaries…" \
+            "2|Browse Linux Binaries Only (CUDA, Vulkan, ROCm, SYCL, CPU)…" \
+            "3|Browse Android Binaries Only (ARM64)…" \
+            "0|Back to Main Menu"
         case "$prism_choice" in
             1) download_and_extract_prism_assets "all" ;;
             2) download_and_extract_prism_assets "linux" ;;
             3) download_and_extract_prism_assets "android" ;;
             0|[Qq]|back) return 0 ;;
-            *) echo -e "${RED}Invalid option: '$prism_choice'.${NC}" ;;
+            *) echo -e "$(ui_c "red" "Invalid option: '$prism_choice'.")" ;;
         esac
     done
 }
@@ -2780,26 +3098,26 @@ install_llama_dory() {
     local repo_url="https://github.com/brianchmielNV/llama.cpp.git"
     local branch="dory-support"
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Install / Build llama-dory (Nemotron Dory)    ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo " Repository:  $repo_url"
-    echo " Branch:      $branch"
-    echo " Destination: $target_dir"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
+    ui_banner "Install & Build llama-dory (Nemotron Dory)" "$C_MINT"
+    ui_info_table "Build Property,Value" \
+        "Repository,$repo_url" \
+        "Git Branch,$branch" \
+        "Target Directory,$target_dir" \
+        "Build Type,CMake Release (Shared Libraries)"
+    ui_hr
 
     if [ -d "$target_dir/.git" ]; then
-        echo -e "${BLUE}[*] Existing llama-dory git repo detected. Updating...${NC}"
+        ui_info "[*] Existing llama-dory git repo detected. Updating..."
         git -C "$target_dir" fetch origin "$branch"
         git -C "$target_dir" checkout "$branch"
         git -C "$target_dir" pull origin "$branch"
     else
-        echo -e "${BLUE}[*] Cloning llama-dory ($branch)...${NC}"
+        ui_info "[*] Cloning llama-dory ($branch)..."
         mkdir -p "$HOME/AppImages"
         git clone -b "$branch" "$repo_url" "$target_dir"
     fi
 
-    echo -e "${BLUE}[*] Building llama-dory binaries (Release)...${NC}"
+    ui_info "[*] Building llama-dory binaries (Release)..."
     mkdir -p "$target_dir/build"
     (
         cd "$target_dir/build" || exit 1
@@ -2808,7 +3126,7 @@ install_llama_dory() {
     )
 
     if [ -f "$target_dir/build/bin/llama-server" ]; then
-        echo -e "${GREEN}✓ Successfully built llama-dory server & binaries in $target_dir/build/bin${NC}"
+        ui_ok "✓ Successfully built llama-dory server & binaries in $target_dir/build/bin"
         if [ ! -f "$target_dir/start-server.sh" ]; then
             cat << 'EOF' > "$target_dir/start-server.sh"
 #!/usr/bin/env bash
@@ -2831,12 +3149,12 @@ EOF
             chmod +x "$target_dir/start-server.sh"
         fi
     else
-        echo -e "${RED}✗ Build failed or llama-server not found.${NC}"
-        read -rp "Press Enter to continue..." _
+        ui_err "✗ Build failed or llama-server not found."
+        ui_pause "Press Enter to continue..."
         return 1
     fi
 
-    read -rp "Press Enter to continue..." _
+    ui_pause "Press Enter to continue..."
 }
 
 fetch_koboldcpp_release_assets() {
@@ -2869,21 +3187,22 @@ download_koboldcpp_single_binary() {
     mkdir -p "$dest_dir"
 
     local target_file="$dest_dir/$name"
-    echo -e "\n${BLUE}[*] Downloading $name directly to $dest_dir...${NC}"
+    echo
+    ui_info "[*] Downloading $name directly to $dest_dir..."
     curl -fL --progress-bar -o "$target_file" "$url"
     chmod +x "$target_file"
-    echo -e "${GREEN}✓ Successfully installed executable to: $target_file${NC}"
+    ui_ok "✓ Successfully installed executable to: $target_file"
 }
 
 install_koboldcpp() {
     local dest_dir="$HOME/AppImages"
     mkdir -p "$dest_dir"
 
-    echo -e "${BLUE}Fetching latest release assets for LostRuins/koboldcpp...${NC}"
+    ui_info "Fetching latest release assets for LostRuins/koboldcpp..."
     local asset_lines
-    asset_lines="$(fetch_koboldcpp_release_assets)"
+    asset_lines="$(ui_spin_fn "Resolving latest koboldcpp release assets..." fetch_koboldcpp_release_assets)"
     if [ -z "$asset_lines" ]; then
-        echo -e "${RED}Error: Failed to fetch assets from LostRuins/koboldcpp.${NC}"
+        ui_err "Failed to fetch assets from LostRuins/koboldcpp."
         return 1
     fi
 
@@ -2899,15 +3218,16 @@ install_koboldcpp() {
     done <<< "$asset_lines"
 
     if [ "${#CB_ITEMS[@]}" -eq 0 ]; then
-        echo -e "${YELLOW}• No Linux binary assets found.${NC}"
+        ui_warn "• No Linux binary assets found."
         return 0
     fi
 
     checkbox_menu_select \
         "Select KoboldCpp Binaries to Download" \
-        " Source: https://github.com/LostRuins/koboldcpp\n Destination: $dest_dir" \
-        "RUN download on selected binaries" \
-        "Back to Main Menu" || return 0
+        "Source: https://github.com/LostRuins/koboldcpp\nDestination: $dest_dir" \
+        "Download Selected Binaries" \
+        "Back to Main Menu" \
+        "$C_MINT" || return 0
 
     local to_download=()
     local i
@@ -2915,13 +3235,15 @@ install_koboldcpp() {
         [ "${CB_SELECTED[i]}" -eq 1 ] && to_download+=("$i")
     done
 
-    echo -e "\n${BLUE}Downloading ${#to_download[@]} binary asset(s) to $dest_dir...${NC}"
+    echo
+    ui_info "Downloading ${#to_download[@]} binary asset(s) to $dest_dir..."
     for i in "${to_download[@]}"; do
         download_koboldcpp_single_binary "${CB_ITEMS[i]}" "${urls[i]}"
     done
 
-    echo -e "\n${GREEN}✓ Selected binaries installed directly to: $dest_dir${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ Selected binaries installed directly to: $dest_dir"
+    ui_pause "Press Enter to continue..."
 }
 
 fetch_localai_release_assets() {
@@ -2954,16 +3276,17 @@ download_localai_single_asset() {
     mkdir -p "$dest_dir"
 
     local target_file="$dest_dir/$name"
-    echo -e "\n${BLUE}[*] Downloading $name directly to $dest_dir...${NC}"
+    echo
+    ui_info "[*] Downloading $name directly to $dest_dir..."
     curl -fL --progress-bar -o "$target_file" "$url"
 
     if [[ "$name" == *.tar.xz ]] || [[ "$name" == *.tar.gz ]]; then
-        echo -e "${BLUE}[*] Extracting $name into $dest_dir...${NC}"
+        ui_info "[*] Extracting $name into $dest_dir..."
         tar -xf "$target_file" -C "$dest_dir"
-        echo -e "${GREEN}✓ Successfully unpacked: $target_file${NC}"
+        ui_ok "✓ Successfully unpacked: $target_file"
     else
         chmod +x "$target_file"
-        echo -e "${GREEN}✓ Successfully installed executable to: $target_file${NC}"
+        ui_ok "✓ Successfully installed executable to: $target_file"
     fi
 
     # Also symlink LocalAI-Launcher or binary to $HOME/AppImages if AppImage
@@ -2976,13 +3299,13 @@ install_localai() {
     local dest_dir="$HOME/AppImages/localai"
     mkdir -p "$dest_dir"
 
-    echo -e "${BLUE}Fetching latest release assets for mudler/LocalAI...${NC}"
+    ui_info "Fetching latest release assets for mudler/LocalAI..."
     local asset_lines
-    asset_lines="$(fetch_localai_release_assets)"
+    asset_lines="$(ui_spin_fn "Resolving latest localai release assets..." fetch_localai_release_assets)"
     if [ -z "$asset_lines" ]; then
-        echo -e "${RED}Failed to fetch release assets from GitHub API.${NC}"
-        echo -e "${YELLOW}Please verify internet connection or check GitHub rate limits.${NC}"
-        read -rp "Press Enter to return to menu..." _
+        ui_err "Failed to fetch release assets from GitHub API."
+        ui_warn "Please verify internet connection or check GitHub rate limits."
+        ui_pause "Press Enter to return to menu..."
         return 1
     fi
 
@@ -2998,10 +3321,11 @@ install_localai() {
     done <<< "$asset_lines"
 
     checkbox_menu_select \
-        "Select LocalAI Binaries / Launchers" \
-        " Source: https://github.com/mudler/LocalAI\n Destination: $dest_dir" \
-        "RUN download on selected assets" \
-        "Back to Main Menu" || return 0
+        "Select LocalAI Binaries & Launchers" \
+        "Source: https://github.com/mudler/LocalAI\nDestination: $dest_dir" \
+        "Download Selected Assets" \
+        "Back to Main Menu" \
+        "$C_MINT" || return 0
 
     local to_download=()
     local i
@@ -3009,13 +3333,15 @@ install_localai() {
         [ "${CB_SELECTED[i]}" -eq 1 ] && to_download+=("$i")
     done
 
-    echo -e "\n${BLUE}Downloading ${#to_download[@]} asset(s) to $dest_dir...${NC}"
+    echo
+    ui_info "Downloading ${#to_download[@]} asset(s) to $dest_dir..."
     for i in "${to_download[@]}"; do
         download_localai_single_asset "${CB_ITEMS[i]}" "${urls[i]}"
     done
 
-    echo -e "\n${GREEN}✓ Selected LocalAI assets installed directly to: $dest_dir${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ Selected LocalAI assets installed directly to: $dest_dir"
+    ui_pause "Press Enter to continue..."
 }
 
 install_openclaw_deb_distrobox() {
@@ -3023,24 +3349,26 @@ install_openclaw_deb_distrobox() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/openclaw_downloads"
     mkdir -p "$cache_dir"
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[Step 0] Install Latest OpenClaw (.deb) in Ubuntu Distrobox${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "[Step 0] Install Latest OpenClaw (.deb) in Ubuntu Distrobox" "$C_INDIGO"
+    ui_info_table "Property,Value" \
+        "Upstream Repository,openclaw/openclaw" \
+        "Target Distrobox,$container_name" \
+        "Download Cache,$cache_dir"
 
     if ! command -v distrobox >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'distrobox' is not installed.${NC}"
+        ui_err "'distrobox' is not installed."
         return 1
     fi
 
     # Ensure container exists or prompt to create
     if ! distrobox list 2>/dev/null | grep -q "^${container_name}\b\|[[:space:]]${container_name}[[:space:]]"; then
-        echo -e "${YELLOW}• Distrobox container '${container_name}' does not exist.${NC}"
-        read -rp "Create '${container_name}' container now? [Y/n]: " cr_choice
+        ui_warn "• Distrobox container '${container_name}' does not exist."
+        ask_yn "Create '${container_name}' container now?" "Y" cr_choice
         cr_choice="${cr_choice:-Y}"
         if [[ "$cr_choice" =~ ^[Yy]$ ]]; then
             setup_distrobox || return 1
         else
-            echo -e "${RED}[-] Cannot install .deb without target distrobox container.${NC}"
+            ui_err "[-] Cannot install .deb without target distrobox container."
             return 1
         fi
     fi
@@ -3049,9 +3377,9 @@ install_openclaw_deb_distrobox() {
     # Check if latest deb already exists in ~/Downloads
     if [ -f "$HOME/Downloads/OpenClaw-2026.11.2-amd64.deb" ]; then
         target_deb="$HOME/Downloads/OpenClaw-2026.11.2-amd64.deb"
-        echo -e "${GREEN}✓ Using existing deb package:${NC} $target_deb"
+        echo -e "$(ui_c "green" "✓ Using existing deb package:") $target_deb"
     else
-        echo -e "${BLUE}[*] Fetching latest OpenClaw .deb release from GitHub...${NC}"
+        ui_info "[*] Fetching latest OpenClaw .deb release from GitHub..."
         local deb_info
         deb_info=$(python3 -c "
 import urllib.request, json, sys
@@ -3076,27 +3404,28 @@ except Exception:
         if [ -n "$deb_info" ]; then
             IFS=$'	' read -r deb_name deb_url <<< "$deb_info"
         else
-            echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+            ui_warn "Could not resolve latest .deb from GitHub API. Using fallback URL..."
             deb_url="https://github.com/openclaw/openclaw/releases/download/v2026.11.2/OpenClaw-2026.11.2-amd64.deb"
             deb_name="OpenClaw-2026.11.2-amd64.deb"
         fi
 
         target_deb="$cache_dir/$deb_name"
-        echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+        ui_info "[*] Downloading ${deb_name}..."
         if ! curl -fLC - --progress-bar -o "$target_deb" "$deb_url"; then
-            echo -e "${RED}[ERROR] Failed to download OpenClaw .deb from $deb_url${NC}"
+            ui_err "Failed to download OpenClaw .deb from $deb_url"
             return 1
         fi
     fi
 
-    echo -e "\n${BLUE}[*] Installing $(basename "$target_deb") into '${container_name}' container via apt...${NC}"
+    echo -e "\n$(ui_c "blue" "[*] Installing $(basename \"$target_deb\") into '${container_name}' container via apt...")"
     if distrobox enter "${container_name}" -- sudo apt-get update &&        distrobox enter "${container_name}" -- sudo apt-get install -y "$target_deb"; then
-        echo -e "\n${BLUE}[*] Exporting OpenClaw desktop app and binary to host...${NC}"
+        echo
+        ui_info "[*] Exporting OpenClaw desktop app and binary to host..."
         distrobox enter "${container_name}" -- distrobox-export --app openclaw 2>/dev/null || true
         distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/openclaw --export-path "$HOME/.local/bin" 2>/dev/null || true
-        echo -e "${GREEN}✓ Step 0 complete: OpenClaw (.deb) installed and exported successfully from Distrobox!${NC}"
+        ui_ok "✓ Step 0 complete: OpenClaw (.deb) installed and exported successfully from Distrobox!"
     else
-        echo -e "${RED}[ERROR] Failed to install OpenClaw .deb inside distrobox container.${NC}"
+        ui_err "Failed to install OpenClaw .deb inside distrobox container."
         return 1
     fi
 }
@@ -3106,29 +3435,31 @@ install_deepseek_harness_desktop_deb_distrobox() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/deepseek_harness_downloads"
     mkdir -p "$cache_dir"
 
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD} Install DeepSeek Harness Desktop (.deb) into Distrobox${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Install DeepSeek Harness Desktop (.deb) into Distrobox" "$C_MINT"
+    ui_info_table "Property,Value" \
+        "Upstream Repository,dsh-tauri/deepseek-harness-desktop" \
+        "Target Distrobox,$container_name" \
+        "Download Cache,$cache_dir"
 
     if ! command -v distrobox >/dev/null 2>&1; then
-        echo -e "${RED}Error: 'distrobox' is not installed.${NC}"
+        ui_err "'distrobox' is not installed."
         return 1
     fi
 
     # Ensure container exists or prompt to create
     if ! distrobox list 2>/dev/null | grep -q "^${container_name}\b\|[[:space:]]${container_name}[[:space:]]"; then
-        echo -e "${YELLOW}• Distrobox container '${container_name}' does not exist.${NC}"
-        read -rp "Create '${container_name}' container now? [Y/n]: " cr_choice
+        ui_warn "• Distrobox container '${container_name}' does not exist."
+        ask_yn "Create '${container_name}' container now?" "Y" cr_choice
         cr_choice="${cr_choice:-Y}"
         if [[ "$cr_choice" =~ ^[Yy]$ ]]; then
             setup_distrobox || return 1
         else
-            echo -e "${RED}[-] Cannot install .deb without target distrobox container.${NC}"
+            ui_err "[-] Cannot install .deb without target distrobox container."
             return 1
         fi
     fi
 
-    echo -e "${BLUE}[*] Fetching latest DeepSeek Harness Desktop .deb release from GitHub...${NC}"
+    ui_info "[*] Fetching latest DeepSeek Harness Desktop .deb release from GitHub..."
     local deb_info
     deb_info=$(python3 -c "
 import urllib.request, json, sys
@@ -3160,86 +3491,84 @@ except Exception:
     if [ -n "$deb_info" ]; then
         IFS=$'\t' read -r deb_name deb_url <<< "$deb_info"
     else
-        echo -e "${YELLOW}Could not resolve latest .deb from GitHub API. Using fallback URL...${NC}"
+        ui_warn "Could not resolve latest .deb from GitHub API. Using fallback URL..."
         deb_url="https://github.com/dsh-tauri/deepseek-harness-desktop/releases/download/v0.25.2/Deepseek.Harness.Desktop_0.25.2_amd64.deb"
         deb_name="Deepseek.Harness.Desktop_0.25.2_amd64.deb"
     fi
 
     local target_file="$cache_dir/$deb_name"
-    echo -e "${BLUE}[*] Downloading ${deb_name}...${NC}"
+    ui_info "[*] Downloading ${deb_name}..."
     if ! curl -fLC - --progress-bar -o "$target_file" "$deb_url"; then
-        echo -e "${RED}[ERROR] Failed to download DeepSeek Harness Desktop .deb from $deb_url${NC}"
+        ui_err "Failed to download DeepSeek Harness Desktop .deb from $deb_url"
         return 1
     fi
 
-    echo -e "\n${BLUE}[*] Installing ${deb_name} into '${container_name}' container via apt...${NC}"
+    echo
+    ui_info "[*] Installing ${deb_name} into '${container_name}' container via apt..."
     if distrobox enter "${container_name}" -- sudo apt-get update && \
        distrobox enter "${container_name}" -- sudo apt-get install -y "$target_file"; then
-        echo -e "\n${BLUE}[*] Exporting DeepSeek Harness Desktop app and binary to host...${NC}"
+        echo
+        ui_info "[*] Exporting DeepSeek Harness Desktop app and binary to host..."
         distrobox enter "${container_name}" -- distrobox-export --app deepseek-harness-desktop 2>/dev/null || true
         distrobox enter "${container_name}" -- distrobox-export --bin /usr/bin/deepseek-harness-desktop --export-path "$HOME/.local/bin" 2>/dev/null || true
-        echo -e "${GREEN}✓ DeepSeek Harness Desktop (.deb) installed and exported successfully from Distrobox!${NC}"
+        ui_ok "✓ DeepSeek Harness Desktop (.deb) installed and exported successfully from Distrobox!"
     else
-        echo -e "${RED}[ERROR] Failed to install DeepSeek Harness Desktop .deb inside distrobox container.${NC}"
+        ui_err "Failed to install DeepSeek Harness Desktop .deb inside distrobox container."
         return 1
     fi
 }
 
 install_openclaw_path_config() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[Step 1] Configure PATH for OpenClaw Binary          ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo -e "${BLUE}[*] Adding /home/admin/.openclaw/bin to PATH (it will be created by CLI installer)...${NC}"
+    ui_banner "[Step 1] Configure PATH for OpenClaw Binary" "$C_INDIGO"
+    ui_info_table "PATH Property,Details" \
+        "Binary Directory,$HOME/.openclaw/bin" \
+        "Shell Profiles,~/.bashrc & ~/.zshrc"
+    ui_info "[*] Adding $HOME/.openclaw/bin to PATH (created by CLI installer)..."
 
     export PATH="$HOME/.openclaw/bin:$PATH"
     ensure_shell_rc_line '\.openclaw/bin' "OpenClaw CLI binary directory" 'export PATH="$HOME/.openclaw/bin:$PATH"'
-    echo -e "${GREEN}✓ Step 1 complete: PATH configured with $HOME/.openclaw/bin${NC}"
+    ui_ok "✓ Step 1 complete: PATH configured with $HOME/.openclaw/bin"
 }
 
 install_openclaw_cli_host() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[Step 2] Run OpenClaw CLI Installer on Host         ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo -e "${YELLOW}${BOLD}Notice:${NC} Run this outside of Distrobox (on regular host).${NC}"
-    echo -e "Command: ${CYAN}curl -fsSL https://openclaw.ai/install-cli.sh | bash${NC}"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
+    ui_banner "[Step 2] Run OpenClaw CLI Installer on Host" "$C_INDIGO"
+    ui_info_table "Execution Context,Value" \
+        "Target Environment,Regular Host (Outside Distrobox)" \
+        "Installer Command,curl -fsSL https://openclaw.ai/install-cli.sh | bash"
 
-    echo -e "${BLUE}[*] Executing OpenClaw CLI installer on host...${NC}"
+    ui_info "[*] Executing OpenClaw CLI installer on host..."
     if curl -fsSL https://openclaw.ai/install-cli.sh | bash; then
-        echo -e "${GREEN}✓ Step 2 complete: OpenClaw CLI installer executed successfully.${NC}"
+        ui_ok "✓ Step 2 complete: OpenClaw CLI installer executed successfully."
     else
-        echo -e "${RED}[ERROR] OpenClaw CLI installation script returned an error.${NC}"
+        ui_err "OpenClaw CLI installation script returned an error."
         return 1
     fi
 }
 
 install_openclaw_onboard_daemon() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}[Step 3] Run OpenClaw Onboard & Install Daemon (on Host) ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
-    echo -e "${YELLOW}${BOLD}Notice:${NC} This runs outside of Distrobox directly on the host system.${NC}"
-    echo -e "${YELLOW}${BOLD}Instruction:${NC} Since openclaw is in your PATH, run on host:${NC}"
-    echo -e "  ${CYAN}${BOLD}openclaw onboard --install-daemon${NC}"
-    echo -e "${BLUE}-----------------------------------------------------${NC}"
+    ui_banner "[Step 3] Run OpenClaw Onboard & Install Daemon (on Host)" "$C_INDIGO"
+    ui_info_table "Daemon Property,Value" \
+        "Target Environment,Regular Host (Outside Distrobox)" \
+        "Onboard Command,openclaw onboard --install-daemon"
 
     export PATH="$HOME/.openclaw/bin:$PATH"
 
     if command -v openclaw >/dev/null 2>&1; then
-        echo -e "${BLUE}[*] Found 'openclaw' in PATH at: $(command -v openclaw)${NC}"
-        read -rp "Run 'openclaw onboard --install-daemon' now? [Y/n]: " run_daemon
+        ui_info "[*] Found 'openclaw' in PATH at: $(command -v openclaw)"
+        ask_yn "Run 'openclaw onboard --install-daemon' now?" "Y" run_daemon
         run_daemon="${run_daemon:-Y}"
         if [[ "$run_daemon" =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}[*] Running: openclaw onboard --install-daemon ...${NC}"
+            ui_info "[*] Running: openclaw onboard --install-daemon ..."
             openclaw onboard --install-daemon || true
-            echo -e "${GREEN}✓ Step 3 executed: OpenClaw onboard finished.${NC}"
+            ui_ok "✓ Step 3 executed: OpenClaw onboard finished."
         else
-            echo -e "${YELLOW}Skipped automatic execution. Run it directly anytime:${NC}"
-            echo -e "  ${CYAN}openclaw onboard --install-daemon${NC}"
+            ui_warn "Skipped automatic execution. Run it directly anytime:"
+            echo -e "  $(ui_c "cyan" "openclaw onboard --install-daemon")"
         fi
     else
-        echo -e "${YELLOW}Notice: 'openclaw' not found yet in PATH.${NC}"
-        echo -e "Once installed or in a refreshed shell, run:${NC}"
-        echo -e "  ${CYAN}openclaw onboard --install-daemon${NC}"
+        ui_warn "Notice: 'openclaw' not found yet in PATH."
+        echo -e "Once installed or in a refreshed shell, run:"
+        echo -e "  $(ui_c "cyan" "openclaw onboard --install-daemon")"
     fi
 }
 
@@ -3254,18 +3583,21 @@ install_openclaw() {
 
     checkbox_menu_select \
         "Install OpenClaw Sequence (Steps 0 - 3)" \
-        " Source: https://github.com/openclaw/openclaw & https://openclaw.ai" \
-        "RUN selected installation steps" \
-        "Back to Main Menu" || return 0
+        "Source: https://github.com/openclaw/openclaw & https://openclaw.ai\nTarget: Host CLI + ubuntu-toolbox Distrobox" \
+        "Run Selected Installation Steps" \
+        "Back to Main Menu" \
+        "$C_INDIGO" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Executing OpenClaw Installation Sequence ===${NC}"
+    echo
+    ui_info "=== Executing OpenClaw Installation Sequence ==="
     [ "${CB_SELECTED[0]}" -eq 1 ] && install_openclaw_deb_distrobox
     [ "${CB_SELECTED[1]}" -eq 1 ] && install_openclaw_path_config
     [ "${CB_SELECTED[2]}" -eq 1 ] && install_openclaw_cli_host
     [ "${CB_SELECTED[3]}" -eq 1 ] && install_openclaw_onboard_daemon
 
-    echo -e "\n${GREEN}✓ OpenClaw sequence finished.${NC}"
-    read -rp "Press Enter to continue..." _
+    echo
+    ui_ok "✓ OpenClaw sequence finished."
+    ui_pause "Press Enter to continue..."
 }
 
 download_devpod_cli() {
@@ -3274,7 +3606,7 @@ download_devpod_cli() {
         x86_64)  target_arch="amd64" ;;
         aarch64|arm64) target_arch="arm64" ;;
         *)
-            echo -e "${RED}Unsupported architecture: $(uname -m)${NC}"
+            ui_err "Unsupported architecture: $(uname -m)"
             return 1
             ;;
     esac
@@ -3283,7 +3615,8 @@ download_devpod_cli() {
     mkdir -p "$install_dir"
     local dest_file="$install_dir/devpod"
 
-    echo -e "\n${BLUE}[*] Fetching latest DevPod release...${NC}"
+    echo
+    ui_info "[*] Fetching latest DevPod release..."
     local download_url=""
     local tag=""
     if command -v curl &>/dev/null; then
@@ -3301,31 +3634,37 @@ download_devpod_cli() {
     local tmp_download
     tmp_download="$(mktemp -t devpod-download-XXXXXX)"
 
-    echo -e "${BLUE}[*] Downloading DevPod binary ($ver_label, ${target_arch}) from $download_url...${NC}"
+    ui_banner "Install DevPod CLI" "$C_MINT"
+    ui_info_table "DevPod Property,Value" \
+        "Version,$ver_label (${target_arch})" \
+        "Download URL,$download_url" \
+        "Destination,$dest_file"
+
+    ui_info "[*] Downloading DevPod binary ($ver_label, ${target_arch})..."
     if curl -fsSL -L "$download_url" -o "$tmp_download"; then
         # If downloaded file is an archive, extract the binary, else install directly
         if file "$tmp_download" | grep -qi "gzip compressed data"; then
-            echo -e "${BLUE}[*] Extracting archive...${NC}"
+            ui_info "[*] Extracting archive..."
             tar -xzf "$tmp_download" -C "$install_dir" devpod 2>/dev/null || tar -xzf "$tmp_download" -C "$install_dir"
         elif file "$tmp_download" | grep -qi "tar archive"; then
-            echo -e "${BLUE}[*] Extracting archive...${NC}"
+            ui_info "[*] Extracting archive..."
             tar -xf "$tmp_download" -C "$install_dir" devpod 2>/dev/null || tar -xf "$tmp_download" -C "$install_dir"
         else
             cp -f "$tmp_download" "$dest_file"
         fi
         rm -f "$tmp_download"
         chmod +x "$dest_file"
-        echo -e "${GREEN}✓ Successfully installed DevPod binary to $dest_file${NC}"
+        ui_ok "✓ Successfully installed DevPod binary to $dest_file"
 
         # Ensure ~/.local/bin is in PATH for current session and shell config
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
             export PATH="$HOME/.local/bin:$PATH"
-            echo -e "${YELLOW}• Note: Added ~/.local/bin to current PATH.${NC}"
+            ui_warn "• Note: Added ~/.local/bin to current PATH."
         fi
         "$dest_file" version 2>/dev/null || true
     else
         rm -f "$tmp_download"
-        echo -e "${RED}✗ Failed to download DevPod from $download_url${NC}"
+        ui_err "✗ Failed to download DevPod from $download_url"
         return 1
     fi
 }
@@ -3342,21 +3681,24 @@ download_and_install_single_appimage() {
     mkdir -p "$appimages_dir"
 
     if [ -z "$download_url" ] || [ "$download_url" == "None" ]; then
-        echo -e "${RED}[!] Could not resolve latest download URL for $name.${NC}"
+        ui_err "[!] Could not resolve latest download URL for $name."
         return 1
     fi
 
     local target_path="$appimages_dir/$filename"
-    echo -e "\n${BLUE}[*] Downloading latest ${name}...${NC}"
-    echo -e "    URL:  ${download_url}"
-    echo -e "    Dest: ${target_path}"
+    echo
+    ui_info "[*] Downloading latest ${name}..."
+    ui_info_table "AppImage Asset,Value" \
+        "Application,${name}" \
+        "Source URL,${download_url}" \
+        "Destination,${target_path}"
 
     if curl -fLC - --progress-bar -o "$target_path" "$download_url"; then
         chmod +x "$target_path"
-        echo -e "${GREEN}[+] Successfully downloaded and set executable: ${target_path}${NC}"
+        ui_ok "[+] Successfully downloaded and set executable: ${target_path}"
         return 0
     else
-        echo -e "${RED}[ERROR] Failed to download ${name} from ${download_url}${NC}"
+        ui_err "Failed to download ${name} from ${download_url}"
         return 1
     fi
 }
@@ -3477,63 +3819,63 @@ sys.exit(1)
 
 install_bionic_appimage() {
     local url
-    url="$(fetch_latest_bionic_url)"
+    url="$(ui_spin_fn "Resolving latest bionic..." fetch_latest_bionic_url)"
     local fn="bionic.appimage"
     download_and_install_single_appimage "Bionic (LM Studio Agent)" "$url" "$fn"
 }
 
 install_darktable_appimage() {
     local url
-    url="$(fetch_latest_darktable_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest darktable appimage..." fetch_latest_darktable_appimage_url)"
     local fn="darktable.appimage"
     download_and_install_single_appimage "Darktable" "$url" "$fn"
 }
 
 install_eden_appimage() {
     local url
-    url="$(fetch_latest_eden_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest eden appimage..." fetch_latest_eden_appimage_url)"
     local fn="eden.appimage"
     download_and_install_single_appimage "Eden Nintendo Switch Emulator" "$url" "$fn"
 }
 
 install_jan_appimage() {
     local url
-    url="$(fetch_latest_jan_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest jan appimage..." fetch_latest_jan_appimage_url)"
     local fn="jan.appimage"
     download_and_install_single_appimage "Jan AI Desktop" "$url" "$fn"
 }
 
 install_lmms_appimage() {
     local url
-    url="$(fetch_latest_lmms_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest lmms appimage..." fetch_latest_lmms_appimage_url)"
     local fn="lmms.appimage"
     download_and_install_single_appimage "LMMS Digital Audio Workstation" "$url" "$fn"
 }
 
 install_musescore_appimage() {
     local url
-    url="$(fetch_latest_musescore_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest musescore appimage..." fetch_latest_musescore_appimage_url)"
     local fn="musescore_studio.appimage"
     download_and_install_single_appimage "MuseScore Studio" "$url" "$fn"
 }
 
 install_qtscrcpy_appimage() {
     local url
-    url="$(fetch_latest_qtscrcpy_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest qtscrcpy appimage..." fetch_latest_qtscrcpy_appimage_url)"
     local fn="qtscrcpy.appimage"
     download_and_install_single_appimage "QtScrcpy (Android Display & Control)" "$url" "$fn"
 }
 
 install_unsloth_appimage() {
     local url
-    url="$(fetch_latest_unsloth_appimage_url)"
+    url="$(ui_spin_fn "Resolving latest unsloth appimage..." fetch_latest_unsloth_appimage_url)"
     local fn="unsloth.appimage"
     download_and_install_single_appimage "Unsloth AI Studio" "$url" "$fn"
 }
 
 install_appimageupdatetool() {
     local url
-    url="$(fetch_latest_appimageupdatetool_url)"
+    url="$(ui_spin_fn "Resolving latest appimageupdatetool..." fetch_latest_appimageupdatetool_url)"
     local fn="appimageupdatetool.AppImage"
     download_and_install_single_appimage "AppImageUpdate Tool" "$url" "$fn"
 }
@@ -3571,11 +3913,11 @@ appimage_hub_menu() {
         CB_SELECTED=("${hub_sel[@]}")
         checkbox_menu_select \
             "AppImage Hub & Local AI Engines" \
-            " Target Directory: $HOME/AppImages" \
-            "RUN Download for Selected AppImages & AI Tools" \
+            "Target Directory: $HOME/AppImages\nCatalog: 17 Local AI Runtimes; Creative Suites & Portable Apps" \
+            "Download Selected AppImages & AI Tools" \
             "Back to Main Menu" \
-            "$BLUE" \
-            "Compact & Configure Portable AppImages"
+            "$C_MINT" \
+            "Compact & Configure Portable AppImages…"
         rc=$?
         hub_sel=("${CB_SELECTED[@]}")
 
@@ -3586,7 +3928,8 @@ appimage_hub_menu() {
             continue
         fi
 
-        echo -e "\n${BOLD}${BLUE}=== Downloading Selected AppImages & AI Tools ===${NC}"
+        echo
+        ui_info "=== Downloading Selected AppImages & AI Tools ==="
         [ "${hub_sel[0]}" -eq 1 ] && install_appimageupdatetool
         [ "${hub_sel[1]}" -eq 1 ] && install_bionic_appimage
         [ "${hub_sel[2]}" -eq 1 ] && install_darktable_appimage
@@ -3605,15 +3948,16 @@ appimage_hub_menu() {
         [ "${hub_sel[15]}" -eq 1 ] && install_qtscrcpy_appimage
         [ "${hub_sel[16]}" -eq 1 ] && install_unsloth_appimage
 
-        echo -e "\n${GREEN}${BOLD}[+] Selected AppImage & AI installations complete!${NC}"
-        read -rp "Press Enter to continue..." _
+        echo
+        ui_ok "[+] Selected AppImage & AI installations complete!"
+        ui_pause "Press Enter to continue..."
     done
 }
 
 run_appimage_compact() {
     local appimages_dir="$HOME/AppImages"
     if [ ! -d "$appimages_dir" ]; then
-        echo -e "${YELLOW}• Directory $appimages_dir does not exist.${NC}"
+        ui_warn "• Directory $appimages_dir does not exist."
         return 0
     fi
 
@@ -3622,7 +3966,7 @@ run_appimage_compact() {
     shopt -u nullglob nocaseglob
 
     if [ "${#appimages[@]}" -eq 0 ]; then
-        echo -e "${YELLOW}• No .AppImage files found in $appimages_dir.${NC}"
+        ui_warn "• No .AppImage files found in $appimages_dir."
         return 0
     fi
 
@@ -3636,22 +3980,25 @@ run_appimage_compact() {
 
     checkbox_menu_select \
         "Compact & Configure Portable AppImages" \
-        "" \
-        "RUN on selected AppImages" \
-        "Cancel / Back" || return 0
+        "Directory: $appimages_dir\nOperations: Auto-update + .config & .home portable folders" \
+        "Configure Selected AppImages" \
+        "Back to Menu" \
+        "$C_MINT" || return 0
 
     local to_process=()
     for i in "${!appimages[@]}"; do
         [ "${CB_SELECTED[i]}" -eq 1 ] && to_process+=("${appimages[i]}")
     done
 
-    echo -e "\n${BLUE}Processing ${#to_process[@]} selected AppImage(s)...${NC}"
+    echo
+    ui_info "Processing ${#to_process[@]} selected AppImage(s)..."
     local count=0
     local appimage fname
     for appimage in "${to_process[@]}"; do
         [ -f "$appimage" ] || continue
         fname="$(basename "$appimage")"
-        echo -e "\n${CYAN}[*] Processing $fname...${NC}"
+        echo
+        ui_info "[*] Processing $fname..."
         chmod +x "$appimage" 2>/dev/null || true
 
         if [ -x "$appimages_dir/appimageupdatetool.AppImage" ] && [ "$fname" != "appimageupdatetool.AppImage" ]; then
@@ -3665,20 +4012,21 @@ run_appimage_compact() {
         count=$((count + 1))
     done
 
-    echo -e "\n${GREEN}✓ Finished processing $count AppImage(s).${NC}"
-    read -rp "Press Enter to return..." _
+    echo
+    ui_ok "✓ Finished processing $count AppImage(s)."
+    ui_pause "Press Enter to return..."
 }
 
 run_ujust() {
     if ! command -v just >/dev/null 2>&1 || { ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; }; then
-        echo -e "${YELLOW}Notice: 'just' or 'ujust' is missing.${NC}"
+        ui_warn "Notice: 'just' or 'ujust' is missing."
         prompt_run_playbook_subtask "ujust" "ujust" "Configure just/ujust task runner and Bluefin recipes" || return 1
         if ! command -v just >/dev/null 2>&1; then
-            echo -e "${RED}Error: 'just' binary is still not installed in PATH.${NC}"
+            ui_err "'just' binary is still not installed in PATH."
             return 1
         fi
         if ! command -v ujust >/dev/null 2>&1 && [ ! -x "/usr/bin/ujust" ]; then
-            echo -e "${RED}Error: 'ujust' is still not found.${NC}"
+            ui_err "'ujust' is still not found."
             return 1
         fi
     fi
@@ -3687,33 +4035,23 @@ run_ujust() {
     ujust_bin="$(command -v ujust 2>/dev/null || echo "/usr/bin/ujust")"
 
     local uj_items=(
-        "1\t🎯 Interactive Recipe Selector\tLaunch ujust with fzf fuzzy recipe selector (ujust --choose)"
-        "2\t📋 List All Available Recipes\tDisplay list of system and user defined ujust tasks"
-        "3\t✨ Configure Terminal Bling\tRun ublue-bling configuration assistant"
-        "4\t⌨️  Run Custom ujust Command\tExecute specific recipe with optional flags"
+        "1\t🎯 Choose Recipe Interactively…\tLaunch ujust with fuzzy recipe selector (ujust --choose)"
+        "2\t📋 List All Available Recipes\tDisplay system and user-defined ujust tasks"
+        "3\t✨ Configure Terminal Bling…\tRun ublue-bling shell configuration assistant"
+        "4\t⌨️  Run Custom ujust Recipe…\tEnter a specific recipe name and arguments"
         "0\t🚪 Back to Main Menu\tReturn to previous menu"
     )
 
     while true; do
-        local uj_choice
-        uj_choice=$(fzf_action_menu "ujust / Universal Blue Task Runner" "ujust" "${uj_items[@]}")
-        local fzf_status=$?
-
-        if [ $fzf_status -eq 99 ]; then
-            clear
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e "${BOLD}       ujust / Universal Blue Task Runner            ${NC}"
-            echo -e "${BLUE}=====================================================${NC}"
-            echo -e " Binary: ${GREEN}$ujust_bin${NC}"
-            echo -e "${BLUE}-----------------------------------------------------${NC}"
-            echo -e "  ${BOLD}1)${NC} Interactive Recipe Selector (ujust --choose)"
-            echo -e "  ${BOLD}2)${NC} List All Available Recipes (ujust)"
-            echo -e "  ${BOLD}3)${NC} Configure Terminal Bling (ublue-bling)"
-            echo -e "  ${BOLD}4)${NC} Run Custom ujust Command"
-            echo -e "  ${BOLD}0)${NC} Back to Main Menu"
-            echo -e "${BLUE}=====================================================${NC}"
-            read -rp "Select an option [0-4]: " uj_choice
+        if ui_tty; then
+            ui_banner "ujust / Universal Blue Task Runner" "$C_INDIGO"
+            ui_info_table "Runner Property,Value" \
+                "ujust Binary,$ujust_bin" \
+                "just Version,$(just --version 2>/dev/null || echo 'Installed')" \
+                "Bling Assistant,$([ -x /usr/bin/ublue-bling ] && echo '/usr/bin/ublue-bling' || echo 'Optional')"
         fi
+        local uj_choice
+        uj_choice=$(gum_action_menu "ujust / Universal Blue Task Runner" "ujust" "${uj_items[@]}")
 
         case "$uj_choice" in
             1)
@@ -3728,11 +4066,11 @@ run_ujust() {
                     bling_bin="$(command -v ublue-bling 2>/dev/null || echo "/usr/bin/ublue-bling")"
                     "$bling_bin"
                 else
-                    echo -e "${YELLOW}ublue-bling script not found in /usr/bin.${NC}"
+                    ui_warn "ublue-bling script not found in /usr/bin."
                 fi
                 ;;
             4)
-                read -rp "Enter ujust recipe name and arguments (e.g. 'install-brew'): " recipe_args
+                ask_input "Enter ujust recipe name and arguments (e.g. 'install-brew'): " recipe_args
                 if [ -n "$recipe_args" ]; then
                     # shellcheck disable=SC2086
                     "$ujust_bin" $recipe_args
@@ -3743,56 +4081,58 @@ run_ujust() {
                 ;;
         esac
         echo ""
-        read -rp "Press Enter to continue..." _
+        ui_pause "Press Enter to continue..."
     done
 }
 
 configure_udev_rules() {
-    echo -e "\n${BLUE}=====================================================${NC}"
-    echo -e "${BOLD}       Configure Gamepad, Joystick & VR udev Rules   ${NC}"
-    echo -e "${BLUE}=====================================================${NC}"
+    ui_banner "Configure Gamepad, Joystick & VR udev Rules" "$C_BLUE"
 
     local UDEV_DIR="$REPO_ROOT/files/udev"
 
     if [ ! -d "$UDEV_DIR" ]; then
         prompt_run_playbook_subtask "udev rules" "udev" "Deploy gamepad, joystick & VR udev rules" || return 1
         if [ ! -d "$UDEV_DIR" ]; then
-            echo -e "${RED}[ERROR] udev source directory still not found: $UDEV_DIR${NC}"
+            ui_err "udev source directory still not found: $UDEV_DIR"
             return 1
         fi
     fi
 
     local rules=("$UDEV_DIR"/*.rules)
     if [ ${#rules[@]} -eq 0 ] || [ ! -e "${rules[0]}" ]; then
-        echo -e "${RED}[ERROR] No udev rule files found in $UDEV_DIR${NC}"
+        ui_err "No udev rule files found in $UDEV_DIR"
         return 1
     fi
 
-    echo -e "${BLUE}[*] Found ${#rules[@]} udev rule file(s) in $UDEV_DIR${NC}"
-    echo -e "${YELLOW}Note: Installing udev rules requires administrator privileges.${NC}"
+    ui_info_table "udev Configuration,Value" \
+        "Source Directory,$UDEV_DIR" \
+        "Rule Files Found,${#rules[@]} file(s) (*.rules)" \
+        "Target Directory,/etc/udev/rules.d" \
+        "Reload Action,udevadm control --reload-rules && udevadm trigger"
+    ui_warn "Note: Installing udev rules requires administrator privileges."
     require_sudo "install udev rules to /etc/udev/rules.d/" || return 1
 
-    echo -e "${BLUE}[*] Ensuring /etc/udev/rules.d exists...${NC}"
+    ui_info "[*] Ensuring /etc/udev/rules.d exists..."
     sudo mkdir -p /etc/udev/rules.d
 
-    echo -e "${BLUE}[*] Installing udev rules...${NC}"
+    ui_info "[*] Installing udev rules..."
     for rule in "${rules[@]}"; do
         local rname
         rname="$(basename "$rule")"
         sudo install -m 0644 "$rule" "/etc/udev/rules.d/$rname"
-        echo -e "  ${GREEN}✓${NC} $rname"
+        echo -e "  $(ui_c "green" "✓") $rname"
     done
 
-    echo -e "${BLUE}[*] Reloading and triggering udev rules...${NC}"
+    ui_info "[*] Reloading and triggering udev rules..."
     if command -v udevadm >/dev/null 2>&1; then
         sudo udevadm control --reload-rules
         sudo udevadm trigger
-        echo -e "${GREEN}✓ udev rules reloaded and triggered successfully!${NC}"
+        ui_ok "✓ udev rules reloaded and triggered successfully!"
     else
-        echo -e "${YELLOW}Warning: 'udevadm' command not found. Rules copied but not reloaded.${NC}"
+        ui_warn "Warning: 'udevadm' command not found. Rules copied but not reloaded."
     fi
 
-    echo -e "${GREEN}✓ Successfully deployed gamepad, joystick, and VR udev rules.${NC}"
+    ui_ok "✓ Successfully deployed gamepad, joystick, and VR udev rules."
 }
 
 run_all() {
@@ -3812,7 +4152,8 @@ run_all() {
 
     # If non-interactive execution (e.g. CLI flag --all or piped), run default full suite automatically
     if [ ! -t 0 ]; then
-        echo -e "\n${BOLD}${BLUE}=== Running Default Non-Interactive Onboarding Sequence ===${NC}"
+        echo
+        ui_info "=== Running Default Non-Interactive Onboarding Sequence ==="
         configure_homebrew
         install_pixi
         update_terminal_utilities
@@ -3822,18 +4163,19 @@ run_all() {
         configure_udev_rules
         apply_bazzite_waydroid_config 2>/dev/null || true
         waydroid prop set persist.waydroid.multi_windows true 2>/dev/null || true
-        echo -e "\n${GREEN}${BOLD}All non-interactive onboarding steps completed!${NC}\n"
+        echo -e "\n$(ui_c "bold:green" "All non-interactive onboarding steps completed!")\n"
         return 0
     fi
 
     checkbox_menu_select \
-        "Core User Onboarding Sequence [Checkbox Menu]" \
-        " Press 'R' to run selected onboarding steps sequentially." \
-        "RUN Selected Onboarding Steps" \
-        "Cancel / Back to Main Menu" \
-        "$CYAN" || return 0
+        "Core User Onboarding Sequence" \
+        "Target User: $(whoami)\nWorkflow: Sequential execution of selected onboarding stages" \
+        "Run Selected Onboarding Steps" \
+        "Back to Main Menu" \
+        "$C_CYAN" || return 0
 
-    echo -e "\n${BOLD}${BLUE}=== Executing Selected Onboarding Sequence ===${NC}"
+    echo
+    ui_info "=== Executing Selected Onboarding Sequence ==="
     [ "${CB_SELECTED[0]}" -eq 1 ] && configure_homebrew
     [ "${CB_SELECTED[1]}" -eq 1 ] && install_pixi
     [ "${CB_SELECTED[2]}" -eq 1 ] && update_terminal_utilities
@@ -3845,23 +4187,25 @@ run_all() {
     [ "${CB_SELECTED[5]}" -eq 1 ] && configure_udev_rules
     [ "${CB_SELECTED[6]}" -eq 1 ] && apply_bazzite_waydroid_config
     if [ "${CB_SELECTED[7]}" -eq 1 ]; then
-        echo -e "\n${BLUE}[*] Configuring Waydroid Multi-Window Mode...${NC}"
+        echo
+        ui_info "[*] Configuring Waydroid Multi-Window Mode..."
         if command -v waydroid >/dev/null 2>&1; then
             waydroid prop set persist.waydroid.multi_windows true
-            echo -e "${GREEN}[+] persist.waydroid.multi_windows enabled.${NC}"
+            ui_ok "[+] persist.waydroid.multi_windows enabled."
         else
-            echo -e "${YELLOW}[!] 'waydroid' command not yet installed; skipped setting property.${NC}"
+            ui_warn "[!] 'waydroid' command not yet installed; skipped setting property."
         fi
     fi
     [ "${CB_SELECTED[8]}" -eq 1 ] && setup_waydroid
     [ "${CB_SELECTED[9]}" -eq 1 ] && configure_pipewire_streaming
 
-    echo -e "\n${GREEN}${BOLD}Selected onboarding steps have been successfully executed!${NC}\n"
-    read -rp "Press Enter to continue..." _
+    echo -e "\n$(ui_c "bold:green" "Selected onboarding steps have been successfully executed!")\n"
+    ui_pause "Press Enter to continue..."
 }
 
 show_help() {
-    cat <<'EOF'
+    local text
+    text="$(cat <<'EOF'
 Usage: launcher.sh [FLAG]
 
 Flags:
@@ -3901,6 +4245,16 @@ Flags:
   --superposition, --unigine      Download & Setup Unigine Superposition Benchmark
   -h, --help                      Show this help message
 EOF
+)"
+    if ui_tty; then
+        {
+            ui_markdown "# Fedora Workstation Launcher" "Run without flags for the interactive gum menu, or pass one flag:"
+            echo
+            printf '%s\n' "$text"
+        } | ui_pager
+    else
+        printf '%s\n' "$text"
+    fi
 }
 
 # Non-interactive CLI flag handling
@@ -3949,7 +4303,7 @@ if [ $# -gt 0 ]; then
         --udev|--udev-rules)            configure_udev_rules ;;
         -h|--help)                      show_help ;;
         *)
-            echo -e "${RED}Unknown flag: $1${NC}" >&2
+            ui_err "Unknown flag: $1" >&2
             show_help >&2
             exit 1
             ;;
@@ -3957,86 +4311,34 @@ if [ $# -gt 0 ]; then
     exit $?
 fi
 
-# Interactive Menu Loop
+# Interactive Menu Loop (Apple HIG Menu Organization, Action Verbs, Title-Style Capitalization, and Ellipses)
+main_menu_entries=(
+    "1\t🚀 Run Core User Onboarding…\tEssential onboarding: Homebrew, Pixi, Distrobox, Flatpaks, udev rules, and Waydroid"
+    "2\t📖 Run Full Fedora Playbook\tExecute complete system provisioning playbook (ansible-playbook local.yml --ask-become-pass)"
+    "3\t⚡ Open ujust Task Runner…\tBrowse ujust recipes, list tasks, configure terminal bling, or run custom tasks"
+    "4\t🍺 Configure Homebrew & PATH\tSet up Linuxbrew environment and shell profiles (~/.bashrc, ~/.zshrc)"
+    "5\t📦 Install Pixi Package Manager\tInstall or update fast Conda-compatible package manager (pixi.sh)"
+    "6\t🔄 Refresh Terminal Caches\tUpdate tldr pages, rebuild bat syntax themes, refresh fonts, and update man-db"
+    "7\t🐧 Set Up Ubuntu Distrobox…\tCreate or replace Ubuntu toolbox container and export UniGetUI"
+    "8\t🧩 Configure User Flatpak Remotes…\tEnable user-level Flathub and Fedora OCI remotes without root access"
+    "9\t🤖 Open AppImage & Local AI Hub…\tDownload and manage 17 local AI engines, LLM runtimes, and creative apps"
+    "10\t🗜️  Compact Portable AppImages…\tOptimize AppImages with portable config/home folders and auto-updaters"
+    "11\t📱 Open Waydroid Setup Wizard…\tAndroid container with ARM translation (libndk), Widevine, GAPPS, and multi-window"
+    "12\t🖥️  Manage Virtualization & VMs…\tControl Libvirt networks, virt-builder OS templates, XML domains, and Vagrant"
+    "13\t🎮 Install Gamepad & VR udev Rules\tDeploy hardware input rules to /etc/udev/rules.d for Steam, VR, and controllers"
+    "14\t🔊 Configure PipeWire Audio Routing…\tMulti-user low-latency TCP network audio streaming between sender and receiver"
+    "15\t🧹 Run System Cleanup & Benchmarks…\tPrune container caches, remove Snap snapshots, and run disk/GPU benchmarks"
+    "0\t🚪 Quit Launcher\tExit Fedora Workstation Control Center"
+)
+
 while true; do
     choice=""
-    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
-        local_menu_entries=(
-            "1\t🚀 Core User Onboarding Sequence\tRun essential onboarding tasks: Homebrew, Pixi, Distrobox, Flatpaks, udev rules, and Waydroid"
-            "2\t📖 Run Entire Fedora Ansible Playbook\tExecute complete system provisioning playbook with all tasks (ansible-playbook local.yml --ask-become-pass)"
-            "3\t⚡ ujust / Universal Blue Task Runner\tAccess ujust recipes, list tasks, run bling setups, or execute custom system tasks"
-            "4\t🍺 Configure Homebrew & PATH\tConfigure Linuxbrew environment and shell rc paths (~/.bashrc, ~/.zshrc)"
-            "5\t📦 Install Pixi Package Manager\tInstall or update the ultra-fast Conda-compatible package manager (pixi.sh)"
-            "6\t📖 Refresh TLDR & Terminal Caches\tUpdate tldr pages, rebuild bat syntax themes, refresh font caches, and update man-db"
-            "7\t📦 Setup Ubuntu Distrobox Container\tCreate or recreate an Ubuntu 24.04 toolbox container for Debian software"
-            "8\t📦 User Flatpak Remotes (Flathub & Fedora)\tConfigure user-level Flathub and Fedora OCI remotes without root access"
-            "9\t🤖 AppImage Hub & Local AI Engines\tDownload and manage 15+ local AI models, LLM runtimes, and creative apps"
-            "10\t🗜️  Compact & Configure Portable AppImages\tOptimize AppImages with portable config/home dirs and run auto-updaters"
-            "11\t📱 Fedora Waydroid Setup Wizard\tAndroid container subsystem with ARM translation (libndk), GAPPS, and multi-window"
-            "12\t🖥️  Virtualization & VM Management\tManage Libvirt networks, autostart VMs, virt-builder OS templates, and Vagrant"
-            "13\t🎮 Gamepad, Joystick & VR udev Rules\tDeploy hardware input rules to /etc/udev/rules.d for Steam, VR, and controllers"
-            "14\t🔊 PipeWire Audio Redirection\tMulti-user low-latency network audio streaming between sender and receiver"
-            "15\t🧹 System Cleanup & Benchmarks\tClean container caches, snapshot storage, disk benchmarks, and Unigine GPU bench"
-            "0\t🚪 Exit Launcher\tQuit setup utility"
-        )
-
-        choice=$(printf "%b\n" "${local_menu_entries[@]}" | fzf \
-            --delimiter="\t" \
-            --with-nth="{1}) {2}" \
-            --accept-nth=1 \
-            --tiebreak=begin \
-            --preview='echo -e "\n  '"${CYAN}${BOLD}"'{2}'"${NC}"'\n\n  '"${GRAY}"'{3}'"${NC}"'"' \
-            --preview-window="right,45%,border-left,wrap" \
-            --border="rounded" \
-            --border-label=" Fedora Workstation Control Center " \
-            --header="User: $(whoami)  •  Host: $(hostname)  •  Shell: ${SHELL:-bash}  •  [Enter] Launch  [Esc] Exit" \
-            --prompt="Search Action ❯ " \
-            --pointer="❯" \
-            --marker="✓" \
-            --height=75% \
-            --layout=reverse \
-            --color="$FZF_HIG_COLORS")
-
-        fzf_status=$?
-        if [ $fzf_status -ne 0 ] || [ -z "$choice" ]; then
-            choice=0
-        fi
-    else
+    if ui_tty; then
         clear
-        echo -e "${CYAN}===================================================================${NC}"
-        echo -e "${BOLD}          Fedora Workstation - User Environment Launcher           ${NC}"
-        echo -e "${CYAN}===================================================================${NC}"
-        echo -e " User: ${GREEN}$(whoami)${NC} | Host: ${GREEN}$(hostname)${NC} | Shell: ${GREEN}${SHELL:-bash}${NC}"
-        echo -e "${CYAN}-------------------------------------------------------------------${NC}"
-        echo -e " ${BOLD}[Onboarding & Automation]${NC}"
-        echo -e "   ${BOLD}1)${NC} ${BOLD}Core User Onboarding Sequence [Checkbox Menu]${NC}"
-        echo -e "   ${BOLD}2)${NC} ${BOLD}Run Entire Fedora Ansible Playbook (--ask-become-pass)${NC}"
-        echo -e "   ${BOLD}3)${NC} Access ujust / Universal Blue Task Runner"
-        echo ""
-        echo -e " ${BOLD}[Developer Environments & Package Managers]${NC}"
-        echo -e "   ${BOLD}4)${NC} Configure Homebrew Environment & PATH"
-        echo -e "   ${BOLD}5)${NC} Install Pixi Package Manager (pixi.sh)"
-        echo -e "   ${BOLD}6)${NC} Update TLDR Cache & Terminal Utilities Refresh"
-        echo -e "   ${BOLD}7)${NC} Create Ubuntu Distrobox Container"
-        echo -e "   ${BOLD}8)${NC} Configure User Flatpak Remotes (Flathub & Fedora) [Checkbox]"
-        echo ""
-        echo -e " ${BOLD}[AppImage Hub & Local AI Tools]${NC}"
-        echo -e "   ${BOLD}9)${NC} ${BOLD}AppImage Hub & Local AI Engines (15+ Tools & Models) [Checkbox]${NC}"
-        echo -e "  ${BOLD}10)${NC} Compact & Configure Portable AppImages (--appimage-portable-*) [Checkbox]"
-        echo ""
-        echo -e " ${BOLD}[Virtualization & Android Emulation]${NC}"
-        echo -e "  ${BOLD}11)${NC} Fedora Waydroid Setup Wizard (Subsystems, APKs & Fixes) [Checkbox]"
-        echo -e "  ${BOLD}12)${NC} Virtualization & VM Management (Libvirt & Vagrant)"
-        echo ""
-        echo -e " ${BOLD}[Hardware & System Utilities]${NC}"
-        echo -e "  ${BOLD}13)${NC} Configure Gamepad, Joystick & VR udev Rules"
-        echo -e "  ${BOLD}14)${NC} Configure PipeWire Audio Redirection (Multi-User Streaming)"
-        echo -e "  ${BOLD}15)${NC} System Cleanup & Storage Benchmarks (Podman, Snap, Disk) [Checkbox]"
-        echo -e "${CYAN}-------------------------------------------------------------------${NC}"
-        echo -e "   ${BOLD}0)${NC} Exit"
-        echo -e "${CYAN}===================================================================${NC}"
-        read -rp "Select an option [0-15]: " choice
+        ui_dashboard
     fi
+    choice="$(gum_action_menu "Select an action (type to filter, Enter to launch, Esc to exit)" "Search Action" "${main_menu_entries[@]}")"
+    [ -z "$choice" ] && choice=0
 
     case "$choice" in
         1) run_all ;;
@@ -4055,13 +4357,16 @@ while true; do
         14) configure_pipewire_streaming ;;
         15) cleanup_system ;;
         0|[Qq]|exit)
-            echo -e "\n${GREEN}Exiting setup. You can run this script again anytime!${NC}\n"
+            echo
+            ui_ok "Exiting setup. You can run this script again anytime!"
             exit 0
             ;;
         *)
-            echo -e "\n${RED}Invalid option: '$choice'. Please enter 0-15.${NC}"
+            echo
+            ui_err "Invalid option: '$choice'. Please enter 0-15."
             ;;
     esac
     echo ""
-    read -rp "Press Enter to return to the menu..." _
+    ui_pause "Press Enter to return to the menu..."
 done
+

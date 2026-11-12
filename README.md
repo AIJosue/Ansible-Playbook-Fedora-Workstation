@@ -41,13 +41,13 @@ mindmap
       Hardware udev Rules
     User Space Control
       launcher.sh Control Center
-      fzf Fuzzy Navigation & Previews
+      gum Interactive Menus & Prompts
       virt-builder OS Generator
       Local AI & AppImage Hub
       PipeWire Audio Streaming
     Tech Stack
       Ansible & YAML
-      Bash & fzf
+      Bash & gum
       KVM, QEMU & Libvirt
       Podman & OCI
 ```
@@ -63,7 +63,7 @@ This project delivers a **reproducible, declarative workstation standard** that:
 > [!NOTE]
 > **Core Engineering Tenets**
 > * **Strict Privilege Boundary**: Elevated (`sudo`) system-level provisioning is strictly decoupled from unprivileged user environments (`launcher.sh`).
-> * **Cognitive Deference**: UI tools emphasize content over chrome; `fzf` fuzzy filtering and live preview panels reduce mental overhead.
+> * **Cognitive Deference**: UI tools emphasize content over chrome; `gum` fuzzy filtering, confirmations and spinners reduce mental overhead.
 > * **Reproducible Infrastructure**: Version-controlled VM templates, Vagrant sandboxes, and Ansible plays allow identical environments across machines.
 
 ---
@@ -80,7 +80,7 @@ Once provisioned, users interact with the system via `launcher.sh`—an interact
 | :--- | :--- | :--- |
 | **Ansible** | Orchestration | Declarative task automation, idempotency, and host configuration |
 | **Fedora Linux** | Host Platform | Modern Linux workstation base with DNF, systemd, and Btrfs |
-| **fzf** | User Interface | Fuzzy searching, live inspector sidebars, and keyboard ergonomics |
+| **gum** | User Interface | Charm gum menus, fuzzy filter, checkbox lists, spinners, tables and prompts (`sudo dnf install gum`) |
 | **KVM / QEMU / Libvirt** | Hypervisor | Hardware-accelerated virtual machines, bridge networking, and `virt-builder` |
 | **Podman** | Containers | Rootless container engine with `/var/run/docker.sock` API bridge |
 | **Waydroid** | Android Subsystem | Containerized LineageOS with libndk ARM translation and Widevine DRM |
@@ -112,7 +112,7 @@ Ansible-Playbook-Fedora-Workstation/
 │   ├── users-groups.yml           # User accounts, groups & desktop launcher deployment
 │   ├── ujust.yml                  # ujust recipes, Starship prompt & Bluefin bling
 │   └── initialize.yml             # System hostname, AppImages dir & virtualization paths
-├── launcher.sh                    # HIG-compliant interactive user control center (fzf)
+├── launcher.sh                    # HIG-compliant interactive user control center (gum)
 ├── Scripts/
 │   ├── packages.sh                # Core DNF package installation script
 │   └── user.sh                    # Helper to launch shell as unprivileged desktop user
@@ -164,7 +164,7 @@ gantt
 ### 1. Prerequisites
 Ensure Ansible and Git are available:
 ```bash
-sudo dnf install -y ansible git
+sudo dnf install -y ansible git gum
 ```
 
 ### 2. Clone Repository
