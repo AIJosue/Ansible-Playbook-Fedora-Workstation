@@ -2009,18 +2009,34 @@ fetch_latest_unigine_superposition_url() {
     python3 -c "
 import urllib.request, re, sys
 
-url = 'https://benchmark.unigine.com/superposition'
-req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-try:
-    with urllib.request.urlopen(req, timeout=12) as resp:
-        html = resp.read().decode('utf-8', errors='ignore')
-        matches = re.findall(r'https?://[^\s\"\'<>]+Unigine_Superposition-[0-9.]+\.run', html)
-        if matches:
-            # Sort version descending if multiple found
-            print(sorted(set(matches), reverse=True)[0])
-            sys.exit(0)
-except Exception:
-    pass
+headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'}
+endpoints = [
+    'https://benchmark.unigine.com/superposition',
+    'https://unigine.com/products/benchmarks/superposition/'
+]
+
+candidates = set()
+for u in endpoints:
+    try:
+        req = urllib.request.Request(u, headers=headers)
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+            matches = re.findall(r'https?://[^\s\"\'<>]+(?:Unigine_Superposition|superposition)[^\s\"\'<>]*\.run', html, re.I)
+            candidates.update(matches)
+    except Exception:
+        pass
+
+if candidates:
+    def extract_ver(link):
+        m = re.search(r'Unigine_Superposition-([0-9.]+)\.run', link, re.I)
+        if m:
+            try:
+                return [int(x) for x in m.group(1).split('.')]
+            except Exception:
+                pass
+        return [0]
+    print(sorted(list(candidates), key=extract_ver, reverse=True)[0])
+    sys.exit(0)
 
 print('https://assets.unigine.com/d/Unigine_Superposition-1.1.run')
 "
