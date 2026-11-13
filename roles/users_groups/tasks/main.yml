@@ -1,0 +1,38 @@
+---
+- name: Ensure required system groups exist
+  group:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ system_groups }}"
+  tags: [users_groups]
+
+- name: Create users and assign to system groups
+  user:
+    name: "{{ item.name }}"
+    state: present
+    groups: "{{ item.groups }}"
+    append: true
+    create_home: true
+    shell: /bin/bash
+  loop: "{{ system_users }}"
+  when: item.name | default('') | length > 0 and item.name != 'root'
+  tags: [users_groups]
+
+- name: Ensure Desktop directory exists for user accounts
+  file:
+    path: "/home/{{ item }}/Desktop"
+    state: directory
+    owner: "{{ item }}"
+    mode: '0755'
+  loop: "{{ desktop_users }}"
+  tags: [desktop_launcher]
+
+- name: Deploy interactive setup script to user Desktop
+  copy:
+    src: "{{ playbook_dir }}/launcher.sh"
+    dest: "/home/{{ item }}/Desktop/launcher.sh"
+    owner: "{{ item }}"
+    mode: '0755'
+  loop: "{{ desktop_users }}"
+  when: enable_users_desktop_launcher | bool
+  tags: [desktop_launcher]

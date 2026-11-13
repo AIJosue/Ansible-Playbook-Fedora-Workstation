@@ -1,0 +1,12 @@
+---
+- name: Configure third-party YUM/DNF repositories
+  yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    gpgcheck: true
+    repo_gpgcheck: "{{ item.repo_gpgcheck | default(omit) }}"
+    gpgkey: "{{ item.gpgkey }}"
+    enabled: true
+    skip_if_unavailable: "{{ item.skip_if_unavailable | default(true) }}"
+  loop: "{{ yum_repositories }}"

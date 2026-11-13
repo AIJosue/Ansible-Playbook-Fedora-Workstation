@@ -1,21 +1,18 @@
 ---
 - name: Ensure udev rules directory exists
-  ansible.builtin.file:
+  file:
     path: /etc/udev/rules.d
     state: directory
     owner: root
     group: root
     mode: '0755'
-  ignore_errors: true
 
 - name: Install gamepad, joystick, and VR udev rules
-  ansible.builtin.copy:
+  copy:
     src: "{{ item }}"
     dest: "/etc/udev/rules.d/{{ item | basename }}"
     owner: root
     group: root
     mode: '0644'
-  with_fileglob:
-    - "{{ playbook_dir }}/files/udev/*.rules"
+  loop: "{{ query('fileglob', playbook_dir + '/files/udev/*.rules') }}"
   notify: Reload udev rules
-  ignore_errors: true

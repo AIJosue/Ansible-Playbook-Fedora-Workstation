@@ -1,0 +1,5 @@
+---
+- name: Reload udev rules
+  shell: udevadm control --reload-rules && udevadm trigger
+  changed_when: true
+  failed_when: false

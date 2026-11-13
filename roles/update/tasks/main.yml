@@ -1,6 +1,6 @@
 ---
 - name: Update system
-  ansible.builtin.dnf:
+  dnf:
     name: "*"
     state: latest # noqa package-latest
     update_cache: true

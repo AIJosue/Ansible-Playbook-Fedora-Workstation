@@ -1,0 +1,34 @@
+---
+- name: Ensure just command runner is installed
+  package:
+    name: just
+    state: present
+  ignore_errors: true
+
+- name: Ensure ujust directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ ujust_directories }}"
+
+- name: Install ujust helper and CLI scripts
+  copy:
+    src: "{{ playbook_dir }}/files/ujust/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ ujust_files }}"
+
+- name: Install Starship prompt binary if missing
+  shell: |
+    set -o pipefail
+    command -v starship >/dev/null 2>&1 || { curl -fsSL --connect-timeout 10 https://starship.rs/install.sh | sh -s -- -y && echo INSTALLED; }
+  args:
+    executable: /bin/bash
+  register: starship_res
+  changed_when: "'INSTALLED' in starship_res.stdout"
+  failed_when: false

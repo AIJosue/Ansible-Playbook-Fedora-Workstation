@@ -1,0 +1,36 @@
+---
+enable_snap_classic: true            # Install classic confinement snap packages
+enable_snap_apps: true               # Install standard snap applications
+
+snap_packages_standard:
+  - audacity
+  - bitwarden
+  - chromium
+  - cups
+  - digikam
+  - firefox
+  - freecad
+  - gimp
+  - gnome-characters
+  - inkscape
+  - k3b
+  - kget
+  - node-red
+  - nordvpn
+  - obs-studio
+  - openvino-ai-plugins-gimp
+  - postman
+  - proton-vpn
+  - snap-store
+  - steam
+  - tailscale
+  - telegram-desktop
+  - termius-app
+
+snap_packages_classic:
+  - android-studio
+  - antigravity
+  - blender
+  - code
+  - flutter
+  - powershell

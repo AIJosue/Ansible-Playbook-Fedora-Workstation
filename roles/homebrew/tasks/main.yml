@@ -1,0 +1,42 @@
+---
+- name: Ensure /home/linuxbrew directory exists
+  file:
+    path: "{{ homebrew_prefix }}"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: '0755'
+  when: target_user != 'root'
+
+- name: Install Homebrew
+  shell: |
+    set -o pipefail
+    curl -fsSL "{{ homebrew_install_url }}" | /bin/bash
+  args:
+    executable: /bin/bash
+    creates: "{{ homebrew_bin }}"
+  environment:
+    NONINTERACTIVE: "1"
+  when: target_user != 'root'
+  become_user: "{{ target_user }}"
+  failed_when: false
+
+- name: Configure system-wide Homebrew shell environment
+  copy:
+    dest: /etc/profile.d/homebrew.sh
+    content: |
+      if [ -x "{{ homebrew_bin }}" ]; then
+          eval "$({{ homebrew_bin }} shellenv)"
+      fi
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Ensure Homebrew shellenv is loaded in user bashrc
+  lineinfile:
+    path: "{{ target_user_home }}/.bashrc"
+    line: 'eval "$({{ homebrew_bin }} shellenv)"'
+    state: present
+    create: true
+    owner: "{{ target_user }}"
+    mode: '0644'
+  when: target_user != 'root'

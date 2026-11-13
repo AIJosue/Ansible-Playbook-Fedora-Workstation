@@ -1,0 +1,17 @@
+---
+enable_waydroid_scripts: true
+waydroid_multi_windows: true
+waydroid_system_type: "GAPPS"
+waydroid_init_images: false
+waydroid_install_libndk: false
+
+waydroid_files:
+  - { src: "waydroid-container-start", dest: "/usr/libexec/waydroid-container-start", mode: "0755" }
+  - { src: "waydroid-container-stop", dest: "/usr/libexec/waydroid-container-stop", mode: "0755" }
+  - { src: "waydroid-container-restart", dest: "/usr/libexec/waydroid-container-restart", mode: "0755" }
+  - { src: "waydroid-fix-controllers", dest: "/usr/libexec/waydroid-fix-controllers", mode: "0755" }
+  - { src: "waydroid-choose-gpu", dest: "/usr/bin/waydroid-choose-gpu", mode: "0755" }
+  - { src: "waydroid-launcher", dest: "/usr/bin/waydroid-launcher", mode: "0755" }
+  - { src: "waydroid-launcher.default", dest: "/etc/default/waydroid-launcher", mode: "0644" }
+  - { src: "org.bazzite.waydroid.policy", dest: "/usr/share/polkit-1/actions/org.bazzite.waydroid.policy", mode: "0644" }
+  - { src: "30-waydroid.rules", dest: "/usr/share/polkit-1/rules.d/30-waydroid.rules", mode: "0644" }

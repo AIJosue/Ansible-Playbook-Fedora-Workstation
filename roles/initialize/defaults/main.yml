@@ -1,0 +1,7 @@
+---
+enable_init_appimages_dir: true      # Create ~/AppImages directory
+enable_init_virt_dirs: true          # Create user Platforms/Virtualization and Vagrant directories
+
+vagrant_environments:
+  - ubuntu
+  - yunohost

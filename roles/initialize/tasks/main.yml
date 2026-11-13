@@ -1,0 +1,45 @@
+---
+- name: Set system hostname
+  hostname:
+    name: "{{ hostname }}"
+  ignore_errors: true
+  tags: [init_hostname]
+
+- name: Ensure AppImages directory exists for local user
+  file:
+    path: "{{ target_user_home }}/AppImages"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: '0755'
+  when: enable_init_appimages_dir | bool
+  tags: [init_appimages]
+
+- name: Configure user virtualization and Vagrant directories
+  when: enable_init_virt_dirs | bool
+  block:
+    - name: Ensure user virtualization and Vagrant directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ target_user }}"
+        mode: '0755'
+      loop: "{{ [target_user_home + '/Platforms', target_user_home + '/Platforms/Virtualization', xml_dir, vagrant_dir] + (vagrant_environments | map('regex_replace', '^(.*)$', vagrant_dir + '/\\1') | list) }}"
+      tags: [init_virt, vagrant, libvirt]
+
+    - name: Push VM XML definitions to KVM/QEMU directory
+      copy:
+        src: "{{ item }}"
+        dest: "{{ xml_dir }}/{{ item | basename }}"
+        owner: "{{ target_user }}"
+        mode: '0644'
+      loop: "{{ query('fileglob', playbook_dir + '/files/vms/*.xml') }}"
+      tags: [init_virt, libvirt]
+
+    - name: Push Vagrant environment folders to Vagrant directory
+      copy:
+        src: "{{ item }}"
+        dest: "{{ vagrant_dir }}/{{ item | dirname | basename }}/{{ item | basename }}"
+        owner: "{{ target_user }}"
+        mode: '0644'
+      loop: "{{ query('fileglob', playbook_dir + '/files/vagrant/*/*') }}"
+      tags: [init_virt, vagrant]

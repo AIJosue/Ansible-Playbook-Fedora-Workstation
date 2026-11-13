@@ -119,14 +119,14 @@ Ansible-Playbook-Fedora-Workstation/
 ├── files/
 │   ├── udev/                      # Hardware udev rule definitions (*.rules)
 │   ├── ujust/                     # Bluefin ujust task recipes, bling scripts & configs
+│   ├── vagrant/
+│   │   ├── ubuntu/                # Ubuntu 24.04 LTS desktop libvirt VM
+│   │   └── yunohost/              # Debian 12 YunoHost self-hosting testbed
+│   ├── vms/                       # Libvirt KVM guest XML templates
+│   │   ├── Android.xml
+│   │   ├── Linux.xml
+│   │   └── Windows.xml
 │   └── waydroid/                  # Bazzite Waydroid container scripts, GPU tool & Polkit
-├── VMs/                           # Libvirt KVM guest XML templates
-│   ├── Android.xml
-│   ├── Linux.xml
-│   └── Windows.xml
-├── Vagrant/
-│   ├── ubuntu/                    # Ubuntu 24.04 LTS desktop libvirt VM
-│   └── yunohost/                  # Debian 12 YunoHost self-hosting testbed
 ├── logs/                          # Installation logs directory
 ├── travis.yml                     # Syntax validation CI configuration
 ├── LICENSE                        # Repository license

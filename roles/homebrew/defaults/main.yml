@@ -1,0 +1,5 @@
+---
+homebrew_prefix: "/home/linuxbrew"
+homebrew_bin: "{{ homebrew_prefix }}/.linuxbrew/bin/brew"
+homebrew_path: "{{ homebrew_prefix }}/.linuxbrew/bin"
+homebrew_install_url: "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"

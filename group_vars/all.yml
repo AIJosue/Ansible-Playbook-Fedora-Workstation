@@ -1,0 +1,23 @@
+---
+# Global host, user, and path configuration
+hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # noqa yaml[line-length]
+admin_username: "admin"
+sandbox_username: "sandbox"
+target_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) | default(admin_username, true) }}"
+target_user_home: "{{ '/root' if target_user == 'root' else ('/home/' + target_user) }}"
+xml_dir: "{{ target_user_home }}/Platforms/Virtualization/kvm-qemu"
+vagrant_dir: "{{ target_user_home }}/Platforms/Virtualization/vagrant"
+
+# Top-level role toggles
+enable_repositories: true
+enable_update: true
+enable_packages: true
+enable_flatpaks: true
+enable_snaps: true
+enable_services: true
+enable_udev: true
+enable_waydroid: true
+enable_homebrew: true
+enable_users_groups: true
+enable_ujust: true
+enable_initialize: true

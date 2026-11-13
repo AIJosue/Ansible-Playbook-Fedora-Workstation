@@ -1,0 +1,19 @@
+---
+enable_services_core: true           # Enable base system services and sockets
+enable_services_firewall: true       # Enable firewalld rules and virbr0 trusted bridge
+enable_services_libvirt_vms: false   # Define libvirt KVM/QEMU VMs from XML
+
+services_core_units:
+  - libvirtd
+  - fail2ban
+  - nix-daemon
+  - sshd
+  - switcheroo-control
+  - podman.socket
+  - cockpit.socket
+  - snapd.socket
+
+firewall_allowed_services:
+  - ssh
+  - cockpit
+  - kdeconnect

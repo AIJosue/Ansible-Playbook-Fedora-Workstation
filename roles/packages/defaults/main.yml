@@ -1,0 +1,33 @@
+---
+enable_packages_cleanup: true        # Remove conflicting pre-installed KDE/LibreOffice packages
+enable_packages_dnf_batch: true      # Install full base suite via Scripts/packages.sh
+enable_packages_pinokio: true        # Install latest Pinokio RPM
+enable_packages_unigetui: true       # Install latest UniGetUI RPM
+
+packages_cleanup_list:
+  - 'akregator*'
+  - 'kdepim*'
+  - 'libreoffice*'
+  - dragon
+  - kcalc
+  - kwrite
+  - neochat
+  - okular
+  - toolbox
+  - blender
+
+github_rpm_pinokio:
+  name: Pinokio
+  rpm_name: Pinokio
+  repo: pinokiocomputer/pinokio
+  asset_pattern: 'Pinokio-[^"]*\.x86_64\.rpm'
+  fallback_filename_template: 'Pinokio-${VERSION}.x86_64.rpm'
+  version_regex: 'Pinokio-([0-9A-Za-z.-]+)\.x86_64\.rpm'
+
+github_rpm_unigetui:
+  name: UniGetUI
+  rpm_name: unigetui
+  repo: Devolutions/UniGetUI
+  asset_pattern: 'UniGetUI\.linux-x64\.rpm'
+  fallback_filename_template: 'UniGetUI.linux-x64.rpm'
+  version_regex: 'download/v?([0-9A-Za-z.-]+)/UniGetUI'

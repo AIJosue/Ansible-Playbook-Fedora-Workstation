@@ -1,0 +1,74 @@
+---
+- name: Enable and start system services and sockets
+  systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ services_core_units }}"
+  ignore_errors: true
+  when: enable_services_core | bool
+  tags: [services_core]
+
+- name: Create Docker compatibility symlink for Podman socket
+  file:
+    src: /run/podman/podman.sock
+    dest: /var/run/docker.sock
+    state: link
+    force: true
+  ignore_errors: true
+  when: enable_services_core | bool
+  tags: [services_core]
+
+- name: Ensure libvirt default network is active and autostarted
+  shell: |
+    info=$(virsh -c qemu:///system net-info default 2>/dev/null) || exit 0
+    grep -q 'Autostart:.*no' <<< "$info" && virsh -c qemu:///system net-autostart default && echo CHANGED
+    grep -q 'Active:.*no' <<< "$info" && virsh -c qemu:///system net-start default && echo CHANGED
+    exit 0
+  args:
+    executable: /bin/bash
+  register: libvirt_net_result
+  changed_when: "'CHANGED' in libvirt_net_result.stdout"
+  failed_when: false
+  when: enable_services_core | bool
+  tags: [services_core, libvirt]
+
+- name: Ensure firewalld service is enabled and started
+  systemd:
+    name: firewalld
+    enabled: true
+    state: started
+  ignore_errors: true
+  when: enable_services_firewall | bool
+  tags: [services_firewall]
+
+- name: Configure core workstation services in firewall
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ firewall_allowed_services }}"
+  ignore_errors: true
+  when: enable_services_firewall | bool
+  tags: [services_firewall]
+
+- name: Add libvirt bridge virbr0 to trusted firewall zone
+  ansible.posix.firewalld:
+    zone: trusted
+    interface: virbr0
+    permanent: true
+    immediate: true
+    state: enabled
+  ignore_errors: true
+  when: enable_services_firewall | bool
+  tags: [services_firewall, libvirt]
+
+- name: Define libvirt KVM/QEMU VMs from XML
+  command: "virsh define {{ item }}"
+  loop: "{{ query('fileglob', playbook_dir + '/files/vms/*.xml') }}"
+  register: virsh_define_result
+  changed_when: "'defined' in virsh_define_result.stdout"
+  failed_when: false
+  when: enable_services_libvirt_vms | bool
+  tags: [libvirt_vms, libvirt]

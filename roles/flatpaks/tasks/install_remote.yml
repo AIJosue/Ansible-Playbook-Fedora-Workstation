@@ -1,0 +1,18 @@
+---
+- name: "Install Flatpak packages from {{ remote_cfg.remote }}"
+  block:
+    - name: "Install packages from {{ remote_cfg.remote }} in batch"
+      community.general.flatpak:
+        name: "{{ remote_cfg.pkgs }}"
+        state: present
+        method: system
+        remote: "{{ remote_cfg.remote }}"
+  rescue:
+    - name: "Install packages from {{ remote_cfg.remote }} individually"
+      community.general.flatpak:
+        name: "{{ item }}"
+        state: present
+        method: system
+        remote: "{{ remote_cfg.remote }}"
+      loop: "{{ remote_cfg.pkgs }}"
+      ignore_errors: true

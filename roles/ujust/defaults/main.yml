@@ -1,0 +1,20 @@
+---
+ujust_directories:
+  - /usr/share/ublue-os
+  - /usr/share/ublue-os/just
+  - /usr/share/ublue-os/bling
+  - /usr/share/ublue-os/homebrew
+
+ujust_files:
+  - { src: "ujust", dest: "/usr/bin/ujust", mode: "0755" }
+  - { src: "luks-tpm2-autounlock", dest: "/usr/bin/luks-tpm2-autounlock", mode: "0755" }
+  - { src: "ublue-bling", dest: "/usr/bin/ublue-bling", mode: "0755" }
+  - { src: "bling.sh", dest: "/usr/share/ublue-os/bling/bling.sh", mode: "0644" }
+  - { src: "env.sh", dest: "/usr/share/ublue-os/bling/env.sh", mode: "0644" }
+  - { src: "cli.Brewfile", dest: "/usr/share/ublue-os/homebrew/cli.Brewfile", mode: "0644" }
+  - { src: "00-entry.just", dest: "/usr/share/ublue-os/just/00-entry.just", mode: "0644" }
+  - { src: "apps.just", dest: "/usr/share/ublue-os/just/apps.just", mode: "0644" }
+  - { src: "default.just", dest: "/usr/share/ublue-os/just/default.just", mode: "0644" }
+  - { src: "shared.just", dest: "/usr/share/ublue-os/just/shared.just", mode: "0644" }
+  - { src: "system.just", dest: "/usr/share/ublue-os/just/system.just", mode: "0644" }
+  - { src: "90-bluefin-starship.sh", dest: "/etc/profile.d/90-bluefin-starship.sh", mode: "0644" }

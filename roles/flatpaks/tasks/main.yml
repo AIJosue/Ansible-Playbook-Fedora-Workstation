@@ -1,0 +1,28 @@
+---
+- name: Ensure flatpak is installed
+  package:
+    name: flatpak
+    state: present
+  ignore_errors: true
+  tags: [flatpak_cli]
+
+- name: Configure system-wide Flatpak repositories
+  community.general.flatpak_remote:
+    name: "{{ item.name }}"
+    state: present
+    method: system
+    flatpakrepo_url: "{{ item.url }}"
+  loop: "{{ flatpak_remotes }}"
+  when: not (enable_flatpak_cli_only | bool) and (enable_flatpak_remotes_system | bool)
+  ignore_errors: true
+  tags: [flatpak_remotes]
+
+- name: Install Flatpak applications
+  include_tasks: install_remote.yml
+  loop:
+    - { remote: flathub, pkgs: "{{ flatpak_flathub_packages }}" }
+    - { remote: fedora, pkgs: "{{ flatpak_fedora_packages }}" }
+  loop_control:
+    loop_var: remote_cfg
+  when: not (enable_flatpak_cli_only | bool) and (enable_flatpak_apps | bool)
+  tags: [flatpak_apps]

@@ -1,0 +1,14 @@
+---
+- name: "Install Snap packages ({{ snap_label }})"
+  block:
+    - name: "Install Snap packages in batch ({{ snap_label }})"
+      community.general.snap:
+        classic: "{{ snap_classic | default(false) | bool }}"
+        name: "{{ snap_packages }}"
+  rescue:
+    - name: "Install Snap packages individually ({{ snap_label }})"
+      community.general.snap:
+        classic: "{{ snap_classic | default(false) | bool }}"
+        name: "{{ item }}"
+      loop: "{{ snap_packages }}"
+      ignore_errors: true

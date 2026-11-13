@@ -3,113 +3,16 @@
   hosts: localhost
   connection: local
   become: true
-  vars:
-    # --- Host & User Configuration ---
-    hostname: "{{ 'desktop-' + (['adam', 'boy', 'charles', 'david', 'edward', 'frank', 'george', 'henry', 'ida', 'john', 'king', 'lincoln', 'mary', 'nora', 'ocean', 'paul', 'queen', 'robert', 'sam', 'tom', 'union', 'victor', 'william', 'xray', 'young', 'zebra'] | random) }}" # noqa yaml[line-length]
-    admin_username: "admin" # Primary/Secondary admin username
-    sandbox_username: "sandbox" # Second standard/sandbox username
-    target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id, true) | default(ansible_env.USER | default('admin', true), true) }}"
-    target_user_home: "{{ ('/home/' + target_user) if (target_user is defined and target_user != 'root') else (ansible_env.HOME | default('/root', true)) }}"
-    xml_dir: "{{ target_user_home }}/Platforms/Virtualization/kvm-qemu"
-    vagrant_dir: "{{ target_user_home }}/Platforms/Virtualization/vagrant"
-
-    # --- Sub-Task Toggles (Enable/Disable YAML sections) ---
-    enable_repositories: true
-    enable_update: true
-    enable_packages: true
-    enable_packages_cleanup: true        # Remove conflicting pre-installed KDE/LibreOffice packages
-    enable_packages_dnf_batch: true      # Install full base suite via Packages.sh script
-    enable_packages_pinokio: true        # Install latest Pinokio RPM
-    enable_packages_unigetui: true       # Install latest UniGetUI RPM
-    enable_flatpaks: true
-    enable_flatpak_cli_only: false       # When true, only installs the flatpak binary/package manager without apps/remotes
-    enable_flatpak_remotes_system: true  # Toggle system-wide Flathub & Fedora Flatpak remote setup
-    enable_flatpak_apps: true            # Toggle installing the full list of Flathub and Fedora Flatpak applications
-    enable_snaps: true
-    enable_snap_classic: true            # Install classic confinement snap packages
-    enable_snap_apps: true               # Install standard snap applications
-    enable_services: true
-    enable_services_core: true           # Enable base system services and sockets
-    enable_services_firewall: true       # Enable firewalld rules and virbr0 trusted bridge
-    enable_services_libvirt_vms: false    # Define libvirt KVM/QEMU VMs from XML
-    enable_udev: true
-    enable_waydroid: true
-    enable_waydroid_scripts: true        # Install Waydroid container control scripts and polkit policies
-    enable_homebrew: true
-    enable_users_groups: true
-    enable_users_desktop_launcher: true  # Copy launcher script to user Desktops
-    enable_ujust: true
-    enable_initialize: true
-    enable_init_appimages_dir: true      # Create ~/AppImages directory
-    enable_init_virt_dirs: true          # Create user Platforms/Virtualization and Vagrant directories
-
-    # --- Waydroid Preferences ---
-    waydroid_multi_windows: true      # Enable freeform multi-window mode (persist.waydroid.multi_windows)
-    waydroid_system_type: "GAPPS"     # Android image flavor: "GAPPS" or "VANILLA"
-    waydroid_init_images: false       # Set true to automatically pull official LineageOS Android images during playbook run
-    waydroid_install_libndk: false    # Set true to automatically run libndk ARM translation installer
-
-  handlers:
-    - name: Import playbook handlers
-      ansible.builtin.import_tasks: handlers/main.yml
-
-  tasks:
-    - name: Configure repositories
-      ansible.builtin.import_tasks: tasks/repositories.yml
-      when: enable_repositories | default(true) | bool
-      tags: [repositories, repos]
-
-    - name: Update system
-      ansible.builtin.import_tasks: tasks/update.yml
-      when: enable_update | default(true) | bool
-      tags: [update]
-
-    - name: Install packages
-      ansible.builtin.import_tasks: tasks/packages.yml
-      when: enable_packages | default(true) | bool
-      tags: [packages]
-
-    - name: Install flatpaks
-      ansible.builtin.import_tasks: tasks/flatpaks.yml
-      when: enable_flatpaks | default(true) | bool
-      tags: [flatpaks]
-
-    - name: Install snaps
-      ansible.builtin.import_tasks: tasks/snaps.yml
-      when: enable_snaps | default(true) | bool
-      tags: [snaps]
-
-    - name: Enable system services
-      ansible.builtin.import_tasks: tasks/services.yml
-      when: enable_services | default(true) | bool
-      tags: [services]
-
-    - name: Configure gamepad, joystick, and VR udev rules
-      ansible.builtin.import_tasks: tasks/udev.yml
-      when: enable_udev | default(true) | bool
-      tags: [udev]
-
-    - name: Configure Waydroid integration and container controls
-      ansible.builtin.import_tasks: tasks/waydroid.yml
-      when: enable_waydroid | default(true) | bool
-      tags: [waydroid]
-
-    - name: Install and configure Homebrew
-      ansible.builtin.import_tasks: tasks/homebrew.yml
-      when: enable_homebrew | default(true) | bool
-      tags: [homebrew, brew]
-
-    - name: Configure users and groups
-      ansible.builtin.import_tasks: tasks/users-groups.yml
-      when: enable_users_groups | default(true) | bool
-      tags: [users, users_groups]
-
-    - name: Configure ujust and Bluefin components
-      ansible.builtin.import_tasks: tasks/ujust.yml
-      when: enable_ujust | default(true) | bool
-      tags: [ujust]
-
-    - name: Initialize system
-      ansible.builtin.import_tasks: tasks/initialize.yml
-      when: enable_initialize | default(true) | bool
-      tags: [initialize, init]
+  roles:
+    - { role: repositories, when: enable_repositories | bool, tags: [repositories, repos] }
+    - { role: update, when: enable_update | bool, tags: [update] }
+    - { role: packages, when: enable_packages | bool, tags: [packages] }
+    - { role: flatpaks, when: enable_flatpaks | bool, tags: [flatpaks] }
+    - { role: snaps, when: enable_snaps | bool, tags: [snaps] }
+    - { role: services, when: enable_services | bool, tags: [services] }
+    - { role: udev, when: enable_udev | bool, tags: [udev] }
+    - { role: waydroid, when: enable_waydroid | bool, tags: [waydroid] }
+    - { role: homebrew, when: enable_homebrew | bool, tags: [homebrew, brew] }
+    - { role: users_groups, when: enable_users_groups | bool, tags: [users, users_groups] }
+    - { role: ujust, when: enable_ujust | bool, tags: [ujust] }
+    - { role: initialize, when: enable_initialize | bool, tags: [initialize, init] }

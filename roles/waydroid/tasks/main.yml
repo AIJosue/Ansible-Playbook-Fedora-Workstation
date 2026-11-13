@@ -1,0 +1,39 @@
+---
+- name: Install Waydroid helper scripts and Polkit configuration
+  when: enable_waydroid_scripts | bool
+  tags: [waydroid_scripts]
+  block:
+    - name: Ensure /usr/libexec directory exists
+      file:
+        path: /usr/libexec
+        state: directory
+        mode: '0755'
+
+    - name: Install Waydroid scripts, defaults, and Polkit files
+      copy:
+        src: "{{ playbook_dir }}/files/waydroid/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop: "{{ waydroid_files }}"
+
+- name: Set Waydroid multi-window property
+  command: "waydroid prop set persist.waydroid.multi_windows {{ 'true' if (waydroid_multi_windows | bool) else 'false' }}"
+  changed_when: false
+  failed_when: false
+  tags: [waydroid_scripts]
+
+- name: Initialize Waydroid images if requested and not initialized
+  command:
+    cmd: "waydroid init -s {{ waydroid_system_type }} -c https://ota.waydro.id/system -v https://ota.waydro.id/vendor"
+    creates: /var/lib/waydroid/images/system.img
+  when: waydroid_init_images | bool
+  failed_when: false
+  tags: [waydroid_init]
+
+- name: Install libndk ARM translation if requested
+  shell: "[ -x '{{ playbook_dir }}/Scripts/install-libndk.sh' ] && '{{ playbook_dir }}/Scripts/install-libndk.sh' install"
+  when: waydroid_install_libndk | bool
+  failed_when: false
+  tags: [waydroid_libndk]

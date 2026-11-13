@@ -1,0 +1,11 @@
+---
+enable_users_desktop_launcher: true
+
+system_groups: [wheel, libvirt, lxd, nordvpn, render, video]
+
+system_users:
+  - { name: "{{ target_user }}", groups: 'wheel,libvirt,lxd,nordvpn,render,video' }
+  - { name: "{{ admin_username | default('admin') }}", groups: 'wheel,libvirt,nordvpn,render,video' }
+  - { name: "{{ sandbox_username | default('sandbox') }}", groups: 'libvirt,render,video' }
+
+desktop_users: "{{ [sandbox_username | default('sandbox'), admin_username | default('admin'), target_user] | select('string') | reject('equalto', '') | reject('equalto', 'root') | unique | list }}"

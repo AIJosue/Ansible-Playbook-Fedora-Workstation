@@ -1,0 +1,27 @@
+---
+yum_repositories:
+  - name: google-chrome
+    description: google-chrome
+    baseurl: https://dl.google.com/linux/chrome/rpm/stable/x86_64
+    gpgkey: https://dl.google.com/linux/linux_signing_key.pub
+  - name: microsoft-edge
+    description: microsoft-edge
+    baseurl: https://packages.microsoft.com/yumrepos/edge
+    gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+  - name: ms-teams-yum
+    description: ms-teams-yum
+    baseurl: https://packages.microsoft.com/yumrepos/ms-teams/
+    gpgkey: https://packages.microsoft.com/yumrepos/ms-teams/repodata/repomd.xml.key
+  - name: protonvpn-fedora-stable
+    description: ProtonVPN Fedora Stable repository
+    baseurl: https://repo.protonvpn.com/fedora-$releasever-stable
+    gpgkey: https://repo.protonvpn.com/fedora-$releasever-stable/public_key.asc
+  - name: vscode-yum
+    description: vscode-yum
+    baseurl: https://packages.microsoft.com/yumrepos/vscode/
+    gpgkey: https://packages.microsoft.com/yumrepos/vscode/repodata/repomd.xml.key
+  - name: zoom-release
+    description: zoom (release)
+    baseurl: https://repo.zoom.us/repo/rpm/release/
+    gpgkey: https://zoom.us/linux/download/pubkey
+    repo_gpgcheck: true

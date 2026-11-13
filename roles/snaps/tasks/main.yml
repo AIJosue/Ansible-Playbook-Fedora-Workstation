@@ -1,0 +1,38 @@
+---
+- name: Ensure snapd.socket is enabled and started
+  systemd:
+    name: snapd.socket
+    enabled: true
+    state: started
+  ignore_errors: true
+  tags: [snapd]
+
+- name: Ensure snap directory and symlink exist
+  file:
+    path: "{{ item.path }}"
+    src: "{{ item.src | default(omit) }}"
+    state: "{{ item.state }}"
+    mode: "{{ item.mode | default(omit) }}"
+  loop:
+    - { path: /var/lib/snapd/snap, state: directory, mode: '0755' }
+    - { path: /snap, src: /var/lib/snapd/snap, state: link }
+  ignore_errors: true
+  tags: [snapd]
+
+- name: Wait for snapd system seed to be loaded
+  command: snap wait system seed.loaded
+  failed_when: false
+  changed_when: false
+  tags: [snapd]
+
+- name: Install Snap packages (Standard)
+  include_tasks: install_batch.yml
+  vars: { snap_label: Standard, snap_classic: false, snap_packages: "{{ snap_packages_standard }}" }
+  when: enable_snap_apps | bool
+  tags: [snap_apps]
+
+- name: Install Snap packages (--classic)
+  include_tasks: install_batch.yml
+  vars: { snap_label: "--classic", snap_classic: true, snap_packages: "{{ snap_packages_classic }}" }
+  when: enable_snap_classic | bool
+  tags: [snap_classic]

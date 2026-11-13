@@ -1,0 +1,29 @@
+---
+- name: Remove conflicting pre-installed packages
+  dnf:
+    name: "{{ packages_cleanup_list }}"
+    state: absent
+    autoremove: true
+  failed_when: false
+  when: enable_packages_cleanup | bool
+  tags: [packages_cleanup]
+
+- name: Install packages script
+  script: "{{ playbook_dir }}/Scripts/packages.sh"
+  failed_when: false
+  when: enable_packages_dnf_batch | bool
+  tags: [packages_dnf]
+
+- name: Install or update Pinokio RPM from GitHub
+  include_tasks: github_rpm.yml
+  vars:
+    rpm_pkg: "{{ github_rpm_pinokio }}"
+  when: enable_packages_pinokio | bool
+  tags: [pinokio]
+
+- name: Install or update UniGetUI RPM from GitHub
+  include_tasks: github_rpm.yml
+  vars:
+    rpm_pkg: "{{ github_rpm_unigetui }}"
+  when: enable_packages_unigetui | bool
+  tags: [unigetui]

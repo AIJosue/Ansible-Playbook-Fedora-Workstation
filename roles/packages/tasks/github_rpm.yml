@@ -1,0 +1,55 @@
+---
+- name: "Fetch latest {{ rpm_pkg.name }} release metadata from GitHub API"
+  uri:
+    url: "https://api.github.com/repos/{{ rpm_pkg.repo }}/releases/latest"
+    return_content: true
+    timeout: 10
+    headers:
+      Accept: application/vnd.github+json
+  register: github_rpm_api_result
+  failed_when: false
+
+- name: "Resolve {{ rpm_pkg.name }} RPM URL from GitHub API"
+  set_fact:
+    github_rpm_api_urls: >-
+      {{ (github_rpm_api_result.json.assets | default([]))
+         | selectattr('name', 'search', rpm_pkg.asset_pattern)
+         | map(attribute='browser_download_url') | list }}
+
+- name: "Fallback: resolve latest {{ rpm_pkg.name }} tag via GitHub redirect"
+  uri:
+    url: "https://github.com/{{ rpm_pkg.repo }}/releases/latest"
+    method: HEAD
+    follow_redirects: none
+    status_code: [301, 302]
+    timeout: 10
+  register: github_rpm_redirect_result
+  failed_when: false
+  when: github_rpm_api_urls | length == 0
+
+- name: "Check currently installed {{ rpm_pkg.name }} version"
+  command: "rpm -q --queryformat '%{VERSION}' {{ rpm_pkg.rpm_name }}"
+  register: github_rpm_installed_check
+  failed_when: false
+  changed_when: false
+
+- name: "Compute {{ rpm_pkg.name }} download URL and version"
+  set_fact:
+    github_rpm_latest_url: "{{ url }}"
+    github_rpm_latest_version: "{{ (url | regex_search(rpm_pkg.version_regex, '\\1') | default([''], true))[0] | default('') }}"
+  vars:
+    fb_tag: "{{ (github_rpm_redirect_result.location | default('') | regex_search('/tag/([^/\\r\\n]+)', '\\1') | default([''], true))[0] | default('') }}"
+    url: >-
+      {{ github_rpm_api_urls[0] if (github_rpm_api_urls | length > 0)
+         else ('https://github.com/' ~ rpm_pkg.repo ~ '/releases/download/' ~ fb_tag ~ '/' ~ (rpm_pkg.fallback_filename_template | replace('${VERSION}', fb_tag | regex_replace('^v', '')))
+               if (fb_tag | length > 0) else '') }}
+
+- name: "Install or update latest {{ rpm_pkg.name }} RPM"
+  dnf:
+    name: "{{ github_rpm_latest_url }}"
+    state: present
+    disable_gpg_check: true
+  failed_when: false
+  when:
+    - github_rpm_latest_url | length > 0
+    - github_rpm_installed_check.rc != 0 or (github_rpm_installed_check.stdout | default('')) != github_rpm_latest_version
