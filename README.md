@@ -197,7 +197,25 @@ Access the HIG-styled interactive utility anytime:
 > [!TIP]
 > Run `./launcher.sh --help` to list all direct non-interactive CLI flags (e.g. `--playbook`, `--ujust`, `--virt-builder`, `--waydroid`, `--libvirt-net`, `--appimages`, `--devpod`, `--dory`, `--prism`, `--localai`, `--updatetool`).
 
-### 5. AppImage Hub & Local AI Engines
+### 5. Customizing `launcher.sh`
+All user-configurable paths, URLs, container names, ports, and defaults are grouped in the **User Configuration** block at the top of `launcher.sh` using `${VAR:-default}` syntax. You can either edit them directly in `launcher.sh` or override any setting per run via environment variables:
+
+```bash
+APPIMAGES_DIR=/opt/AppImages CUSTOM_SCRIPTS_DIR=~/scripts ./launcher.sh
+```
+
+| Category | Key Variables | Default |
+| :--- | :--- | :--- |
+| **Repository & Playbook** | `BOOTSTRAP_REPO_URL`, `BOOTSTRAP_TARGET_DIR`, `LEGACY_REPO_DIR`, `DESKTOP_LAUNCHER`, `PLAYBOOK_FILE` | `~/Code/Terminal/Ansible-Playbook-Fedora-Workstation`, `local.yml` |
+| **UI & Theme** | `HIG_APPEARANCE` (`dark`\|`light`), `HIG_CONTRAST` (`standard`\|`high`) | `dark`, `standard` |
+| **User Directories & Binaries** | `LOCAL_BIN_DIR`, `CACHE_BASE_DIR`, `DOWNLOADS_DIR`, `APPIMAGES_DIR`, `CUSTOM_SCRIPTS_DIR`, `BENCHMARKS_DIR`, `SSH_DIR` | `~/.local/bin`, `~/Downloads`, `~/AppImages`, `~/Code/Terminal/scripts` |
+| **Package Managers & CLI** | `HOMEBREW_BIN`, `HOMEBREW_INSTALL_URL`, `PIXI_DIR`, `PIXI_BIN`, `PIXI_INSTALL_URL`, `STARSHIP_INSTALL_URL`, `UJUST_BIN`, `UBLUE_BLING_BIN` | `/home/linuxbrew/.linuxbrew/bin/brew`, `~/.pixi/bin/pixi`, `/usr/bin/ujust` |
+| **AI / LLM & OpenClaw** | `KOBOLDCPP_BIN`, `KOBOLDCPP_PROMPTS_DIR`, `LLAMA_PRISM_DIR`, `LLAMA_DORY_DIR`, `LLAMA_DORY_REPO_URL`, `LLAMA_DORY_BRANCH`, `LLAMA_DORY_DEFAULT_MODEL`, `LLAMA_DORY_HOST`, `LLAMA_DORY_PORT`, `LOCALAI_DIR`, `OPENCLAW_BIN_DIR`, `OPENCLAW_INSTALL_URL`, `OPENCLAW_DEB_FALLBACK` | `~/AppImages/*`, `192.168.12.116:5001`, `~/.openclaw/bin` |
+| **Distrobox & Flatpak** | `DISTROBOX_CONTAINER`, `DISTROBOX_IMAGE`, `FLATHUB_REMOTE_URL`, `FEDORA_FLATPAK_URI` | `ubuntu-toolbox`, `quay.io/toolbx/ubuntu-toolbox:latest` |
+| **PipeWire & Waydroid** | `PIPEWIRE_DEFAULT_IP`, `PIPEWIRE_DEFAULT_PORT`, `WAYDROID_SYSTEM_OTA`, `WAYDROID_VENDOR_OTA`, `WAYDROID_IMAGES_DIR`, `WAYDROID_DATA_DIR`, `WAYDROID_CACHE_DIR` | `127.0.0.1:4713`, `/var/lib/waydroid/images`, `~/.local/share/waydroid` |
+| **Virtualization & System** | `KVM_XML_DIR`, `VAGRANT_BASE_DIR`, `LIBVIRT_IMAGES_DIR`, `LIBVIRT_DEFAULT_DISK_SIZE`, `LIBVIRT_DEFAULT_PORT_RANGE`, `UDEV_RULES_DEST` | `~/Platforms/Virtualization/*`, `/var/lib/libvirt/images`, `20G`, `49152-65535`, `/etc/udev/rules.d` |
+
+### 6. AppImage Hub & Local AI Engines
 The AppImage Hub menu (`./launcher.sh --appimages`) provisions and manages standalone AppImages and local AI inference suites in `~/AppImages`:
 * **Development & Tools**: DevPod (`~/.local/bin/devpod`), AppImageUpdate tool, Bionic, Darktable, Eden, Jan, LMMS, MuseScore Studio, QtScrcpy, Unsloth.
 * **Local Inference Engines**:
