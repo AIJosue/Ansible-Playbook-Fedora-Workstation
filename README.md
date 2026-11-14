@@ -2,11 +2,11 @@
 
 # Fedora Workstation Post-Install Suite
 
-[![License](https://img.shields.io/github/license/AIJosue/Ansible-Playbook-Fedora-Workstation?style=flat-square&color=8E8E93)](LICENSE)
-[![Build Status](https://img.shields.io/badge/Build-Passing-34C759?style=flat-square)](#)
-[![Powered by](https://img.shields.io/badge/Powered%20by-Ansible-007AFF?style=flat-square)](#)
-[![Platform](https://img.shields.io/badge/Fedora-Workstation-5856D6?style=flat-square)](#)
-[![Interface](https://img.shields.io/badge/UI-Apple%20HIG-5AC8FA?style=flat-square)](#)
+[![License](https://img.shields.io/github/license/AIJosue/Ansible-Playbook-Fedora-Workstation?style=flat-square&labelColor=1C1C1E&color=8E8E93)](LICENSE)
+[![Build Status](https://img.shields.io/badge/Build-Passing-34C759?style=flat-square&labelColor=1C1C1E)](#)
+[![Powered by](https://img.shields.io/badge/Powered%20by-Ansible-007AFF?style=flat-square&labelColor=1C1C1E)](#)
+[![Platform](https://img.shields.io/badge/Fedora-Workstation-5856D6?style=flat-square&labelColor=1C1C1E)](#)
+[![Interface](https://img.shields.io/badge/UI-Apple%20HIG-5AC8FA?style=flat-square&labelColor=1C1C1E)](#)
 
 **Turn a fresh Fedora install into a complete, ready-to-use workstation in minutes — no manual tweaking required.**
 
@@ -27,6 +27,7 @@ Instead of spending hours hunting down installers, tweaking system settings, or 
 The diagram below shows how the suite separates behind-the-scenes system setup from your everyday Control Center:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#007AFF', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#0A84FF', 'secondaryColor': '#5856D6', 'secondaryTextColor': '#FFFFFF', 'tertiaryColor': '#34C759', 'tertiaryTextColor': '#FFFFFF', 'lineColor': '#8E8E93', 'background': '#1C1C1E', 'mainBkg': '#2C2C2E', 'nodeBkg': '#2C2C2E', 'nodeTextColor': '#F2F2F7'}}}%%
 mindmap
   root((Fedora Workstation Suite))
     Automated Setup
@@ -129,6 +130,7 @@ Ansible-Playbook-Fedora-Workstation/
 This timeline shows how updates are tested and delivered safely:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#007AFF', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#0A84FF', 'secondaryColor': '#5856D6', 'tertiaryColor': '#34C759', 'taskBkgColor': '#007AFF', 'taskTextColor': '#FFFFFF', 'activeTaskBkgColor': '#5856D6', 'activeTaskBorderColor': '#5E5CE6', 'doneTaskBkgColor': '#34C759', 'doneTaskBorderColor': '#30D158', 'gridColor': '#48484A', 'sectionBkgColor': '#2C2C2E', 'altSectionBkgColor': '#1C1C1E', 'titleColor': '#F2F2F7', 'textColor': '#F2F2F7'}}}%%
 gantt
     title Update to Release Pipeline
     dateFormat  YYYY-MM-DD
